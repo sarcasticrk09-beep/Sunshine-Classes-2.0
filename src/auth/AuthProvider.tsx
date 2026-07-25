@@ -563,8 +563,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    */
   const logout = async (): Promise<void> => {
     try {
-      const token = localStorage.getItem('sunshine_token') || sessionStorage.getItem('sunshine_token');
-      await fetch('/api/auth/logout', {
+      const token = localStorage.getItem('sunshine_token') || sessionStorage.getItem('sunshine_token') || localStorage.getItem('sunshine_access_token');
+      
+      // Fire-and-forget server logout fetch so we don't block UI logout if server is slow or offline
+      fetch('/api/auth/logout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -574,16 +576,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }).catch(() => {});
 
       if (currentUser) {
-        await writeAuditLog(currentUser.id, currentUser.username, 'USER_LOGOUT', `User ${currentUser.username} logged out.`);
+        writeAuditLog(currentUser.id, currentUser.username, 'USER_LOGOUT', `User ${currentUser.username} logged out.`).catch(() => {});
       }
     } catch (err) {
       console.warn("Error logging out user audit:", err);
     }
 
+    // IMMEDIATELY and unconditionally wipe all credentials and session state
     sessionStorage.removeItem('sunshine_active_session');
     localStorage.removeItem('sunshine_active_session');
     sessionStorage.removeItem('sunshine_token');
     localStorage.removeItem('sunshine_token');
+    sessionStorage.removeItem('sunshine_access_token');
+    localStorage.removeItem('sunshine_access_token');
     localStorage.removeItem('sunshine_refresh_token');
 
     setCurrentUser(null);

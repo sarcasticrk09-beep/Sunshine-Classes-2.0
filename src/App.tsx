@@ -39,12 +39,14 @@ import {
   BatchBulletinPost,
   DepartedStudent,
   UPIPayment,
-  ClassFeeConfig
+  ClassFeeConfig,
+  ClassEntity
 } from './types';
 
 import {
   SEED_COURSES,
   SEED_BATCHES,
+  SEED_CLASSES,
   SEED_TEACHERS,
   SEED_STUDENTS,
   SEED_USERS,
@@ -91,11 +93,14 @@ import SunshineLogo from './components/SunshineLogo';
 import { useAuth } from './auth/useAuth';
 import { Login } from './pages/Login';
 import { ForcePasswordChange } from './components/ForcePasswordChange';
+import { UserProfileSecurityModal } from './components/UserProfileSecurityModal';
 import { MailSimulatorWidget } from './components/MailSimulatorWidget';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { FeesPage } from './pages/FeesPage';
 import { ReceiptVerificationPage } from './pages/ReceiptVerificationPage';
 import PublicStudyMaterialPage from './pages/PublicStudyMaterialPage';
+import { PublicStorePage } from './pages/PublicStorePage';
+import { PublicProductDetailsPage } from './pages/PublicProductDetailsPage';
 import { SEOHead, trackAdmissionSubmit } from './components/SEOHead';
 
 import { db } from './lib/firebase';
@@ -109,7 +114,7 @@ import {
   useUsersListener,
   useFirestoreConnectionWatchdog,
 } from './hooks/useCollectionListener';
-import { initializeAndSeedFirestore } from './services/initDbService';
+import { initializeAndSeedFirestore, forceResetDatabase } from './services/initDbService';
 
 import { LogIn, Shield, Users, BookOpen, UserCheck, Key, LogOut, X, Sun, Moon, Eye, EyeOff, Cloud, CloudOff, RefreshCw, Bell, BellRing, Check, CheckCheck, AlertCircle, Mail, MessageSquare, Crown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -297,6 +302,7 @@ export default function App() {
 
   // Authentication & View states
   const { currentUser, login, logout } = useAuth();
+  const [showUserProfileModal, setShowUserProfileModal] = useState(false);
 
   // Redirect if logged in and trying to access auth pages
   useEffect(() => {
@@ -542,7 +548,8 @@ export default function App() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => getOrSeedLocal('audit_logs', SEED_AUDIT_LOGS));
   const [departedStudents, setDepartedStudents] = useState<DepartedStudent[]>(() => getOrSeedLocal('departed_students', []));
 
-  // Subscription-Based Billing States
+  // Class-Centric Management & Subscription Billing States
+  const [classes, setClasses] = useState<ClassEntity[]>(() => getOrSeedLocal('classes', SEED_CLASSES));
   const [batches, setBatches] = useState<Batch[]>(() => getOrSeedLocal('batches', SEED_BATCHES));
   const [subscriptions, setSubscriptions] = useState<StudentSubscription[]>(() => getOrSeedLocal('student_subscriptions', SEED_STUDENT_SUBSCRIPTIONS));
   const [subPayments, setSubPayments] = useState<SubscriptionPayment[]>(() => getOrSeedLocal('payments', SEED_SUBSCRIPTION_PAYMENTS));
@@ -747,6 +754,18 @@ export default function App() {
   useEffect(() => {
     const loadStateAndData = async () => {
       try {
+        // Trigger one-time force reset of database to purge fake students & setup 6 real accounts
+        const resetDone = localStorage.getItem('sunshine_v2_db_reset_done_v5');
+        if (resetDone !== 'true') {
+          console.log('[Firestore] Running initial clean database reset...');
+          try {
+            await forceResetDatabase();
+            localStorage.setItem('sunshine_v2_db_reset_done_v5', 'true');
+          } catch (resetErr) {
+            console.error('[Firestore] Failed database reset:', resetErr);
+          }
+        }
+
         // Trigger normalized database seeding check
         initializeAndSeedFirestore().catch(err => {
           console.warn('[Firestore Init] Non-blocking initial seeding check:', err);
@@ -2971,6 +2990,46 @@ Sunshine Classes`;
     syncState('timetable', updatedTimetable);
   };
 
+  const handleUpdateClasses = (updatedClasses: ClassEntity[]) => {
+    setClasses(updatedClasses);
+    syncState('classes', updatedClasses);
+
+    // Derive batch records for backward compatibility
+    const derivedBatches: Batch[] = [];
+    updatedClasses.forEach(c => {
+      c.timings.forEach(t => {
+        derivedBatches.push({
+          id: t.id || `b-${c.id}-${t.label.toLowerCase()}`,
+          name: `${c.name} - ${t.label}`,
+          time: t.timeRange,
+          class: c.name,
+          teacherName: t.teachers[0] || c.assignedTeachers?.[0] || 'Priyanshu Gupta',
+          monthlyFee: t.feeOverride ?? c.defaultMonthlyFee,
+          startDate: '2026-06-01',
+          billingCycle: 'Monthly',
+          nextDueDate: '2026-07-01',
+          status: t.status === 'INACTIVE' ? 'EXPIRED' : 'ACTIVE',
+          capacity: t.capacity
+        });
+      });
+    });
+
+    setBatches(derivedBatches);
+    syncState('batches', derivedBatches);
+
+    const newLog: AuditLog = {
+      id: `log-${Date.now()}`,
+      userId: currentUser?.id || 'admin',
+      username: currentUser?.username || 'admin',
+      action: 'UPDATE_BATCHES',
+      details: `Refactored Class Architecture: ${updatedClasses.length} active classes and ${derivedBatches.length} timing slots updated.`,
+      timestamp: new Date().toISOString()
+    };
+    const updatedAudits = [newLog, ...auditLogs];
+    setAuditLogs(updatedAudits);
+    syncState('audit_logs', updatedAudits);
+  };
+
   const handleUpdateBatches = (updatedBatches: Batch[]) => {
     setBatches(updatedBatches);
     syncState('batches', updatedBatches);
@@ -3503,16 +3562,11 @@ Sunshine Classes`;
             </button>
 
             <button
-              id="btn-erp-change-password-trigger"
-              onClick={() => {
-                setChangePasswordCurrent('');
-                setChangePasswordNew('');
-                setChangePasswordConfirm('');
-                setShowChangePasswordModal(true);
-              }}
-              className="flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-300 hover:text-brand-orange bg-slate-50 dark:bg-slate-800 hover:bg-amber-50 border border-slate-150 dark:border-slate-700 rounded-xl px-3 py-1.5 transition-all cursor-pointer font-display"
+              id="btn-erp-profile-security-trigger"
+              onClick={() => setShowUserProfileModal(true)}
+              className="flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-300 hover:text-indigo-600 bg-slate-50 dark:bg-slate-800 hover:bg-indigo-50 border border-slate-150 dark:border-slate-700 rounded-xl px-3 py-1.5 transition-all cursor-pointer font-display"
             >
-              <Key size={13} /> Change Password
+              <Key size={13} /> My Profile & Security
             </button>
 
             <button
@@ -3648,6 +3702,16 @@ Sunshine Classes`;
           {/* Public Study Material CMS Portal */}
           <Route path="/study-material" element={<PublicStudyMaterialPage />} />
           <Route path="/study-material/*" element={<PublicStudyMaterialPage />} />
+
+          {/* Sunshine Store Public Routes */}
+          <Route path="/store" element={<PublicStorePage />} />
+          <Route path="/books" element={<PublicStorePage initialType="Book" />} />
+          <Route path="/resources" element={<PublicStorePage initialType="Resource" />} />
+          <Route path="/store/:slug" element={<PublicProductDetailsPage />} />
+          <Route path="/books/:slug" element={<PublicProductDetailsPage expectedType="Book" />} />
+          <Route path="/book/:slug" element={<PublicProductDetailsPage expectedType="Book" />} />
+          <Route path="/resource/:slug" element={<PublicProductDetailsPage expectedType="Resource" />} />
+          <Route path="/product/:slug" element={<PublicProductDetailsPage />} />
 
           {/* Authentication Pages */}
           <Route path="/login" element={<Login onBackToWebsite={() => navigate('/')} />} />
@@ -3792,6 +3856,8 @@ Sunshine Classes`;
                     users={users}
                     onUpdateUsers={(updatedUsers) => handleHealState('users', updatedUsers)}
                     courses={SEED_COURSES}
+                    classes={classes}
+                    onUpdateClasses={handleUpdateClasses}
                     batches={batches}
                     onUpdateBatches={handleUpdateBatches}
                     toppers={toppers}
@@ -4057,6 +4123,13 @@ Sunshine Classes`;
           </div>
         </div>
       )}
+      <UserProfileSecurityModal
+        isOpen={showUserProfileModal}
+        onClose={() => setShowUserProfileModal(false)}
+        onUserUpdated={(updatedUser) => {
+          handleHealState('users', users.map(u => u.id === updatedUser.id ? updatedUser : u));
+        }}
+      />
       <MailSimulatorWidget />
     </div>
     </>

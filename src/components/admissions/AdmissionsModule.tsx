@@ -319,6 +319,50 @@ export default function AdmissionsModule() {
     }
   };
 
+  // Approve Pending Admission
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+
+  const handleApprovePending = async (adm: AdmissionRecord) => {
+    if (!canEdit) return;
+    setApprovingId(adm.id);
+    try {
+      const res = await fetch('/api/admin/approve-enrollment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ admissionId: adm.id })
+      });
+
+      const data = await res.json();
+      if (!res.ok || (data.status !== 'success' && !data.admission)) {
+        alert(data.message || 'Failed to approve admission');
+        return;
+      }
+
+      if (showDetailModal?.id === adm.id) {
+        setShowDetailModal(null);
+      }
+
+      if (data.student || data.user) {
+        setCredentialsModal({
+          studentName: data.student?.name || adm.studentName,
+          rollNo: data.student?.rollNo || data.student?.id || adm.rollNo || adm.id,
+          username: data.user?.username || data.username || '',
+          temporaryPassword: data.user?.temporaryPassword || data.defaultPass || 'Sunshine@2026',
+          className: data.student?.class || adm.className,
+          initialFee: data.feeRecords?.[0]?.totalFee || adm.monthlyFee || 500
+        });
+      }
+
+      fetchAdmissions();
+    } catch (err: any) {
+      console.error('[AdmissionsModule] Approve error:', err);
+      alert('Error approving application: ' + (err.message || 'Server connection failed'));
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
   // Copy Credentials Helper
   const copyCredentialsToClipboard = () => {
     if (!credentialsModal) return;
@@ -503,6 +547,20 @@ Please change your password upon your first login at https://sunshineclasses.net
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {/* Approve Pending */}
+                          {canEdit && adm.status === 'PENDING' && (
+                            <button
+                              id={`btn-approve-admission-${adm.id}`}
+                              disabled={approvingId === adm.id}
+                              onClick={() => handleApprovePending(adm)}
+                              title="Approve Application & Create Student"
+                              className="px-2.5 py-1 text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              {approvingId === adm.id ? 'Enrolling...' : 'Approve'}
+                            </button>
+                          )}
+
                           {/* View Details */}
                           <button
                             id={`btn-view-admission-${adm.id}`}
@@ -662,12 +720,41 @@ Please change your password upon your first login at https://sunshineclasses.net
                     required
                     name="className"
                     value={formData.className}
-                    onChange={handleInputChange}
+                    onChange={(e) => {
+                      const selectedCls = e.target.value;
+                      handleInputChange(e);
+                      // Update preferredBatch and preferredTiming
+                      setFormData(prev => ({
+                        ...prev,
+                        className: selectedCls,
+                        preferredBatch: `${selectedCls} Standard Batch`,
+                        preferredTiming: '07:00 AM – 09:00 AM'
+                      }));
+                    }}
                     className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
                   >
                     {CLASS_OPTIONS.map(c => (
                       <option key={c} value={c}>{c}</option>
                     ))}
+                  </select>
+                </div>
+
+                {/* Available Timing Slot */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Timing Slot <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    required
+                    name="preferredTiming"
+                    value={formData.preferredTiming}
+                    onChange={handleInputChange}
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
+                  >
+                    <option value="07:00 AM – 09:00 AM">Morning Slot (07:00 AM – 09:00 AM)</option>
+                    <option value="02:00 PM – 04:00 PM">Afternoon Slot (02:00 PM – 04:00 PM)</option>
+                    <option value="04:00 PM – 06:00 PM">Evening Slot (04:00 PM – 06:00 PM)</option>
+                    <option value="10:00 AM – 01:00 PM">Weekend Slot (10:00 AM – 01:00 PM)</option>
                   </select>
                 </div>
 
@@ -967,7 +1054,18 @@ Please change your password upon your first login at https://sunshineclasses.net
               )}
             </div>
 
-            <div className="pt-3 border-t border-slate-100 text-right">
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              {canEdit && showDetailModal.status === 'PENDING' && (
+                <button
+                  id="btn-detail-approve-admission"
+                  disabled={approvingId === showDetailModal.id}
+                  onClick={() => handleApprovePending(showDetailModal)}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  {approvingId === showDetailModal.id ? 'Processing Enrollment...' : 'Approve & Enroll Student'}
+                </button>
+              )}
               <button
                 onClick={() => setShowDetailModal(null)}
                 className="px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700 cursor-pointer"

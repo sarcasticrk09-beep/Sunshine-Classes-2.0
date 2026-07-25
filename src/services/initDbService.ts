@@ -1,5 +1,39 @@
 import { SyncService } from "./SyncService";
 import { ROLE_PERMISSIONS } from "../lib/permissions";
+import { collection, getDocs, deleteDoc, doc, setDoc } from 'firebase/firestore';
+import { db } from "../lib/firebase";
+import {
+  SEED_STUDENTS,
+  SEED_TEACHERS,
+  SEED_USERS,
+  SEED_ADMISSIONS,
+  SEED_ATTENDANCE,
+  SEED_FEE_STATUS,
+  SEED_FEE_RECEIPTS,
+  SEED_TESTS,
+  SEED_STUDENT_MARKS,
+  SEED_HOMEWORK,
+  SEED_HOMEWORK_SUBMISSIONS,
+  SEED_BLOGS,
+  SEED_TESTIMONIALS,
+  SEED_TOPPERS,
+  SEED_STUDY_MATERIALS,
+  SEED_FOUNDERS,
+  SEED_GALLERY,
+  SEED_NOTIFICATIONS,
+  SEED_INQUIRIES,
+  SEED_AUDIT_LOGS,
+  SEED_BATCHES,
+  SEED_STUDENT_SUBSCRIPTIONS,
+  SEED_SUBSCRIPTION_PAYMENTS,
+  SEED_SUBSCRIPTION_RECEIPTS,
+  SEED_SUBSCRIPTION_NOTIFICATIONS,
+  SEED_SUBSCRIPTION_CONFIG,
+  SEED_TIMETABLE,
+  SEED_EMAIL_TEMPLATES,
+  SEED_WHATSAPP_TEMPLATES,
+  SEED_BATCH_BULLETINS
+} from "../data";
 
 export interface MigrationReport {
   timestamp: string;
@@ -151,4 +185,77 @@ export async function initializeAndSeedFirestore(): Promise<MigrationReport> {
       message: err?.message || "Migration process failed."
     };
   }
+}
+
+export async function forceResetDatabase(): Promise<void> {
+  console.log("Starting forced database reset to clean up fake data and update credentials...");
+  
+  const collectionsToReset = [
+    { key: 'students', seed: SEED_STUDENTS },
+    { key: 'teachers', seed: SEED_TEACHERS },
+    { key: 'users', seed: SEED_USERS },
+    { key: 'admissions', seed: SEED_ADMISSIONS },
+    { key: 'attendance', seed: SEED_ATTENDANCE },
+    { key: 'fee_statuses', seed: SEED_FEE_STATUS },
+    { key: 'fee_receipts', seed: SEED_FEE_RECEIPTS },
+    { key: 'tests', seed: SEED_TESTS },
+    { key: 'student_marks', seed: SEED_STUDENT_MARKS },
+    { key: 'homework', seed: SEED_HOMEWORK },
+    { key: 'submissions', seed: SEED_HOMEWORK_SUBMISSIONS },
+    { key: 'blogs', seed: SEED_BLOGS },
+    { key: 'testimonials', seed: SEED_TESTIMONIALS },
+    { key: 'toppers', seed: SEED_TOPPERS },
+    { key: 'study_materials', seed: SEED_STUDY_MATERIALS },
+    { key: 'founders', seed: SEED_FOUNDERS },
+    { key: 'gallery', seed: SEED_GALLERY },
+    { key: 'notifications', seed: SEED_NOTIFICATIONS },
+    { key: 'inquiries', seed: SEED_INQUIRIES },
+    { key: 'audit_logs', seed: SEED_AUDIT_LOGS },
+    { key: 'batches', seed: SEED_BATCHES },
+    { key: 'student_subscriptions', seed: SEED_STUDENT_SUBSCRIPTIONS },
+    { key: 'payments', seed: SEED_SUBSCRIPTION_PAYMENTS },
+    { key: 'receipts', seed: SEED_SUBSCRIPTION_RECEIPTS },
+    { key: 'payment_notifications', seed: SEED_SUBSCRIPTION_NOTIFICATIONS },
+    { key: 'subscription_config', seed: SEED_SUBSCRIPTION_CONFIG },
+    { key: 'timetable', seed: SEED_TIMETABLE },
+    { key: 'email_templates', seed: SEED_EMAIL_TEMPLATES },
+    { key: 'whatsapp_templates', seed: SEED_WHATSAPP_TEMPLATES },
+    { key: 'batch_bulletins', seed: SEED_BATCH_BULLETINS },
+    { key: 'upi_payments', seed: [] }
+  ];
+
+  for (const item of collectionsToReset) {
+    try {
+      const colRef = collection(db, item.key);
+      const snap = await getDocs(colRef);
+      
+      // Delete existing documents
+      const deletePromises = snap.docs.map(d => deleteDoc(doc(db, item.key, d.id)));
+      await Promise.all(deletePromises);
+      console.log(`Cleared collection: ${item.key}`);
+
+      // Seed new clean data
+      if (Array.isArray(item.seed)) {
+        const seedPromises = item.seed.map(async (seedItem: any) => {
+          const docId = String(seedItem.id || seedItem.userId || seedItem.studentId || seedItem.teacherId || seedItem.rollNo || seedItem.admissionNo || seedItem.username || Date.now());
+          return setDoc(doc(db, item.key, docId), seedItem);
+        });
+        await Promise.all(seedPromises);
+        console.log(`Seeded collection: ${item.key} with ${item.seed.length} items.`);
+      } else {
+        // Singular document or config
+        await setDoc(doc(db, item.key, 'main'), item.seed as any);
+        console.log(`Seeded config doc: ${item.key}`);
+      }
+    } catch (err) {
+      console.warn(`Error resetting collection ${item.key}:`, err);
+    }
+  }
+
+  // Clear local storage prefix so we fetch fresh cloud data
+  for (const item of collectionsToReset) {
+    localStorage.removeItem(`sunshine_${item.key}`);
+  }
+
+  console.log("Database forced reset completed successfully.");
 }

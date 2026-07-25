@@ -12,6 +12,8 @@ export interface PasswordHistoryEntry {
   type: 'RESET' | 'SELF_CHANGED';
 }
 
+export type UserAccountStatus = 'ACTIVE' | 'SUSPENDED' | 'ARCHIVED' | 'DELETED';
+
 export interface User {
   id: string;
   username: string;
@@ -24,11 +26,17 @@ export interface User {
   avatarUrl?: string;
   phone?: string;
   active?: boolean;
+  status?: UserAccountStatus;
   isLocked?: boolean;
   forcePasswordChange?: boolean;
   failedLoginAttempts?: number;
   activeSessionId?: string;
   passwordHistory?: PasswordHistoryEntry[];
+  createdBy?: string;
+  createdAt?: string;
+  lastUpdatedBy?: string;
+  lastUpdatedAt?: string;
+  suspensionReason?: string;
 }
 
 export interface Student {
@@ -135,6 +143,36 @@ export interface Batch {
   nextDueDate: string;
   status: 'ACTIVE' | 'DUE' | 'EXPIRED';
   capacity?: number;
+}
+
+export type TimingSlotLabel = 'Morning' | 'Afternoon' | 'Evening' | 'Weekend' | 'Custom';
+
+export interface ClassTiming {
+  id: string;
+  label: TimingSlotLabel | string;
+  timeRange: string;
+  teachers: string[];
+  capacity: number;
+  enrolledCount?: number;
+  feeOverride?: number;
+  section?: string;
+  status?: 'ACTIVE' | 'INACTIVE';
+}
+
+export interface ClassEntity {
+  id: string;
+  name: string;
+  code?: string;
+  defaultMonthlyFee: number;
+  capacity: number;
+  totalCapacity?: number;
+  status: 'ACTIVE' | 'INACTIVE';
+  timings: ClassTiming[];
+  subjects?: string[];
+  assignedTeachers?: string[];
+  stream?: string;
+  section?: string;
+  academicSession?: string;
 }
 
 export interface ClassFeeConfig {
@@ -807,6 +845,14 @@ export interface StoreProduct {
   class?: string; // e.g. "Class 10", "Class 9", etc.
   subject?: string; // e.g. "Mathematics", "Science"
   tags: string[];
+
+  // Pricing & Stock
+  price?: number;
+  originalPrice?: number;
+  discountPercent?: number;
+  stockStatus?: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK';
+  rating?: number;
+  ratingCount?: number;
 
   // Recommendation Notes
   whySunshineRecommends: string;

@@ -17,7 +17,7 @@ export class AuthService {
       return ['RECEPTIONIST', 'TEACHER', 'STUDENT'].includes(t);
     }
     if (r === 'RECEPTIONIST') {
-      return t === 'STUDENT';
+      return t === 'STUDENT' || t === 'TEACHER';
     }
     return false;
   }
@@ -43,7 +43,23 @@ export class AuthService {
       return { success: false, error: 'Invalid username or password.' };
     }
 
-    if (user.active === false || user.status === 'DISABLED' || user.status === 'SUSPENDED') {
+    if (user.status === 'DELETED') {
+      await AuditLogger.log('LOGIN', user.username || 'DeletedUser', 'Login rejected: Account is deleted', 'FAILURE');
+      return { success: false, error: 'Account does not exist or has been deleted.' };
+    }
+
+    if (user.status === 'SUSPENDED') {
+      const reasonMsg = user.suspensionReason ? ` Reason: ${user.suspensionReason}` : '';
+      await AuditLogger.log('LOGIN', user.username, `Login rejected: Account is suspended.${reasonMsg}`, 'FAILURE');
+      return { success: false, error: `Your account is temporarily suspended.${reasonMsg} Please contact the administrator.` };
+    }
+
+    if (user.status === 'ARCHIVED') {
+      await AuditLogger.log('LOGIN', user.username, 'Login rejected: Account is archived', 'FAILURE');
+      return { success: false, error: 'This account has been archived (user no longer active with organization).' };
+    }
+
+    if (user.active === false || user.status === 'DISABLED') {
       await AuditLogger.log('LOGIN', user.username, 'Login rejected: Account is disabled', 'FAILURE');
       return { success: false, error: 'Your account is disabled. Please contact the administrator.' };
     }

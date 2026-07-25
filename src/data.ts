@@ -10,6 +10,7 @@ import {
   Admission,
   Course,
   Batch,
+  ClassEntity,
   Attendance,
   FeeStatus,
   FeeReceipt,
@@ -86,11 +87,119 @@ export const SEED_COURSES: Course[] = [
 ];
 
 export const SEED_BATCHES: Batch[] = [
-  { id: 'b1', name: 'Class 10 - Morning Excellence', time: '07:00 AM - 09:30 AM', class: 'Class 10 Board Specialists', teacherName: 'Priyanshu Gupta', monthlyFee: 1200, startDate: '2026-06-01', billingCycle: 'Monthly', nextDueDate: '2026-07-01', status: 'ACTIVE' },
-  { id: 'b2', name: 'Class 10 - Evening Stars', time: '04:00 PM - 06:30 PM', class: 'Class 10 Board Specialists', teacherName: 'Priyanshu Gupta', monthlyFee: 1200, startDate: '2026-06-01', billingCycle: 'Monthly', nextDueDate: '2026-07-01', status: 'ACTIVE' },
-  { id: 'b3', name: 'Class 9 - Foundation Group', time: '03:00 PM - 05:00 PM', class: 'Class 9 Foundation Course', teacherName: 'Anil Pandey', monthlyFee: 1000, startDate: '2026-06-01', billingCycle: 'Monthly', nextDueDate: '2026-07-01', status: 'ACTIVE' },
-  { id: 'b4', name: 'Classes 5 to 8 - Apex Learning', time: '02:00 PM - 04:00 PM', class: 'Classes 5 to 8 Apex Learning', teacherName: 'Ritu Singh', monthlyFee: 700, startDate: '2026-05-15', billingCycle: 'Monthly', nextDueDate: '2026-06-15', status: 'DUE' },
-  { id: 'b5', name: 'Classes 1 to 4 - Junior Sunshine', time: '01:00 PM - 03:00 PM', class: 'Classes 1 to 4 Junior Sunshine', teacherName: 'Neha Sharma', monthlyFee: 500, startDate: '2026-06-01', billingCycle: 'Monthly', nextDueDate: '2026-07-01', status: 'ACTIVE' }
+  { id: 'b1', name: 'Class 10 - Morning', time: '07:00 AM - 09:30 AM', class: 'Class 10', teacherName: 'Priyanshu Gupta', monthlyFee: 1200, startDate: '2026-06-01', billingCycle: 'Monthly', nextDueDate: '2026-07-01', status: 'ACTIVE' },
+  { id: 'b2', name: 'Class 10 - Evening', time: '04:00 PM - 06:30 PM', class: 'Class 10', teacherName: 'Priyanshu Gupta', monthlyFee: 1200, startDate: '2026-06-01', billingCycle: 'Monthly', nextDueDate: '2026-07-01', status: 'ACTIVE' },
+  { id: 'b3', name: 'Class 9 - Evening', time: '03:00 PM - 05:00 PM', class: 'Class 9', teacherName: 'Anil Pandey', monthlyFee: 1000, startDate: '2026-06-01', billingCycle: 'Monthly', nextDueDate: '2026-07-01', status: 'ACTIVE' },
+  { id: 'b4', name: 'Class 8 - Afternoon', time: '02:00 PM - 04:00 PM', class: 'Class 8', teacherName: 'Ritu Singh', monthlyFee: 700, startDate: '2026-05-15', billingCycle: 'Monthly', nextDueDate: '2026-06-15', status: 'DUE' },
+  { id: 'b5', name: 'Class 6 - Morning', time: '07:00 AM - 09:00 AM', class: 'Class 6', teacherName: 'Neha Sharma', monthlyFee: 700, startDate: '2026-06-01', billingCycle: 'Monthly', nextDueDate: '2026-07-01', status: 'ACTIVE' }
+];
+
+export const SEED_CLASSES: ClassEntity[] = [
+  {
+    id: 'cls-6',
+    name: 'Class 6',
+    code: 'C06',
+    defaultMonthlyFee: 700,
+    capacity: 40,
+    status: 'ACTIVE',
+    academicSession: '2026-2027',
+    subjects: ['Mathematics', 'Science', 'English', 'Social Science'],
+    assignedTeachers: ['Neha Sharma', 'Ritu Singh'],
+    timings: [
+      { id: 'ct-6-1', label: 'Morning', timeRange: '07:00 AM – 09:00 AM', teachers: ['Neha Sharma'], capacity: 20, enrolledCount: 10, status: 'ACTIVE', section: 'Section A' },
+      { id: 'ct-6-2', label: 'Afternoon', timeRange: '02:00 PM – 04:00 PM', teachers: ['Ritu Singh'], capacity: 20, enrolledCount: 12, status: 'ACTIVE', section: 'Section B' }
+    ]
+  },
+  {
+    id: 'cls-7',
+    name: 'Class 7',
+    code: 'C07',
+    defaultMonthlyFee: 700,
+    capacity: 40,
+    status: 'ACTIVE',
+    academicSession: '2026-2027',
+    subjects: ['Mathematics', 'Science', 'English', 'Social Science'],
+    assignedTeachers: ['Ritu Singh'],
+    timings: [
+      { id: 'ct-7-1', label: 'Morning', timeRange: '07:00 AM – 09:00 AM', teachers: ['Ritu Singh'], capacity: 20, enrolledCount: 14, status: 'ACTIVE', section: 'Section A' },
+      { id: 'ct-7-2', label: 'Evening', timeRange: '04:00 PM – 06:00 PM', teachers: ['Ritu Singh'], capacity: 20, enrolledCount: 11, status: 'ACTIVE', section: 'Section B' }
+    ]
+  },
+  {
+    id: 'cls-8',
+    name: 'Class 8',
+    code: 'C08',
+    defaultMonthlyFee: 700,
+    capacity: 40,
+    status: 'ACTIVE',
+    academicSession: '2026-2027',
+    subjects: ['Mathematics', 'Science', 'English', 'Social Science'],
+    assignedTeachers: ['Ritu Singh'],
+    timings: [
+      { id: 'ct-8-1', label: 'Afternoon', timeRange: '02:00 PM – 04:00 PM', teachers: ['Ritu Singh'], capacity: 40, enrolledCount: 22, status: 'ACTIVE', section: 'Section A' }
+    ]
+  },
+  {
+    id: 'cls-9',
+    name: 'Class 9',
+    code: 'C09',
+    defaultMonthlyFee: 1000,
+    capacity: 45,
+    status: 'ACTIVE',
+    academicSession: '2026-2027',
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+    assignedTeachers: ['Anil Pandey'],
+    timings: [
+      { id: 'ct-9-1', label: 'Evening', timeRange: '03:00 PM – 05:00 PM', teachers: ['Anil Pandey'], capacity: 45, enrolledCount: 28, status: 'ACTIVE', section: 'Section A' }
+    ]
+  },
+  {
+    id: 'cls-10',
+    name: 'Class 10',
+    code: 'C10',
+    defaultMonthlyFee: 1200,
+    capacity: 80,
+    status: 'ACTIVE',
+    academicSession: '2026-2027',
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+    assignedTeachers: ['Priyanshu Gupta'],
+    timings: [
+      { id: 'ct-10-1', label: 'Morning', timeRange: '07:00 AM – 09:30 AM', teachers: ['Priyanshu Gupta'], capacity: 40, enrolledCount: 25, status: 'ACTIVE', section: 'Section A' },
+      { id: 'ct-10-2', label: 'Evening', timeRange: '04:00 PM – 06:30 PM', teachers: ['Priyanshu Gupta'], capacity: 40, enrolledCount: 32, status: 'ACTIVE', section: 'Section B' }
+    ]
+  },
+  {
+    id: 'cls-11',
+    name: 'Class 11',
+    code: 'C11',
+    defaultMonthlyFee: 1500,
+    capacity: 50,
+    status: 'ACTIVE',
+    academicSession: '2026-2027',
+    stream: 'Science',
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+    assignedTeachers: ['Anil Pandey', 'Priyanshu Gupta'],
+    timings: [
+      { id: 'ct-11-1', label: 'Morning', timeRange: '07:30 AM – 10:00 AM', teachers: ['Priyanshu Gupta'], capacity: 25, enrolledCount: 18, status: 'ACTIVE', section: 'Section A' },
+      { id: 'ct-11-2', label: 'Evening', timeRange: '05:00 PM – 07:30 PM', teachers: ['Anil Pandey'], capacity: 25, enrolledCount: 15, status: 'ACTIVE', section: 'Section B' }
+    ]
+  },
+  {
+    id: 'cls-12',
+    name: 'Class 12',
+    code: 'C12',
+    defaultMonthlyFee: 1500,
+    capacity: 50,
+    status: 'ACTIVE',
+    academicSession: '2026-2027',
+    stream: 'Science',
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+    assignedTeachers: ['Anil Pandey', 'Priyanshu Gupta'],
+    timings: [
+      { id: 'ct-12-1', label: 'Morning', timeRange: '07:30 AM – 10:00 AM', teachers: ['Anil Pandey'], capacity: 25, enrolledCount: 20, status: 'ACTIVE', section: 'Section A' },
+      { id: 'ct-12-2', label: 'Evening', timeRange: '05:00 PM – 07:30 PM', teachers: ['Priyanshu Gupta'], capacity: 25, enrolledCount: 22, status: 'ACTIVE', section: 'Section B' }
+    ]
+  }
 ];
 
 export const SEED_STUDENT_SUBSCRIPTIONS: StudentSubscription[] = [
@@ -480,32 +589,12 @@ export const SEED_TEACHERS: Teacher[] = [
   {
     id: 't1',
     userId: 'u2',
-    name: 'Priyanshu Gupta',
-    email: 'priyanshu@example.com',
-    phone: '9999900000',
+    name: 'Priyanshu Gupta (Teacher)',
+    email: 'teacher@sunshineclasses.net',
+    phone: '9999900004',
     qualification: 'M.Sc. Mathematics, B.Ed',
     specialty: ['Mathematics', 'Physics'],
-    batches: ['Class 10 - Morning Excellence', 'Class 10 - Evening Stars']
-  },
-  {
-    id: 't2',
-    userId: 'u5',
-    name: 'Anil Pandey',
-    email: 'anil@example.com',
-    phone: '9999900005',
-    qualification: 'M.Sc. Chemistry, Ph.D. Scholar',
-    specialty: ['Chemistry', 'Biology'],
-    batches: ['Class 9 - Foundation Group']
-  },
-  {
-    id: 't3',
-    userId: 'u6',
-    name: 'Ritu Singh',
-    email: 'ritu@example.com',
-    phone: '9999900006',
-    qualification: 'M.A. English Literature, B.Ed',
-    specialty: ['English Literature', 'Social Studies'],
-    batches: ['Class 8 - Apex Batch']
+    batches: ['Class 10 - Morning Excellence']
   }
 ];
 
@@ -521,153 +610,125 @@ export const SEED_STUDENTS: Student[] = [
     dob: '2011-05-15',
     gender: 'Male',
     address: '123 Education Lane, Pihani, Hardoi, UP',
-    mobile: '9999900001',
-    whatsapp: '9999900001',
-    parentMobile: '9999900002',
-    email: 'student.rahul@example.com',
-    preferredBatch: 'Class 10 - Evening Stars',
-    preferredTiming: '04:00 PM - 06:30 PM',
-    admissionDate: '2025-04-10',
-    attendancePercentage: 92
-  },
-  {
-    id: 's2',
-    userId: 'u7',
-    rollNo: 'SC-1002',
-    name: 'Priya Mishra',
-    class: 'Class 10 Board Specialists',
-    fatherName: 'Kamlesh Mishra',
-    motherName: 'Suman Mishra',
-    dob: '2011-08-22',
-    gender: 'Female',
-    address: '456 Park Road, Pihani, Hardoi',
-    mobile: '9999900003',
-    whatsapp: '9999900003',
-    parentMobile: '9999900004',
-    email: 'student.priya@example.com',
-    preferredBatch: 'Class 10 - Evening Stars',
-    preferredTiming: '04:00 PM - 06:30 PM',
-    admissionDate: '2025-04-12',
-    attendancePercentage: 96
-  },
-  {
-    id: 's3',
-    userId: 'u8',
-    rollNo: 'SC-1003',
-    name: 'Aditya Gupta',
-    class: 'Class 9 Foundation Course',
-    fatherName: 'Manoj Gupta',
-    motherName: 'Meena Gupta',
-    dob: '2012-03-10',
-    gender: 'Male',
-    address: '789 Temple Street, Pihani, Hardoi',
     mobile: '9999900005',
     whatsapp: '9999900005',
     parentMobile: '9999900006',
-    email: 'student.aditya@example.com',
-    preferredBatch: 'Class 9 - Foundation Group',
-    preferredTiming: '03:00 PM - 05:00 PM',
-    admissionDate: '2025-04-15',
-    attendancePercentage: 88
-  },
-  {
-    id: 's4',
-    userId: 'u9',
-    rollNo: 'SC-1004',
-    name: 'Shreya Tiwari',
-    class: 'Class 10 Board Specialists',
-    fatherName: 'Vinod Tiwari',
-    motherName: 'Reena Tiwari',
-    dob: '2011-11-02',
-    gender: 'Female',
-    address: '101 Green Avenue, Pihani, Hardoi',
-    mobile: '9999900007',
-    whatsapp: '9999900007',
-    parentMobile: '9999900008',
-    email: 'student.shreya@example.com',
+    email: 'student@sunshineclasses.net',
     preferredBatch: 'Class 10 - Morning Excellence',
     preferredTiming: '07:00 AM - 09:30 AM',
-    admissionDate: '2025-04-16',
-    attendancePercentage: 94
+    admissionDate: '2025-04-10',
+    attendancePercentage: 92,
+    status: 'ACTIVE'
   }
 ];
 
 export const SEED_USERS: User[] = [
-  { id: 'u1', username: 'admin', name: 'Priyanshu Gupta (Founder)', email: 'sunshineclassespihani@gmail.com', role: 'SUPER_ADMIN', phone: '9999900000' },
-  { id: 'u2', username: 'teacher', name: 'Priyanshu Gupta', email: 'sunshineclassespihani@gmail.com', role: 'TEACHER', phone: '9999900000' },
-  { id: 'u3', username: 'reception', name: 'Neha Sharma', email: 'reception@example.com', role: 'RECEPTIONIST', phone: '9999900002' },
-  { id: 'u4', username: 'student', name: 'Rahul Verma', email: 'rahul@example.com', role: 'STUDENT', phone: '9999900001' },
-  { id: 'u5', username: 'anil', name: 'Anil Pandey', email: 'anil@example.com', role: 'TEACHER', phone: '9999900005' },
-  { id: 'u6', username: 'ritu', name: 'Ritu Singh', email: 'ritu@example.com', role: 'TEACHER', phone: '9999900006' },
-  { id: 'u7', username: 'priya', name: 'Priya Mishra', email: 'priya@example.com', role: 'STUDENT', phone: '9999900003' },
-  { id: 'u8', username: 'rajeev', name: 'Rajeev Kr. Verma (Co-Founder)', email: 'kumarvermarajeev79@gmail.com', role: 'ADMIN', phone: '9999900001' }
-];
-
-export const SEED_ADMISSIONS: Admission[] = [
   {
-    id: 'ADM-2026-001',
-    studentName: 'Aman Dixit',
-    fatherName: 'Rajesh Dixit',
-    motherName: 'Anju Dixit',
-    dob: '2012-04-18',
-    gender: 'Male',
-    className: 'Class 9 Foundation Course',
-    previousSchool: 'Pihani Inter College',
-    mobile: '9870001122',
-    whatsapp: '9870001122',
-    parentMobile: '9870001123',
-    email: 'aman.dixit@gmail.com',
-    address: 'Lohani Mohalla, Pihani, Hardoi',
-    preferredBatch: 'Class 9 - Foundation Group',
-    preferredTiming: '03:00 PM - 05:00 PM',
-    status: 'PENDING',
-    date: '2026-06-25'
+    id: 'u1',
+    username: 'founder',
+    name: 'Priyanshu Gupta (Founder)',
+    email: 'sunshineclassespihani@gmail.com',
+    role: 'SUPER_ADMIN',
+    phone: '9999900000',
+    password: 'Founder@Sunshine2026',
+    passwordHash: 'Founder@Sunshine2026',
+    status: 'ACTIVE',
+    active: true,
+    mustChangePassword: false
   },
   {
-    id: 'ADM-2026-002',
-    studentName: 'Kajal Rathore',
-    fatherName: 'Jaswant Rathore',
-    motherName: 'Kamla Rathore',
-    dob: '2013-09-05',
-    gender: 'Female',
-    className: 'Classes 5 to 8 Apex Learning',
-    previousSchool: 'St. James School, Hardoi',
-    mobile: '9161223344',
-    whatsapp: '9161223344',
-    parentMobile: '9161223345',
-    email: 'kajal.rathore@gmail.com',
-    address: 'Mishrana, Opposite Subhash Park, Pihani',
-    preferredBatch: 'Classes 5 to 8 - Apex Learning',
-    preferredTiming: '02:00 PM - 04:00 PM',
-    status: 'APPROVED',
-    date: '2026-06-20'
+    id: 'u8',
+    username: 'cofounder',
+    name: 'Rajeev Kr. Verma (Co-Founder)',
+    email: 'kumarvermarajeev79@gmail.com',
+    role: 'SUPER_ADMIN',
+    phone: '9999900001',
+    password: 'Cofounder@Sunshine2026',
+    passwordHash: 'Cofounder@Sunshine2026',
+    status: 'ACTIVE',
+    active: true,
+    mustChangePassword: false
+  },
+  {
+    id: 'u-superadmin',
+    username: 'superadmin',
+    name: 'Super Admin',
+    email: 'superadmin@sunshineclasses.net',
+    role: 'SUPER_ADMIN',
+    phone: '9999911111',
+    password: 'Sunshine@123',
+    passwordHash: 'Sunshine@123',
+    status: 'ACTIVE',
+    active: true,
+    mustChangePassword: false
+  },
+  {
+    id: 'u-admin',
+    username: 'admin',
+    name: 'Admin User',
+    email: 'admin@sunshineclasses.net',
+    role: 'ADMIN',
+    phone: '9999922222',
+    password: 'Admin@123',
+    passwordHash: 'Admin@123',
+    status: 'ACTIVE',
+    active: true,
+    mustChangePassword: false
+  },
+  {
+    id: 'u-teacher',
+    username: 'teacher',
+    name: 'Priyanshu Gupta (Teacher)',
+    email: 'teacher@sunshineclasses.net',
+    role: 'TEACHER',
+    phone: '9999900004',
+    password: 'Teacher@123',
+    passwordHash: 'Teacher@123',
+    status: 'ACTIVE',
+    active: true,
+    mustChangePassword: false
+  },
+  {
+    id: 'u-reception',
+    username: 'reception',
+    name: 'Receptionist User',
+    email: 'reception@sunshineclasses.net',
+    role: 'RECEPTIONIST',
+    phone: '9999933333',
+    password: 'Reception@123',
+    passwordHash: 'Reception@123',
+    status: 'ACTIVE',
+    active: true,
+    mustChangePassword: false
+  },
+  {
+    id: 'u-student',
+    username: 'student',
+    name: 'Rahul Verma',
+    email: 'student@sunshineclasses.net',
+    role: 'STUDENT',
+    phone: '9999900005',
+    password: 'Student@123',
+    passwordHash: 'Student@123',
+    status: 'ACTIVE',
+    active: true,
+    mustChangePassword: false
   }
 ];
+
+export const SEED_ADMISSIONS: Admission[] = [];
 
 export const SEED_ATTENDANCE: Attendance[] = [
   // Attendance history for s1 (Rahul)
   { id: 'at1', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', date: '2026-06-24', status: 'PRESENT', markedBy: 'Priyanshu Gupta' },
   { id: 'at2', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', date: '2026-06-25', status: 'PRESENT', markedBy: 'Priyanshu Gupta' },
   { id: 'at3', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', date: '2026-06-26', status: 'LATE', markedBy: 'Priyanshu Gupta' },
-  { id: 'at4', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', date: '2026-06-27', status: 'PRESENT', markedBy: 'Priyanshu Gupta' },
-  
-  // Attendance for s2 (Priya)
-  { id: 'at5', studentId: 's2', studentName: 'Priya Mishra', class: 'Class 10', date: '2026-06-24', status: 'PRESENT', markedBy: 'Priyanshu Gupta' },
-  { id: 'at6', studentId: 's2', studentName: 'Priya Mishra', class: 'Class 10', date: '2026-06-25', status: 'PRESENT', markedBy: 'Priyanshu Gupta' },
-  { id: 'at7', studentId: 's2', studentName: 'Priya Mishra', class: 'Class 10', date: '2026-06-26', status: 'PRESENT', markedBy: 'Priyanshu Gupta' },
-  { id: 'at8', studentId: 's2', studentName: 'Priya Mishra', class: 'Class 10', date: '2026-06-27', status: 'PRESENT', markedBy: 'Priyanshu Gupta' },
-
-  // Attendance for s3 (Aditya)
-  { id: 'at9', studentId: 's3', studentName: 'Aditya Gupta', class: 'Class 9', date: '2026-06-26', status: 'ABSENT', markedBy: 'Anil Pandey' },
-  { id: 'at10', studentId: 's3', studentName: 'Aditya Gupta', class: 'Class 9', date: '2026-06-27', status: 'PRESENT', markedBy: 'Anil Pandey' }
+  { id: 'at4', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', date: '2026-06-27', status: 'PRESENT', markedBy: 'Priyanshu Gupta' }
 ];
 
 export const SEED_FEE_STATUS: FeeStatus[] = [
   { id: 'fs1', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', month: 'June 2026', totalFee: 1200, discount: 0, scholarship: 0, paidFee: 0, pendingFee: 1200, status: 'PENDING', dueDate: '2026-06-10' },
-  { id: 'fs2', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', month: 'July 2026', totalFee: 1200, discount: 0, scholarship: 0, paidFee: 0, pendingFee: 1200, status: 'PENDING', dueDate: '2026-07-10' },
-  { id: 'fs3', studentId: 's2', studentName: 'Priya Mishra', class: 'Class 10', month: 'June 2026', totalFee: 1200, discount: 0, scholarship: 200, paidFee: 0, pendingFee: 1000, status: 'PENDING', dueDate: '2026-06-10' },
-  { id: 'fs4', studentId: 's2', studentName: 'Priya Mishra', class: 'Class 10', month: 'July 2026', totalFee: 1200, discount: 0, scholarship: 200, paidFee: 0, pendingFee: 1000, status: 'PENDING', dueDate: '2026-07-10' },
-  { id: 'fs5', studentId: 's3', studentName: 'Aditya Gupta', class: 'Class 9', month: 'June 2026', totalFee: 1000, discount: 0, scholarship: 0, paidFee: 0, pendingFee: 1000, status: 'PENDING', dueDate: '2026-06-10' }
+  { id: 'fs2', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', month: 'July 2026', totalFee: 1200, discount: 0, scholarship: 0, paidFee: 0, pendingFee: 1200, status: 'PENDING', dueDate: '2026-07-10' }
 ];
 
 export const SEED_FEE_RECEIPTS: FeeReceipt[] = [];
@@ -680,24 +741,18 @@ export const SEED_TESTS: Test[] = [
 
 export const SEED_STUDENT_MARKS: StudentMark[] = [
   // Math Test (tst1) results
-  { id: 'm1', testId: 'tst1', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', marksObtained: 46, remarks: 'Excellent logical skills. Keep it up!', rank: 2 },
-  { id: 'm2', testId: 'tst1', studentId: 's2', studentName: 'Priya Mishra', class: 'Class 10', marksObtained: 49, remarks: 'Outstanding performance. Class Topper!', rank: 1 },
-  { id: 'm3', testId: 'tst1', studentId: 's4', studentName: 'Shreya Tiwari', class: 'Class 10', marksObtained: 42, remarks: 'Good grasp, minor calculation mistake in Q5', rank: 3 },
-  
+  { id: 'm1', testId: 'tst1', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', marksObtained: 46, remarks: 'Excellent logical skills. Keep it up!', rank: 1 },
   // Science Test (tst2) results
-  { id: 'm4', testId: 'tst2', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', marksObtained: 25, remarks: 'Good score, revise ray diagrams', rank: 2 },
-  { id: 'm5', testId: 'tst2', studentId: 's2', studentName: 'Priya Mishra', class: 'Class 10', marksObtained: 28, remarks: 'Very detailed explanations. Excellent.', rank: 1 }
+  { id: 'm4', testId: 'tst2', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', marksObtained: 25, remarks: 'Good score, revise ray diagrams', rank: 1 }
 ];
 
 export const SEED_HOMEWORK: Homework[] = [
   { id: 'hw1', title: 'Quadratic Equations Exercise 4.2', description: 'Solve all questions from Exercise 4.2 of NCERT textbook and show steps clearly in your notebook.', class: 'Class 10', subject: 'Mathematics', date: '2026-06-25', dueDate: '2026-06-28', teacherId: 't1', teacherName: 'Priyanshu Gupta' },
-  { id: 'hw2', title: 'Chemical Reactions Balancing', description: 'Balance the 15 equations provided in the sheet. Upload a clean photograph or PDF of the completed work.', class: 'Class 10', subject: 'Science', date: '2026-06-26', dueDate: '2026-06-29', teacherId: 't1', teacherName: 'Priyanshu Gupta' },
-  { id: 'hw3', title: 'Nouns & Pronouns Worksheet', description: 'Complete the preposition and pronoun filling exercise uploaded in study materials.', class: 'Class 8', subject: 'English', date: '2026-06-26', dueDate: '2026-06-28', teacherId: 't3', teacherName: 'Ritu Singh' }
+  { id: 'hw2', title: 'Chemical Reactions Balancing', description: 'Balance the 15 equations provided in the sheet. Upload a clean photograph or PDF of the completed work.', class: 'Class 10', subject: 'Science', date: '2026-06-26', dueDate: '2026-06-29', teacherId: 't1', teacherName: 'Priyanshu Gupta' }
 ];
 
 export const SEED_HOMEWORK_SUBMISSIONS: HomeworkSubmission[] = [
-  { id: 'hs1', homeworkId: 'hw1', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', submissionDate: '2026-06-27', textAnswer: 'Completed all 10 questions of Exercise 4.2. Roots calculated correctly.', status: 'SUBMITTED' },
-  { id: 'hs2', homeworkId: 'hw1', studentId: 's2', studentName: 'Priya Mishra', class: 'Class 10', submissionDate: '2026-06-26', textAnswer: 'Submitted homework copy in the class directory.', status: 'REVIEWED', remarks: 'Beautifully solved. Well done.', score: 'Excellent' }
+  { id: 'hs1', homeworkId: 'hw1', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', submissionDate: '2026-06-27', textAnswer: 'Completed all 10 questions of Exercise 4.2. Roots calculated correctly.', status: 'SUBMITTED' }
 ];
 
 export const SEED_BLOGS: BlogPost[] = [
@@ -738,25 +793,9 @@ export const SEED_TESTIMONIALS: Testimonial[] = [
     id: 'tstml1',
     name: 'Sanjay Verma (Parent of Rahul Verma)',
     role: 'PARENT',
-    content: 'Sunshine Classes completely transformed Rahul\'s attitude towards Mathematics. The personalized weekly feedback report and digital attendance alert on WhatsApp help me track his regular progress easily.',
+    content: 'Sunshine Classes completely transformed Rahul\'s attitude towards Mathematics. The personalized weekly feedback report and digital attendance alert help me track his regular progress easily.',
     rating: 5,
     avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=60'
-  },
-  {
-    id: 'tstml2',
-    name: 'Priya Mishra (Class 10 State Topper)',
-    role: 'STUDENT',
-    content: 'The board preparation guidance here is phenomenal. Solving 10 years of NCERT chapter-wise question papers and attending daily doubt sessions in Mishra sir\'s room gave me massive confidence.',
-    rating: 5,
-    avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=60'
-  },
-  {
-    id: 'tstml3',
-    name: 'Ramesh Tiwari (Parent of Shreya Tiwari)',
-    role: 'PARENT',
-    content: 'We are very happy with the discipline and structured study methodology at Sunshine. The online ERP system lets me view my daughter\'s test score graphs and fee payment receipts instantly.',
-    rating: 5,
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=60'
   }
 ];
 
@@ -765,7 +804,7 @@ export const SEED_GALLERY: GalleryItem[] = [
   { id: 'g2', title: 'Interactive Science Practical Demonstration', category: 'CLASSROOM', imageUrl: 'https://images.unsplash.com/photo-1507537297725-24a1c029d3ca?w=600&auto=format&fit=crop&q=60' },
   { id: 'g3', title: 'Annual Sunshine Academic Excellence Awards 2025', category: 'ANNUAL_FUNCTION', imageUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=600&auto=format&fit=crop&q=60' },
   { id: 'g4', title: 'Weekly Merit Test Session', category: 'ACTIVITIES', imageUrl: 'https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?w=600&auto=format&fit=crop&q=60' },
-  { id: 'g5', title: 'Class 10 District Merit Holder Celebration', category: 'RESULTS', imageUrl: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600&auto=format&fit=crop&q=60' },
+  { id: 'g5', title: 'Class 10 District Merit Holder Celebration', category: 'RESULTS', imageUrl: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=200&auto=format&fit=crop&q=60' },
   { id: 'g6', title: 'Parent-Teacher Interaction Meet', category: 'EVENTS', imageUrl: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=600&auto=format&fit=crop&q=60' }
 ];
 
@@ -776,38 +815,24 @@ export const SEED_NOTIFICATIONS: AppNotification[] = [
   { id: 'n4', title: 'Summer Holiday Notice', content: 'Sunshine Classes will remain closed on 30-June for internal faculty workshop. Regular batches resume from 1-July.', category: 'HOLIDAY', targetRole: 'ALL', date: '2026-06-27' }
 ];
 
-export const SEED_INQUIRIES: Inquiry[] = [
-  { id: 'inq1', name: 'Manish Soni', mobile: '9988776655', whatsapp: '9988776655', className: 'Class 10', notes: 'Inquired about fee structure and night batch timing.', status: 'CONTACTED', date: '2026-06-26' },
-  { id: 'inq2', name: 'Rani Patel', mobile: '9451122334', whatsapp: '9451122334', className: 'Class 8', notes: 'Wants demo class for Mathematics.', status: 'PENDING', date: '2026-06-27' }
-];
+export const SEED_INQUIRIES: Inquiry[] = [];
 
 export const SEED_AUDIT_LOGS: AuditLog[] = [
-  { id: 'l1', userId: 'u1', username: 'admin', action: 'LOGIN', details: 'Admin logged in from secure terminal', timestamp: '2026-06-27T08:00:00Z' },
-  { id: 'l2', userId: 'u3', username: 'reception', action: 'FEE_COLLECTION', details: 'Collected 1200/- fee from Rahul Verma (REC-101)', timestamp: '2026-06-27T08:30:00Z' }
+  { id: 'l1', userId: 'u1', username: 'founder', action: 'LOGIN', details: 'Founder logged in from secure terminal', timestamp: '2026-06-27T08:00:00Z' }
 ];
 
 export const SEED_TIMETABLE: TimetableEntry[] = [
-  { id: 'tt1', day: 'Monday', className: 'Class 10', subject: 'Mathematics', teacherName: 'Priyanshu Gupta', room: 'Room 101', startTime: '07:00 AM', endTime: '08:30 AM' },
-  { id: 'tt2', day: 'Monday', className: 'Class 10', subject: 'Physics', teacherName: 'Priyanshu Gupta', room: 'Room 101', startTime: '08:30 AM', endTime: '09:30 AM' },
-  { id: 'tt3', day: 'Monday', className: 'Class 9', subject: 'Chemistry', teacherName: 'Anil Pandey', room: 'Room 102', startTime: '03:00 PM', endTime: '04:30 PM' },
-  { id: 'tt4', day: 'Monday', className: 'Class 10', subject: 'English', teacherName: 'Ritu Singh', room: 'Room 103', startTime: '04:00 PM', endTime: '05:30 PM' },
-  { id: 'tt5', day: 'Tuesday', className: 'Class 10', subject: 'Mathematics', teacherName: 'Priyanshu Gupta', room: 'Room 101', startTime: '07:00 AM', endTime: '08:30 AM' },
-  { id: 'tt6', day: 'Tuesday', className: 'Class 10', subject: 'Biology', teacherName: 'Anil Pandey', room: 'Room 101', startTime: '08:30 AM', endTime: '09:30 AM' },
-  { id: 'tt7', day: 'Tuesday', className: 'Class 9', subject: 'Mathematics', teacherName: 'Priyanshu Gupta', room: 'Room 102', startTime: '03:00 PM', endTime: '05:00 PM' },
-  { id: 'tt8', day: 'Wednesday', className: 'Class 10', subject: 'Physics', teacherName: 'Priyanshu Gupta', room: 'Room 101', startTime: '07:00 AM', endTime: '08:30 AM' },
-  { id: 'tt9', day: 'Wednesday', className: 'Class 10', subject: 'Chemistry', teacherName: 'Anil Pandey', room: 'Room 101', startTime: '08:30 AM', endTime: '09:30 AM' },
-  { id: 'tt10', day: 'Wednesday', className: 'Class 8', subject: 'English', teacherName: 'Ritu Singh', room: 'Room 103', startTime: '02:00 PM', endTime: '04:00 PM' },
-  { id: 'tt11', day: 'Thursday', className: 'Class 10', subject: 'Mathematics', teacherName: 'Priyanshu Gupta', room: 'Room 101', startTime: '07:00 AM', endTime: '08:30 AM' },
-  { id: 'tt12', day: 'Thursday', className: 'Class 10', subject: 'Social Studies', teacherName: 'Ritu Singh', room: 'Room 101', startTime: '08:30 AM', endTime: '09:30 AM' },
-  { id: 'tt13', day: 'Friday', className: 'Class 10', subject: 'Mathematics', teacherName: 'Priyanshu Gupta', room: 'Room 101', startTime: '07:00 AM', endTime: '08:30 AM' },
-  { id: 'tt14', day: 'Friday', className: 'Class 10', subject: 'English', teacherName: 'Ritu Singh', room: 'Room 101', startTime: '08:30 AM', endTime: '09:30 AM' },
-  { id: 'tt15', day: 'Saturday', className: 'Class 10', subject: 'Revision Test Session', teacherName: 'Priyanshu Gupta', room: 'Main Hall', startTime: '08:00 AM', endTime: '11:00 AM' }
+  { id: 'tt1', day: 'Monday', className: 'Class 10', subject: 'Mathematics', teacherName: 'Priyanshu Gupta (Teacher)', room: 'Room 101', startTime: '07:00 AM', endTime: '08:30 AM' },
+  { id: 'tt2', day: 'Monday', className: 'Class 10', subject: 'Physics', teacherName: 'Priyanshu Gupta (Teacher)', room: 'Room 101', startTime: '08:30 AM', endTime: '09:30 AM' },
+  { id: 'tt5', day: 'Tuesday', className: 'Class 10', subject: 'Mathematics', teacherName: 'Priyanshu Gupta (Teacher)', room: 'Room 101', startTime: '07:00 AM', endTime: '08:30 AM' },
+  { id: 'tt8', day: 'Wednesday', className: 'Class 10', subject: 'Physics', teacherName: 'Priyanshu Gupta (Teacher)', room: 'Room 101', startTime: '07:00 AM', endTime: '08:30 AM' },
+  { id: 'tt11', day: 'Thursday', className: 'Class 10', subject: 'Mathematics', teacherName: 'Priyanshu Gupta (Teacher)', room: 'Room 101', startTime: '07:00 AM', endTime: '08:30 AM' },
+  { id: 'tt13', day: 'Friday', className: 'Class 10', subject: 'Mathematics', teacherName: 'Priyanshu Gupta (Teacher)', room: 'Room 101', startTime: '07:00 AM', endTime: '08:30 AM' },
+  { id: 'tt15', day: 'Saturday', className: 'Class 10', subject: 'Revision Test Session', teacherName: 'Priyanshu Gupta (Teacher)', room: 'Main Hall', startTime: '08:00 AM', endTime: '11:00 AM' }
 ];
 
 export const SEED_TOPPERS: Topper[] = [
-  { id: 'top1', name: 'Priya Mishra', score: '98.4%', rank: 'State Topper Rank 4', desc: 'Outstanding logical step marks in Math & Physics numerical sheets.', img: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=60' },
-  { id: 'top2', name: 'Anuj Soni', score: '96.2%', rank: 'Hardoi District Rank 12', desc: 'Outstanding chemical reactions balancing with flawless grammar papers.', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=60' },
-  { id: 'top3', name: 'Aditi Shukla', score: '95.0%', rank: 'District Rank 18', desc: 'Perfect scoring in Social Studies maps and English grammar assessments.', img: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&auto=format&fit=crop&q=60' }
+  { id: 'top1', name: 'Ayush Singh', score: '98.4%', rank: 'State Topper Rank 4 (Alumni)', desc: 'Outstanding logical step marks in Math & Physics numerical sheets.', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=60' }
 ];
 
 export const SEED_STUDY_MATERIALS: StudyMaterial[] = [
@@ -984,6 +1009,180 @@ export const SEED_STUDY_MATERIALS: StudyMaterial[] = [
     createdAt: '2026-06-18T15:00:00Z',
     updatedAt: '2026-06-26T09:00:00Z',
     date: '2026-06-18'
+  },
+  {
+    id: 'mat7',
+    materialId: 'mat7',
+    title: 'Class 9 Physics Motion & Numerical Practice Workbook',
+    slug: 'class-9-physics-motion-numerical-workbook',
+    description: '30 solved velocity-time graph problems, acceleration formulas, and uniform circular motion numerical sheets for Class 9 Science.',
+    desc: '30 solved velocity-time graph problems and numerical sheets for Class 9 Science.',
+    class: 'Class 9',
+    subject: 'Science',
+    chapter: 'Chapter 8',
+    materialType: 'WORKSHEET',
+    category: 'NOTES',
+    file: 'class9_physics_motion.pdf',
+    size: '2.1 MB',
+    fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+    isPublic: true,
+    status: 'PUBLISHED',
+    downloadCount: 380,
+    viewCount: 1120,
+    tags: ['Physics', 'Class 9', 'Motion', 'Numericals', 'Graphs'],
+    seoTitle: 'Class 9 Physics Motion Numerical Practice Workbook - Sunshine Classes',
+    metaDescription: 'Free PDF download of Class 9 Physics Motion chapter numerical worksheet with solved examples.',
+    keywords: ['Class 9 Physics', 'Motion Chapter', 'Numerical Practice', 'Graphs'],
+    createdBy: 'Rajeev Kr. Verma (Co-Founder)',
+    uploadedBy: 'Rajeev Kr. Verma (Co-Founder)',
+    createdAt: '2026-06-20T11:00:00Z',
+    updatedAt: '2026-06-27T10:00:00Z',
+    date: '2026-06-20'
+  },
+  {
+    id: 'mat8',
+    materialId: 'mat8',
+    title: 'Class 10 Biology Life Processes & Human Heart Diagram Sheet',
+    slug: 'class-10-biology-life-processes-diagram-sheet',
+    description: 'High-resolution labeled biological diagrams for double circulation, nephron structure, and digestive system for Class 10 Board exam.',
+    desc: 'High-resolution labeled biological diagrams for human heart and nephron structure.',
+    class: 'Class 10',
+    subject: 'Biology',
+    chapter: 'Chapter 6',
+    materialType: 'DIAGRAM_SHEET' as any,
+    category: 'NOTES',
+    file: 'biology_life_processes_diagrams.pdf',
+    size: '3.8 MB',
+    fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+    isPublic: true,
+    status: 'PUBLISHED',
+    downloadCount: 780,
+    viewCount: 2450,
+    tags: ['Biology', 'Class 10', 'Life Processes', 'Diagrams', 'Board Exam'],
+    seoTitle: 'Class 10 Biology Life Processes Labeled Diagrams PDF - Sunshine Classes',
+    metaDescription: 'Download Class 10 Biology Life Processes human heart and nephron diagrams sheet by Rajeev Sir.',
+    keywords: ['Class 10 Biology', 'Life Processes Diagrams', 'Human Heart Diagram', 'Board Biology'],
+    createdBy: 'Rajeev Kr. Verma (Co-Founder)',
+    uploadedBy: 'Rajeev Kr. Verma (Co-Founder)',
+    createdAt: '2026-06-22T09:00:00Z',
+    updatedAt: '2026-06-28T14:00:00Z',
+    date: '2026-06-22'
+  },
+  {
+    id: 'mat9',
+    materialId: 'mat9',
+    title: 'Class 8 Mathematics Algebraic Identities & Mensuration Worksheet',
+    slug: 'class-8-math-algebraic-identities-mensuration',
+    description: 'Chapterwise practice worksheet covering binomial expansion, surface area, and volume formulas for Class 8 students.',
+    desc: 'Chapterwise practice worksheet covering binomial expansion and mensuration.',
+    class: 'Class 8',
+    subject: 'Mathematics',
+    chapter: 'Chapter 9 & 11',
+    materialType: 'WORKSHEET',
+    category: 'NOTES',
+    file: 'class8_math_algebra_mensuration.pdf',
+    size: '1.4 MB',
+    fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+    isPublic: true,
+    status: 'PUBLISHED',
+    downloadCount: 210,
+    viewCount: 740,
+    tags: ['Mathematics', 'Class 8', 'Algebra', 'Mensuration', 'Worksheet'],
+    seoTitle: 'Class 8 Maths Algebraic Identities & Mensuration PDF - Sunshine Classes',
+    metaDescription: 'Download Class 8 Maths practice worksheet on Algebraic Expressions and Mensuration.',
+    keywords: ['Class 8 Maths', 'Algebraic Identities', 'Mensuration Formulas'],
+    createdBy: 'Priyanshu Gupta (Founder)',
+    uploadedBy: 'Priyanshu Gupta (Founder)',
+    createdAt: '2026-06-24T08:30:00Z',
+    updatedAt: '2026-06-29T10:00:00Z',
+    date: '2026-06-24'
+  },
+  {
+    id: 'mat10',
+    materialId: 'mat10',
+    title: 'Class 10 Chemistry Acids, Bases & Salts Secret Master Mindmap 🔒',
+    slug: 'class-10-chemistry-acids-bases-salts-master-mindmap',
+    description: 'Exclusive enrolled-student revision sheet summarizing pH scale values, indicators, and chlor-alkali process chemical equations.',
+    desc: 'Exclusive enrolled-student revision sheet summarizing pH scale values and chemical equations.',
+    class: 'Class 10',
+    subject: 'Chemistry',
+    chapter: 'Chapter 2',
+    materialType: 'NOTES',
+    category: 'NOTES',
+    file: 'chemistry_acids_bases_salts_mindmap.pdf',
+    size: '2.9 MB',
+    fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+    isPublic: false,
+    status: 'PUBLISHED',
+    downloadCount: 450,
+    viewCount: 1320,
+    tags: ['Chemistry', 'Class 10', 'Acids Bases Salts', 'Mindmap', 'Student Only'],
+    seoTitle: 'Class 10 Chemistry Acids Bases & Salts Mindmap - Sunshine Classes',
+    metaDescription: 'Enrolled student restricted study material for Class 10 Chemistry Acids Bases and Salts.',
+    keywords: ['Class 10 Chemistry', 'Acids Bases Salts', 'Mindmap', 'Enrolled Students'],
+    createdBy: 'Rajeev Kr. Verma (Co-Founder)',
+    uploadedBy: 'Rajeev Kr. Verma (Co-Founder)',
+    createdAt: '2026-06-25T12:00:00Z',
+    updatedAt: '2026-06-30T11:00:00Z',
+    date: '2026-06-25'
+  },
+  {
+    id: 'mat11',
+    materialId: 'mat11',
+    title: 'Class 10 Social Studies History: Rise of Nationalism in Europe Summary',
+    slug: 'class-10-sst-rise-of-nationalism-in-europe-summary',
+    description: 'Timeline of events from 1789 French Revolution, Unification of Italy and Germany, and 5-mark board long question answers.',
+    desc: 'Timeline of events from French Revolution to Unification of Italy & Germany.',
+    class: 'Class 10',
+    subject: 'Social Studies',
+    chapter: 'History Chapter 1',
+    materialType: 'NOTES',
+    category: 'NOTES',
+    file: 'class10_history_nationalism_europe.pdf',
+    size: '1.9 MB',
+    fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+    isPublic: true,
+    status: 'PUBLISHED',
+    downloadCount: 310,
+    viewCount: 890,
+    tags: ['Social Studies', 'History', 'Class 10', 'Nationalism', 'NCERT'],
+    seoTitle: 'Class 10 History Chapter 1 Rise of Nationalism Notes PDF - Sunshine Classes',
+    metaDescription: 'Complete revision notes and long answer guide for Class 10 History Chapter 1 Rise of Nationalism in Europe.',
+    keywords: ['Class 10 History', 'Rise of Nationalism in Europe', 'SST Board Notes'],
+    createdBy: 'Ritu Singh (Teacher)',
+    uploadedBy: 'Ritu Singh (Teacher)',
+    createdAt: '2026-06-26T10:00:00Z',
+    updatedAt: '2026-07-01T15:00:00Z',
+    date: '2026-06-26'
+  },
+  {
+    id: 'mat12',
+    materialId: 'mat12',
+    title: 'Class 7 Science Nutrition in Plants & Animals NCERT Notes',
+    slug: 'class-7-science-nutrition-in-plants-animals',
+    description: 'Photosynthesis process, stomata diagrams, modes of nutrition, and digestive tract steps explained simply for Class 7 students.',
+    desc: 'Photosynthesis process, stomata diagrams, and digestive tract steps explained simply.',
+    class: 'Class 7',
+    subject: 'Science',
+    chapter: 'Chapter 1 & 2',
+    materialType: 'NOTES',
+    category: 'NOTES',
+    file: 'class7_science_nutrition.pdf',
+    size: '1.1 MB',
+    fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+    isPublic: true,
+    status: 'PUBLISHED',
+    downloadCount: 160,
+    viewCount: 540,
+    tags: ['Science', 'Class 7', 'Nutrition', 'NCERT Notes'],
+    seoTitle: 'Class 7 Science Nutrition in Plants Notes PDF - Sunshine Classes',
+    metaDescription: 'Free download Class 7 Science Chapter 1 and 2 notes with diagrams.',
+    keywords: ['Class 7 Science', 'Nutrition in Plants', 'NCERT Class 7'],
+    createdBy: 'Rajeev Kr. Verma (Co-Founder)',
+    uploadedBy: 'Rajeev Kr. Verma (Co-Founder)',
+    createdAt: '2026-06-27T09:00:00Z',
+    updatedAt: '2026-07-02T11:00:00Z',
+    date: '2026-06-27'
   }
 ];
 

@@ -44,6 +44,23 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { trackCTAClick, trackContactClick } from './SEOHead';
 
+// Modular Landing Page Components
+import { Navbar } from './landing/Navbar';
+import { HeroSection } from './landing/HeroSection';
+import { QuickAccessHub } from './landing/QuickAccessHub';
+import { EcosystemFeatures } from './landing/EcosystemFeatures';
+import { CoursesSection } from './landing/CoursesSection';
+import { StudyMaterialShowcase } from './landing/StudyMaterialShowcase';
+import { SunshineStoreShowcase } from './landing/SunshineStoreShowcase';
+import { ToppersSection } from './landing/ToppersSection';
+import { FacultySection } from './landing/FacultySection';
+import { TestimonialsSection } from './landing/TestimonialsSection';
+import { FAQSection } from './landing/FAQSection';
+import { ContactSection } from './landing/ContactSection';
+import { Footer } from './landing/Footer';
+import { MobileBottomNav } from './landing/MobileBottomNav';
+import { PublicStudyMaterialPage } from '../pages/PublicStudyMaterialPage';
+
 const WhatsAppIcon = ({ className = "w-5 h-5", size = 20 }: { className?: string; size?: number }) => (
   <svg 
     viewBox="0 0 24 24" 
@@ -412,443 +429,67 @@ export default function LandingPage({
 
   return (
     <div id="landing-container" className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans transition-colors">
-      {/* Sticky Public Header */}
-      <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 shadow-sm transition-all">
-        <div className="mx-auto max-w-7xl px-4 py-3.5 flex justify-between items-center">
-          <button
-            id="header-logo-home"
-            onClick={() => {
-              setActiveSection('home');
-              setMobileMenuOpen(false);
-            }}
-            className="flex items-center gap-2 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue rounded-lg p-0.5 text-left border-0 bg-transparent"
-            title="Go to Home Page"
-          >
-            <SunshineLogo size="md" showText={true} textSubTitle="Excellence in Education • Pihani, Hardoi" />
-          </button>
-
-          {/* Navigation Links - Desktop Only */}
-          <nav className="hidden md:flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300">
-            {[
-              { id: 'home', label: 'Home' },
-              { id: 'about', label: 'About Us' },
-              { id: 'courses', label: 'Courses' },
-              { id: 'admissions', label: 'Admissions 2026' },
-              { id: 'results', label: 'Our Toppers' },
-              { id: 'resources', label: 'Study Notes' },
-              { id: 'gallery', label: 'Campus Gallery' },
-              { id: 'contact', label: 'Contact Us' }
-            ].map((link) => (
-              <button
-                key={link.id}
-                id={`nav-link-${link.id}`}
-                aria-label={`Navigate to our ${link.label} section`}
-                onClick={() => {
-                  setActiveSection(link.id as any);
-                  setGeneratedAdmId(null);
-                }}
-                className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                  activeSection === link.id ? 'bg-brand-blue text-white shadow-sm' : 'hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                {link.label}
-              </button>
-            ))}
-
-            {/* Sunshine Store Dropdown */}
-            <div className="relative group">
-              <button
-                id="nav-link-store"
-                className="px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white font-black text-amber-600 dark:text-amber-400"
-              >
-                <span>Books & Resources</span>
-                <span className="text-[10px]">▼</span>
-              </button>
-
-              <div className="absolute right-0 top-full hidden group-hover:block w-48 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 p-2 z-50">
-                <button
-                  id="nav-dropdown-books"
-                  onClick={() => navigate('/books')}
-                  className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-slate-800 hover:text-amber-600 transition-colors flex items-center gap-2"
-                >
-                  <BookOpen size={14} className="text-amber-500" />
-                  <span>Books Catalog</span>
-                </button>
-                <button
-                  id="nav-dropdown-resources"
-                  onClick={() => navigate('/resources')}
-                  className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-slate-800 hover:text-amber-600 transition-colors flex items-center gap-2"
-                >
-                  <Layers size={14} className="text-amber-500" />
-                  <span>Educational Resources</span>
-                </button>
-              </div>
-            </div>
-          </nav>
-
-          {/* Right Action Block - Desktop Only */}
-          <div className="hidden md:flex items-center gap-2">
-            <button
-              id="btn-toggle-theme-public"
-              onClick={onToggleTheme}
-              className="rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 p-2 text-xs transition-all flex items-center justify-center cursor-pointer border border-slate-200 dark:border-slate-700"
-              title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-            >
-              {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
-            </button>
-            <button
-              id="btn-trigger-erp"
-              onClick={handleERPClick}
-              className="rounded-xl bg-brand-orange hover:bg-amber-500 text-white px-4 py-2 text-xs font-black shadow-md transition-all flex items-center gap-1"
-            >
-              🔑 {currentUser ? 'Go to ERP Dashboard' : 'Student/Teacher ERP Portal'}
-            </button>
-          </div>
-
-          {/* Hamburger Menu Toggle Button - Mobile Only */}
-          <button
-            id="mobile-nav-toggle-btn"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden flex items-center justify-center rounded-xl p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 cursor-pointer"
-            aria-label="Toggle Navigation Menu"
-          >
-            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-        </div>
-
-        {/* Collapsible Mobile Menu Drawer */}
-        <AnimatePresence>
-          {mobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="md:hidden border-t border-slate-100 dark:border-slate-850 bg-white dark:bg-slate-900 overflow-hidden"
-            >
-              <div className="px-4 py-4 space-y-3.5 flex flex-col">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block border-b border-slate-100 dark:border-slate-800 pb-1.5">
-                  Explore Sunshine Classes
-                </span>
-                
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { id: 'home', label: 'Home' },
-                    { id: 'about', label: 'About Us' },
-                    { id: 'courses', label: 'Courses' },
-                    { id: 'admissions', label: 'Admissions 2026' },
-                    { id: 'results', label: 'Our Toppers' },
-                    { id: 'resources', label: 'Study Notes' },
-                    { id: 'gallery', label: 'Campus Gallery' },
-                    { id: 'contact', label: 'Contact Us' }
-                  ].map((link) => (
-                    <button
-                      key={link.id}
-                      id={`mobile-nav-link-${link.id}`}
-                      aria-label={`Navigate to our ${link.label} section`}
-                      onClick={() => {
-                        setActiveSection(link.id as any);
-                        setGeneratedAdmId(null);
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`px-3 py-2.5 rounded-xl transition-colors text-left text-xs font-bold ${
-                        activeSection === link.id 
-                          ? 'bg-brand-blue text-white shadow-xs' 
-                          : 'text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-850'
-                      }`}
-                    >
-                      {link.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Theme and ERP shortcuts */}
-                <div className="border-t border-slate-100 dark:border-slate-800 pt-3.5 flex items-center justify-between gap-3">
-                  <button
-                    id="mobile-btn-toggle-theme"
-                    onClick={() => {
-                      onToggleTheme();
-                    }}
-                    className="flex-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 py-2.5 px-3 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer border border-slate-200 dark:border-slate-700"
-                  >
-                    {theme === 'light' ? (
-                      <>
-                        <Moon size={15} />
-                        <span>Dark Mode</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sun size={15} />
-                        <span>Light Mode</span>
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    id="mobile-btn-trigger-erp"
-                    onClick={() => {
-                      handleERPClick();
-                      setMobileMenuOpen(false);
-                    }}
-                    className="flex-1 rounded-xl bg-brand-orange hover:bg-amber-500 text-white py-2.5 px-3 text-xs font-black shadow-md transition-all flex items-center justify-center gap-1.5"
-                  >
-                    🔑 {currentUser ? 'Dashboard' : 'ERP Portal'}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </header>
+      {/* Modern Grouped Navigation Bar */}
+      <Navbar
+        activeSection={activeSection}
+        setActiveSection={(sec) => {
+          setActiveSection(sec as any);
+          setGeneratedAdmId(null);
+        }}
+        theme={theme}
+        onToggleTheme={onToggleTheme}
+        onOpenSupportForm={() => setActiveSection('contact')}
+      />
 
       {/* Main Dynamic View Switching Block */}
       <main className="flex-1">
-        {/* VIEW 1: HOME */}
+        {/* VIEW 1: HOME (Redesigned Mobile-First Ecosystem) */}
         {activeSection === 'home' && (
-          <div className="space-y-16">
-            {/* HERO HERO SECTION */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-brand-blue via-indigo-900 to-slate-950 text-white py-16 md:py-24">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,213,79,0.1),transparent_50%)]"></div>
-              
-              <div className="mx-auto max-w-7xl px-4 grid gap-12 md:grid-cols-12 items-center relative">
-                <div className="md:col-span-7 space-y-6">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-1 text-xs font-bold text-amber-300 backdrop-blur-md uppercase tracking-wider">
-                    🔥 Admissions Open 2026–27 (Classes 1 to 10)
-                  </span>
-                  
-                  <h2 className="font-display text-4xl font-black md:text-5xl leading-tight tracking-tight text-white">
-                    Your Journey Towards <span className="text-amber-400">Academic Excellence</span> Starts Here
-                  </h2>
-                  
-                  <p className="text-slate-300 text-sm leading-relaxed max-w-xl">
-                    Sunshine Classes delivers concept-driven, high-scoring Mathematics, Science, and English coaching in Pihani, Uttar Pradesh. Special board syllabus guidelines to secure district merit.
-                  </p>
+          <div className="w-full max-w-full overflow-x-hidden space-y-0">
+            <HeroSection
+              onNavigateSection={(sec) => setActiveSection(sec)}
+            />
 
-                  <div className="flex flex-wrap gap-3 pt-2">
-                    <button
-                      id="hero-btn-enroll"
-                      onClick={() => {
-                        trackCTAClick('hero-btn-enroll', 'Enroll Now Online');
-                        setActiveSection('admissions');
-                      }}
-                      className="rounded-xl bg-brand-orange hover:bg-amber-500 text-white px-6 py-3 text-xs font-black shadow-lg transition-all"
-                    >
-                      Enroll Now Online
-                    </button>
-                    <button
-                      id="hero-btn-demo"
-                      onClick={() => {
-                        trackCTAClick('hero-btn-demo', 'Book Free Demo Class');
-                        setActiveSection('contact');
-                      }}
-                      className="rounded-xl bg-white/10 hover:bg-white/15 text-white border border-white/20 px-5 py-3 text-xs font-black backdrop-blur-sm transition-all"
-                    >
-                      Book Free Demo Class
-                    </button>
-                  </div>
+            <QuickAccessHub
+              onNavigateSection={(sec) => setActiveSection(sec)}
+            />
 
-                  {/* Hot contact actions */}
-                  <div className="pt-4 flex flex-wrap gap-4 text-xs font-bold text-amber-300">
-                    <a
-                      id="hero-call"
-                      href="tel:8707738284"
-                      onClick={() => trackContactClick('phone', '8707738284')}
-                      className="flex items-center gap-1.5 hover:underline"
-                    >
-                      📞 Call: 8707738284
-                    </a>
-                    <a
-                      id="hero-wa"
-                      href="https://wa.me/9161586254"
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={() => trackContactClick('whatsapp', '9161586254')}
-                      className="flex items-center gap-1.5 hover:underline text-green-400"
-                    >
-                      💬 WhatsApp: 9161586254
-                    </a>
-                  </div>
-                </div>
+            <EcosystemFeatures />
 
-                <div className="md:col-span-5 relative space-y-4">
-                  {/* Modern Classroom Header Image Card */}
-                  <div className="relative h-48 md:h-56 rounded-3xl overflow-hidden shadow-2xl border border-white/10 group">
-                    <img
-                      src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&auto=format&fit=crop&q=80"
-                      alt="Sunshine Classes Modern Collaborative Classroom"
-                      width={800}
-                      height={400}
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-900/20 to-transparent flex items-end p-4">
-                      <div className="space-y-1">
-                        <span className="text-[9px] font-black uppercase text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded backdrop-blur-md border border-amber-400/20">
-                          Active Collaborative Learning
-                        </span>
-                        <p className="text-xs font-bold text-white tracking-wide">
-                          Modern classrooms designed for conceptual focus and high board performance
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+            <CoursesSection
+              onSelectClassForAdmission={(cls) => {
+                setAdmClass(cls);
+                setActiveSection('admissions');
+              }}
+              onNavigateSection={(sec) => setActiveSection(sec as any)}
+            />
 
-                  {/* Decorative Glass card of stats */}
-                  <div className="glass-panel-dark rounded-3xl p-6 shadow-2xl relative z-10 space-y-6 border border-white/10">
-                    <h3 className="font-display font-bold text-base text-amber-300 tracking-wide text-center uppercase">
-                      Class 10 Boards Specialist
-                    </h3>
+            <StudyMaterialShowcase
+              studyMaterials={studyMaterials}
+              onNavigateResources={() => navigate('/resources')}
+            />
 
-                    <div className="divide-y divide-white/10 text-xs">
-                      <div className="py-2.5 flex justify-between items-center">
-                        <span className="text-slate-300">NCERT Syllabus Deep-dive</span>
-                        <span className="text-green-400 font-bold">100% Covered</span>
-                      </div>
-                      <div className="py-2.5 flex justify-between items-center">
-                        <span className="text-slate-300">Previous 10 Years Boards papers</span>
-                        <span className="text-green-400 font-bold">Fully Solved</span>
-                      </div>
-                      <div className="py-2.5 flex justify-between items-center">
-                        <span className="text-slate-300">Chapter-wise Merit Mock Series</span>
-                        <span className="text-green-400 font-bold">Weekly Logged</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <SunshineStoreShowcase
+              onNavigateStore={() => setActiveSection('store' as any)}
+            />
 
-            {/* STATISTICS STATISTICS ROW */}
-            <div className="mx-auto max-w-7xl px-4">
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 rounded-3xl border border-slate-100 bg-white p-8 shadow-md">
-                {[
-                  { value: '1000+', label: 'Happy Students Enrolled' },
-                  { value: '95%', label: 'Board Examination Results' },
-                  { value: '10+', label: 'Years Academic Heritage' },
-                  { value: '100%', label: 'Individual Doubt Attention' }
-                ].map((stat, idx) => (
-                  <div key={idx} className="text-center p-3">
-                    <span className="font-display text-3xl font-black text-brand-blue block mb-1">{stat.value}</span>
-                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{stat.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <ToppersSection 
+              toppers={toppers} 
+              onNavigateResults={() => setActiveSection('results' as any)}
+            />
 
-            {/* WHY CHOOSE US WHY CHOOSE US */}
-            <div className="mx-auto max-w-7xl px-4 py-8 bg-slate-100 rounded-3xl">
-              <div className="text-center max-w-2xl mx-auto mb-12">
-                <span className="text-xs font-black uppercase text-brand-orange tracking-widest block mb-1">Our Credentials</span>
-                <h3 className="font-display text-2xl font-black text-slate-800">Why Sunshine Classes Delivers Excellence</h3>
-                <p className="text-xs text-slate-500 mt-2">Meticulously organized teaching methodology designed for robust concept assimilation.</p>
-              </div>
+            <FacultySection />
 
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                {[
-                  { title: 'Weekly Merit Tests', desc: 'Chapter-wise examinations to evaluate performance metrics and weak nodes.' },
-                  { title: 'Monthly Progress Reports', desc: 'Transparent feedback summaries compiled directly for parents review.' },
-                  { title: 'NCERT Centered Path', desc: 'Deep-dive textual reading of standard NCERT textbook questions.' },
-                  { title: 'Regular Parent Meetings', desc: 'Direct face-to-face sessions with Priyanshu sir to discuss performance.' }
-                ].map((card, idx) => (
-                  <div key={idx} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-                    <div className="h-10 w-10 rounded-xl bg-blue-50 text-brand-blue flex items-center justify-center font-bold mb-4">
-                      {idx + 1}
-                    </div>
-                    <h4 className="text-sm font-black text-slate-800 mb-1.5">{card.title}</h4>
-                    <p className="text-xs text-slate-500 leading-relaxed">{card.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <TestimonialsSection
+              testimonials={testimonials}
+              onSubmitReview={onAddReview}
+            />
 
-            {/* POPULAR COURSES PREVIEW */}
-            <div className="mx-auto max-w-7xl px-4">
-              <div className="flex justify-between items-end mb-10 flex-wrap gap-4">
-                <div>
-                  <span className="text-xs font-black uppercase text-brand-orange tracking-widest block mb-1">Tuition Cohorts</span>
-                  <h3 className="font-display text-2xl font-black text-slate-800">Available Coaching Batches</h3>
-                </div>
-                <button
-                  id="home-btn-view-courses"
-                  onClick={() => setActiveSection('courses')}
-                  className="flex items-center gap-1 text-xs font-bold text-brand-blue hover:underline"
-                >
-                  View All Classes <ChevronRight size={14} />
-                </button>
-              </div>
+            <FAQSection />
 
-              <div className="grid gap-6 sm:grid-cols-3">
-                {courses.slice(0, 3).map((course) => (
-                  <div key={course.id} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
-                    <div>
-                      <h4 className="font-display font-bold text-sm text-slate-800 mb-2 leading-tight">{course.name}</h4>
-                      <p className="text-xs text-brand-blue font-bold mb-4">Monthly Fee: ₹{course.fees}/month</p>
-                      
-                      <div className="space-y-1.5 text-xs text-slate-500 mb-6">
-                        {course.features.slice(0, 3).map((f, i) => (
-                          <div key={i} className="flex items-start gap-1.5">
-                            <span className="text-brand-orange">✓</span>
-                            <span>{f}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <button
-                      id={`btn-course-enroll-${course.id}`}
-                      onClick={() => {
-                        setAdmClass(course.name.includes('10') ? 'Class 10' : course.name.includes('9') ? 'Class 9' : 'Class 8');
-                        setActiveSection('admissions');
-                      }}
-                      className="w-full rounded-xl bg-brand-blue hover:bg-brand-blue-hover text-white text-xs font-bold py-2.5 shadow-sm transition-colors text-center"
-                    >
-                      Apply Online Admission
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* TESTIMONIALS & REVIEWS SECTION */}
-            <div id="testimonials-review-section" className="mx-auto max-w-7xl px-4 py-16 border-t border-slate-100 dark:border-slate-800 mt-16 space-y-12">
-              <div className="text-center max-w-2xl mx-auto">
-                <span className="text-xs font-black uppercase text-brand-orange tracking-widest block mb-1">Testimonials</span>
-                <h3 className="font-display text-2xl font-black text-slate-800 dark:text-white">Loved by Parents & Students</h3>
-                <p className="text-xs text-slate-500 mt-1">Authentic reviews submitted by our active learning cohort and parent community in Pihani.</p>
-              </div>
-
-              {/* Grid of existing testimonials */}
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {testimonials.map((testi, idx) => (
-                  <div key={testi.id || idx} className="rounded-2xl border border-slate-150 bg-white dark:bg-slate-900 p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
-                    <div>
-                      <div className="flex items-center gap-1 text-amber-400 mb-3">
-                        {Array.from({ length: testi.rating }).map((_, i) => (
-                          <Star key={i} size={14} fill="currentColor" />
-                        ))}
-                      </div>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 italic leading-relaxed mb-4">"{testi.content}"</p>
-                    </div>
-                    <div className="flex items-center gap-3 pt-4 border-t border-slate-50 dark:border-slate-800">
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-800 dark:text-white">{testi.name}</h4>
-                        <span className="text-[10px] font-extrabold uppercase text-brand-blue tracking-widest">{testi.role}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Inline Add Review Form Trigger */}
-              <div className="max-w-xl mx-auto bg-slate-50 dark:bg-slate-900/30 rounded-3xl p-6 border border-slate-100 dark:border-slate-800 text-center space-y-3">
-                <h4 className="font-display font-bold text-sm text-slate-800 dark:text-white">Share Your Sunshine Journey!</h4>
-                <p className="text-xs text-slate-500 max-w-md mx-auto">Did Priyanshu sir help clear your doubts? Did our weekly tests help boost your grades? Let the Pihani community know!</p>
-                <div className="pt-2">
-                  <ReviewForm onSubmitReview={onAddReview} />
-                </div>
-              </div>
-            </div>
+            <ContactSection 
+              onNavigateSection={(sec) => setActiveSection(sec as any)}
+            />
           </div>
         )}
 
@@ -1428,275 +1069,17 @@ export default function LandingPage({
           </div>
         )}
 
-        {/* VIEW: STUDY NOTES & RESOURCES HUB (Universal Hub) */}
+        {/* VIEW: STUDY NOTES & RESOURCES HUB (Sprint 3 Study Material Portal) */}
         {activeSection === 'resources' && (
-          <div className="mx-auto max-w-7xl px-4 py-12 space-y-12 animate-fade-in">
-            <div className="text-center max-w-xl mx-auto">
-              <span className="text-xs font-black uppercase text-brand-orange tracking-widest block mb-1">Universal Resource Desk</span>
-              <h3 className="font-display text-3xl font-black text-slate-800 dark:text-white">Sunshine Study Notes & Revision Hub</h3>
-              <p className="text-xs text-slate-500 mt-1">Access completely free, premium conceptual formulas and board mock paper archives.</p>
-            </div>
-
-            {/* Hub Filters & Search */}
-            <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-4">
-              <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                {/* Search */}
-                <div className="relative w-full md:max-w-md">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                    <Search size={14} />
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="Search by title, subject or key terms..."
-                    value={resourcesSearch}
-                    onChange={(e) => setResourcesSearch(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 pl-9 pr-4 py-2 text-xs focus:ring-1 focus:ring-brand-blue outline-none"
-                  />
-                </div>
-
-                {/* Filters Row */}
-                <div className="flex flex-wrap gap-2 items-center w-full md:w-auto justify-end">
-                  <select
-                    value={resourcesSubject}
-                    onChange={(e) => setResourcesSubject(e.target.value)}
-                    className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-xs outline-none"
-                  >
-                    <option value="ALL">All Subjects</option>
-                    <option value="Mathematics">Mathematics</option>
-                    <option value="Science">Science</option>
-                    <option value="English">English</option>
-                  </select>
-
-                  <select
-                    value={resourcesClass}
-                    onChange={(e) => setResourcesClass(e.target.value)}
-                    className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-xs outline-none"
-                  >
-                    <option value="ALL">All Classes</option>
-                    <option value="Class 10">Class 10</option>
-                    <option value="Class 9">Class 9</option>
-                    <option value="Class 8">Class 8</option>
-                  </select>
-
-                  {onAddStudyMaterial && (
-                    <button
-                      id="btn-landing-upload-pdf-note"
-                      onClick={() => setShowUploadModal(true)}
-                      className="rounded-xl bg-brand-blue hover:bg-blue-700 text-white px-3.5 py-2 text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
-                    >
-                      <Plus size={14} /> Upload PDF Note
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Category selector */}
-              <div className="flex border-b border-slate-100 dark:border-slate-800">
-                {['ALL', 'NOTES', 'QUESTION_PAPER'].map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setResourcesCategory(cat)}
-                    className={`px-4 py-2.5 text-xs font-black border-b-2 transition-all cursor-pointer ${
-                      resourcesCategory === cat
-                        ? 'border-brand-blue text-brand-blue'
-                        : 'border-transparent text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    {cat === 'ALL' ? 'All Downloads' : cat === 'NOTES' ? 'Chapter Formulas & Notes' : 'Previous Year Mock Papers'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Resource Grid list */}
-            {filteredResources.length === 0 ? (
-              <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
-                <span className="text-3xl">📂</span>
-                <h4 className="font-bold text-slate-800 dark:text-white mt-3 text-sm">No Study Materials Found</h4>
-                <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">Try refining your keyword query, selected class, or subject category filter tags.</p>
-              </div>
-            ) : (
-              <div className="grid gap-6 sm:grid-cols-2">
-                {filteredResources.map((item, idx) => (
-                  <div key={item.id || idx} className="rounded-2xl border border-slate-100 bg-white dark:bg-slate-900 p-5 shadow-sm hover:shadow-md hover:border-slate-200 transition-all flex justify-between items-start gap-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-brand-blue bg-blue-50 dark:bg-blue-950/30 px-2.5 py-0.5 rounded-lg border border-blue-100 dark:border-blue-900/30">
-                          {item.subject}
-                        </span>
-                        <span className="text-[9px] font-black uppercase tracking-widest text-brand-orange bg-orange-50 dark:bg-orange-950/30 px-2.5 py-0.5 rounded-lg border border-orange-100 dark:border-orange-900/30">
-                          {item.class}
-                        </span>
-                        <span className="text-[9px] font-semibold text-slate-500 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-100 dark:border-slate-700">
-                          {item.category === 'NOTES' ? 'Study Notes' : 'Question Paper'}
-                        </span>
-                      </div>
-                      <h4 className="text-sm font-black text-slate-800 dark:text-white leading-snug">{item.title}</h4>
-                      <p className="text-xs text-slate-500 leading-normal">{item.desc}</p>
-                      
-                      {item.date && (
-                        <div className="flex items-center gap-4 text-[10px] text-slate-400 font-mono">
-                          <span>Published: {item.date}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <button
-                      id={`btn-landing-download-${item.id}`}
-                      onClick={() => {
-                        if (item.fileData) {
-                          if (item.fileData.startsWith('http://') || item.fileData.startsWith('https://')) {
-                            window.open(item.fileData, '_blank', 'noopener,noreferrer');
-                          } else {
-                            const link = document.createElement('a');
-                            link.href = item.fileData;
-                            link.download = item.file;
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                          }
-                        } else {
-                          alert(`Downloading Study File "${item.file}"... Standard NCERT reference guides are pre-bundled offline for easy access.`);
-                        }
-                      }}
-                      className="rounded-xl p-3 bg-slate-50 hover:bg-brand-blue hover:text-white dark:bg-slate-800/80 dark:hover:bg-brand-blue border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-300 transition-all flex-shrink-0 cursor-pointer shadow-sm hover:scale-105"
-                      title="Download PDF document"
-                    >
-                      <Plus size={16} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Upload PDF Modal */}
-            {showUploadModal && (
-              <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-                <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 space-y-4 border border-slate-100 dark:border-slate-800 shadow-2xl">
-                  <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
-                    <h3 className="font-display font-black text-sm text-slate-800 dark:text-white">Publish PDF Study Note</h3>
-                    <button onClick={() => setShowUploadModal(false)} className="text-slate-400 hover:text-slate-600">
-                      <X size={16} />
-                    </button>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Title</label>
-                      <input
-                        type="text"
-                        required
-                        value={newLandingMaterial.title}
-                        onChange={(e) => setNewLandingMaterial({ ...newLandingMaterial, title: e.target.value })}
-                        placeholder="e.g. Class 10 Physics Motion Formula Sheet"
-                        className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800 px-3 py-2 text-xs outline-none text-slate-800 dark:text-white"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Subject</label>
-                        <select
-                          value={newLandingMaterial.subject}
-                          onChange={(e) => setNewLandingMaterial({ ...newLandingMaterial, subject: e.target.value })}
-                          className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-xs outline-none text-slate-800 dark:text-white"
-                        >
-                          <option value="Mathematics">Mathematics</option>
-                          <option value="Science">Science</option>
-                          <option value="English">English</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Class</label>
-                        <select
-                          value={newLandingMaterial.class}
-                          onChange={(e) => setNewLandingMaterial({ ...newLandingMaterial, class: e.target.value })}
-                          className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-xs outline-none text-slate-800 dark:text-white"
-                        >
-                          <option value="Class 10">Class 10</option>
-                          <option value="Class 9">Class 9</option>
-                          <option value="Class 8">Class 8</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Description</label>
-                      <textarea
-                        value={newLandingMaterial.desc}
-                        onChange={(e) => setNewLandingMaterial({ ...newLandingMaterial, desc: e.target.value })}
-                        placeholder="Brief summary of what's inside this PDF..."
-                        rows={2}
-                        className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800 px-3 py-2 text-xs outline-none text-slate-800 dark:text-white"
-                      />
-                    </div>
-
-                    <CloudinaryUpload
-                      id="landing-pdf-note-upload"
-                      folder="study-material"
-                      cloudName={subConfig.cloudinaryCloudName}
-                      uploadPreset={subConfig.cloudinaryUploadPreset}
-                      apiKey={subConfig.cloudinaryApiKey}
-                      maxSizeMB={subConfig.cloudinaryMaxFileSize || 20}
-                      initialUrl={newLandingMaterial.fileData}
-                      onUploadSuccess={(url, publicId, fileName) => {
-                        const safeFileName = fileName || publicId || 'uploaded_document.pdf';
-                        setNewLandingMaterial({
-                          ...newLandingMaterial,
-                          file: safeFileName,
-                          fileData: url
-                        });
-                      }}
-                      onFileDeleted={() => setNewLandingMaterial({ ...newLandingMaterial, file: '', fileData: '' })}
-                      allowedTypes={['pdf']}
-                      label="Select & Upload PDF Note"
-                    />
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <button
-                      type="button"
-                      onClick={() => setShowUploadModal(false)}
-                      className="rounded-xl px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-800"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      id="btn-submit-landing-pdf-note"
-                      disabled={!newLandingMaterial.title || !newLandingMaterial.fileData}
-                      onClick={() => {
-                        if (onAddStudyMaterial && newLandingMaterial.fileData) {
-                          let finalFilename = newLandingMaterial.file || 'document.pdf';
-                          if (!finalFilename.endsWith('.pdf')) finalFilename += '.pdf';
-                          onAddStudyMaterial({
-                            ...newLandingMaterial,
-                            file: finalFilename,
-                            date: new Date().toISOString().split('T')[0]
-                          });
-                          setShowUploadModal(false);
-                          setNewLandingMaterial({
-                            title: '',
-                            subject: 'Science',
-                            class: 'Class 10',
-                            category: 'NOTES',
-                            desc: '',
-                            file: '',
-                            fileData: ''
-                          });
-                        }
-                      }}
-                      className="rounded-xl bg-brand-blue hover:bg-blue-700 disabled:opacity-50 text-white px-5 py-2 text-xs font-bold transition-all shadow-md cursor-pointer"
-                    >
-                      Publish Note
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+          <div className="animate-fade-in -mx-4 -my-12">
+            <PublicStudyMaterialPage
+              currentUser={currentUser}
+              onNavigateSection={(sec) => setActiveSection(sec as any)}
+              cmsMaterials={studyMaterials}
+            />
           </div>
         )}
+
 
         {/* VIEW 6: CAMPUS GALLERY */}
         {activeSection === 'gallery' && (
@@ -1934,11 +1317,11 @@ export default function LandingPage({
       </main>
 
       {/* Floating Action Bars */}
-      <div className="fixed bottom-6 left-6 z-40 flex items-center gap-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-1.5 rounded-full shadow-xl border border-slate-200/60 dark:border-slate-800/60">
+      <div className="fixed bottom-16 xl:bottom-6 left-4 sm:left-6 z-40 flex items-center gap-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-1.5 rounded-full shadow-xl border border-slate-200/60 dark:border-slate-800/60">
         <a
           id="btn-sticky-call"
           href="tel:8707738284"
-          className="flex h-9 items-center gap-1.5 rounded-full bg-brand-blue text-white px-3.5 hover:bg-indigo-800 text-xs font-bold transition-all shadow-sm cursor-pointer"
+          className="flex h-9 items-center gap-1.5 rounded-full bg-amber-500 text-white px-3.5 hover:bg-amber-600 text-xs font-bold transition-all shadow-sm cursor-pointer"
           title="Call Admission Desk"
         >
           <Phone size={12} /> <span className="hidden sm:inline">Call Office</span>
@@ -1984,70 +1367,18 @@ export default function LandingPage({
         href="https://wa.me/919161586254?text=Hello!%20I%20want%20to%20inquire%20about%20Sunshine%20Classes%20tuitions."
         target="_blank"
         rel="noopener noreferrer"
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-2xl transition-all duration-300 hover:scale-110 hover:bg-emerald-600 focus:outline-none focus:ring-4 focus:ring-emerald-300 group cursor-pointer"
+        className="fixed bottom-16 xl:bottom-6 right-4 sm:right-6 z-50 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-2xl transition-all duration-300 hover:scale-110 hover:bg-emerald-600 focus:outline-none focus:ring-4 focus:ring-emerald-300 group cursor-pointer"
         title="Chat on WhatsApp (Hotline)"
       >
         <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping group-hover:opacity-100"></span>
-        <WhatsAppIcon className="relative z-10 w-7 h-7" />
+        <WhatsAppIcon className="relative z-10 w-6 h-6 sm:w-7 sm:h-7" />
       </a>
 
-      {/* Footer */}
-      <footer className="bg-slate-900 text-slate-400 py-12 border-t border-slate-800">
-        <div className="mx-auto max-w-7xl px-4 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 text-xs">
-          <div className="space-y-3">
-            <button
-              id="footer-logo-home"
-              onClick={() => setActiveSection('home')}
-              className="flex items-center gap-1.5 cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange rounded-lg p-0.5 border-0 bg-transparent"
-              title="Go to Home Page"
-            >
-              <SunshineLogo size="sm" showText={true} textColor="light" textSubTitle="Excellence in Education • Pihani, Hardoi" />
-            </button>
-            <p className="leading-relaxed">Building outstanding conceptual clarity in Mathematics, Science and English for Classes 1 to 10 board candidates.</p>
-          </div>
+      {/* Modular Redesigned Footer */}
+      <Footer setActiveSection={setActiveSection} />
 
-          <div className="space-y-2">
-            <h4 className="text-white font-bold text-xs uppercase mb-1">Tuition classes</h4>
-            <div className="space-y-1">
-              <div>• Class 10 Board Specialists (₹1,200/mo)</div>
-              <div>• Class 9 Foundation Course (₹1,000/mo)</div>
-              <div>• Classes 5 to 8 Apex Learning (₹700/mo)</div>
-              <div>• Classes 1 to 4 Junior Sunshine (₹500/mo)</div>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <h4 className="text-white font-bold text-xs uppercase mb-1">Our Location</h4>
-            <p className="leading-relaxed text-slate-400">Mohalla Mishrana, opposite Subhash Park, Pihani, Hardoi, Uttar Pradesh (Pin: 241406)</p>
-          </div>
-
-          <div className="space-y-3">
-            <h4 className="text-white font-bold text-xs uppercase mb-1">Contact & Socials</h4>
-            <div className="space-y-2 text-slate-400 text-xs">
-              <a href="tel:+918707738284" className="flex items-center gap-2 hover:text-white transition-colors cursor-pointer">
-                <Phone size={13} className="text-brand-orange" />
-                <span>Call Desk: +91 8707738284</span>
-              </a>
-              <a href="https://wa.me/919161586254?text=Hello!" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:text-white transition-colors cursor-pointer">
-                <WhatsAppIcon size={13} className="text-emerald-500" />
-                <span>WhatsApp: +91 9161586254</span>
-              </a>
-              <a href="https://facebook.com/sunshineclassespihani" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:text-white transition-colors cursor-pointer">
-                <Facebook size={13} className="text-blue-500" />
-                <span>Facebook Page</span>
-              </a>
-              <a href="https://instagram.com/sunshineclassespihani" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:text-white transition-colors cursor-pointer">
-                <Instagram size={13} className="text-pink-500" />
-                <span>Instagram Profile</span>
-              </a>
-            </div>
-          </div>
-        </div>
-        
-        <div className="mx-auto max-w-7xl px-4 mt-8 pt-8 border-t border-slate-800 text-center text-[10px] text-slate-500">
-          © 2026-2027 Sunshine Classes Pihani. All Rights Reserved. Created under Educational Guidelines.
-        </div>
-      </footer>
+      {/* Sticky Mobile Bottom Navigation Bar */}
+      <MobileBottomNav activeSection={activeSection} setActiveSection={setActiveSection} />
 
       {/* GOOGLE FORM-STYLE ENROLLMENT FAILURE REPORTING MODAL */}
       {showSupportForm && (

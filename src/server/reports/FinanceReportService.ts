@@ -727,7 +727,7 @@ export class FinanceReportService {
         user.id || user.uid,
         user.username || user.name || 'Admin',
         'DASHBOARD_ACCESSED',
-        `Accessed Finance Dashboard & Reports (FM-007)`
+        `Accessed Finance Dashboard & Reports`
       );
     } catch (e: any) {
       console.warn('[FinanceReportService] Dashboard audit log error:', e?.message || e);

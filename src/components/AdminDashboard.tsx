@@ -66,7 +66,7 @@ import {
   QrCode,
   ShoppingBag
 } from 'lucide-react';
-import { Student, Teacher, User, UserRole, Course, Batch, Topper, StudyMaterial, FounderMember, FeeStatus, FeeReceipt, AuditLog, AppNotification, StudentSubscription, SubscriptionPayment, SubscriptionReceipt, SubscriptionNotification, SubscriptionConfig, Admission, Attendance, Test, StudentMark, Homework, HomeworkSubmission, BlogPost, Testimonial, GalleryItem, Inquiry, TimetableEntry, EmailTemplatesConfig, WhatsAppTemplatesConfig, DepartedStudent, EmailLog, UPIPayment } from '../types';
+import { Student, Teacher, User, UserRole, UserAccountStatus, Course, Batch, ClassEntity, ClassTiming, TimingSlotLabel, Topper, StudyMaterial, FounderMember, FeeStatus, FeeReceipt, AuditLog, AppNotification, StudentSubscription, SubscriptionPayment, SubscriptionReceipt, SubscriptionNotification, SubscriptionConfig, Admission, Attendance, Test, StudentMark, Homework, HomeworkSubmission, BlogPost, Testimonial, GalleryItem, Inquiry, TimetableEntry, EmailTemplatesConfig, WhatsAppTemplatesConfig, DepartedStudent, EmailLog, UPIPayment } from '../types';
 import { interpolateTemplate, getFeeForClass } from '../data';
 import { sendWhatsAppMessage, interpolateWhatsAppTemplate } from '../lib/whatsappService';
 import { googleSignIn, getCachedAccessToken, clearCachedAccessToken, db } from '../lib/firebase';
@@ -82,6 +82,7 @@ import { FeeStructureManager } from './FeeStructureManager';
 import SunshineLogo from './SunshineLogo';
 import { getFeeStatusForRecord, parseMonthYear, formatMonthYear, generateFeeRecords, compareMonths, getCurrentAndNextMonths } from '../lib/feeUtils';
 import AdmissionsModule from './admissions/AdmissionsModule';
+import { forceResetDatabase } from '../services/initDbService';
 
 function simpleSecureHash(password: string): string {
   let hash = 0x811c9dc5;
@@ -101,6 +102,8 @@ interface AdminDashboardProps {
   teachers: Teacher[];
   users: User[];
   courses: Course[];
+  classes?: ClassEntity[];
+  onUpdateClasses?: (classes: ClassEntity[]) => void;
   batches: Batch[];
   onUpdateBatches: (batches: Batch[]) => void;
   toppers: Topper[];
@@ -176,6 +179,8 @@ export default function AdminDashboard({
   teachers,
   users,
   courses,
+  classes = [],
+  onUpdateClasses,
   batches,
   onUpdateBatches,
   toppers,
@@ -242,6 +247,8 @@ export default function AdminDashboard({
   onUpdateUsers
 } : AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'admissions' | 'students' | 'teachers' | 'batches' | 'announcements' | 'website' | 'audit' | 'settings' | 'fees' | 'diagnostics' | 'whatsapp' | 'sheets' | 'roles' | 'founder-office' | 'cofounder-office' | 'auth-logs' | 'finance-reports' | 'study-material-cms' | 'sunshine-store'>('overview');
+  const [isPurging, setIsPurging] = useState(false);
+  const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
   const [dashboardSession, setDashboardSession] = useState('2026-27');
   const [dashboardMonth, setDashboardMonth] = useState('July 2026');
   const [showPendingFeesDetails, setShowPendingFeesDetails] = useState(false);
@@ -2241,13 +2248,44 @@ export default function AdminDashboard({
   const [batchFormStatus, setBatchFormStatus] = useState<'ACTIVE' | 'DUE' | 'EXPIRED'>('ACTIVE');
   const [batchFormCapacity, setBatchFormCapacity] = useState(30);
 
+  // Class-Centric Architecture State Variables
+  const [showClassModal, setShowClassModal] = useState(false);
+  const [editingClass, setEditingClass] = useState<ClassEntity | null>(null);
+  const [classFormName, setClassFormName] = useState('');
+  const [classFormCode, setClassFormCode] = useState('');
+  const [classFormDefaultFee, setClassFormDefaultFee] = useState(1000);
+  const [classFormCapacity, setClassFormCapacity] = useState(40);
+  const [classFormSession, setClassFormSession] = useState('2026-2027');
+  const [classFormStream, setClassFormStream] = useState('');
+  const [classFormStatus, setClassFormStatus] = useState<'ACTIVE' | 'INACTIVE'>('ACTIVE');
+  const [classFormSubjects, setClassFormSubjects] = useState('');
+
+  // Timing Slot Modal State Variables
+  const [showTimingModal, setShowTimingModal] = useState(false);
+  const [timingTargetClassId, setTimingTargetClassId] = useState('');
+  const [editingTiming, setEditingTiming] = useState<ClassTiming | null>(null);
+  const [timingFormLabel, setTimingFormLabel] = useState<TimingSlotLabel>('Morning');
+  const [timingFormRange, setTimingFormRange] = useState('07:00 AM – 09:00 AM');
+  const [timingFormTeachers, setTimingFormTeachers] = useState<string[]>([]);
+  const [timingFormCapacity, setTimingFormCapacity] = useState(30);
+  const [timingFormFeeOverride, setTimingFormFeeOverride] = useState<string>('');
+  const [timingFormSection, setTimingFormSection] = useState('Section A');
+  const [timingFormStatus, setTimingFormStatus] = useState<'ACTIVE' | 'INACTIVE'>('ACTIVE');
+
+  // Search & Filter for Class Management
+  const [classSearchQuery, setClassSearchQuery] = useState('');
+  const [classTimingFilter, setClassTimingFilter] = useState('ALL');
+
   // State for Admin resetting another user's password
   const [resettingUser, setResettingUser] = useState<{ userId: string; username: string; name: string; email?: string } | null>(null);
   const [newPasswordForUser, setNewPasswordForUser] = useState('');
   const [editUsername, setEditUsername] = useState('');
   const [userActive, setUserActive] = useState(true);
+  const [userStatus, setUserStatus] = useState<UserAccountStatus>('ACTIVE');
+  const [userSuspensionReason, setUserSuspensionReason] = useState('');
   const [userLocked, setUserLocked] = useState(false);
   const [userForceChange, setUserForceChange] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'ALL' | UserAccountStatus>('ALL');
 
   // Re-authentication states for revealing passwords
   const [reauthModalOpen, setReauthModalOpen] = useState(false);
@@ -4738,6 +4776,166 @@ export default function AdminDashboard({
     setShowTeacherForm(false);
   };
 
+  // Class-Centric Management Handlers
+  const handleSaveClass = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!classFormName.trim()) return;
+
+    let updatedList: ClassEntity[] = [];
+
+    if (editingClass) {
+      updatedList = classes.map(c => c.id === editingClass.id ? {
+        ...c,
+        name: classFormName,
+        code: classFormCode || `C${classFormName.replace(/\D/g, '') || '01'}`,
+        defaultMonthlyFee: Number(classFormDefaultFee),
+        capacity: Number(classFormCapacity),
+        totalCapacity: Number(classFormCapacity),
+        academicSession: classFormSession,
+        stream: classFormStream || undefined,
+        status: classFormStatus,
+        subjects: classFormSubjects.split(',').map(s => s.trim()).filter(Boolean)
+      } : c);
+    } else {
+      const newClass: ClassEntity = {
+        id: `class-${Date.now()}`,
+        name: classFormName,
+        code: classFormCode || `C${classFormName.replace(/\D/g, '') || '01'}`,
+        defaultMonthlyFee: Number(classFormDefaultFee),
+        capacity: Number(classFormCapacity),
+        totalCapacity: Number(classFormCapacity),
+        academicSession: classFormSession,
+        stream: classFormStream || undefined,
+        status: classFormStatus,
+        subjects: classFormSubjects.split(',').map(s => s.trim()).filter(Boolean),
+        timings: [
+          {
+            id: `timing-${Date.now()}-1`,
+            label: 'Morning',
+            timeRange: '07:00 AM – 09:00 AM',
+            teachers: ['Priyanshu Gupta (Founder)'],
+            capacity: Math.floor(Number(classFormCapacity) / 2) || 20,
+            status: 'ACTIVE'
+          },
+          {
+            id: `timing-${Date.now()}-2`,
+            label: 'Evening',
+            timeRange: '04:00 PM – 06:00 PM',
+            teachers: ['Priyanshu Gupta (Founder)'],
+            capacity: Math.floor(Number(classFormCapacity) / 2) || 20,
+            status: 'ACTIVE'
+          }
+        ]
+      };
+      updatedList = [...classes, newClass];
+    }
+
+    if (onUpdateClasses) {
+      onUpdateClasses(updatedList);
+    }
+    setShowClassModal(false);
+    setEditingClass(null);
+    setClassFormName('');
+    setClassFormCode('');
+    setClassFormDefaultFee(1000);
+    setClassFormCapacity(40);
+    setClassFormSession('2026-2027');
+    setClassFormStream('');
+    setClassFormSubjects('');
+  };
+
+  const handleDeleteClass = (classId: string) => {
+    const target = classes.find(c => c.id === classId);
+    if (!target) return;
+    if (confirm(`Are you sure you want to archive or delete "${target.name}"? This will not affect existing student records.`)) {
+      const updated = classes.filter(c => c.id !== classId);
+      if (onUpdateClasses) onUpdateClasses(updated);
+    }
+  };
+
+  const handleOpenAddTiming = (classId: string) => {
+    setTimingTargetClassId(classId);
+    setEditingTiming(null);
+    setTimingFormLabel('Morning');
+    setTimingFormRange('07:00 AM – 09:00 AM');
+    setTimingFormTeachers(['Priyanshu Gupta (Founder)']);
+    setTimingFormCapacity(20);
+    setTimingFormFeeOverride('');
+    setTimingFormSection('Section A');
+    setTimingFormStatus('ACTIVE');
+    setShowTimingModal(true);
+  };
+
+  const handleOpenEditTiming = (classId: string, timing: ClassTiming) => {
+    setTimingTargetClassId(classId);
+    setEditingTiming(timing);
+    setTimingFormLabel(timing.label);
+    setTimingFormRange(timing.timeRange);
+    setTimingFormTeachers(timing.teachers || []);
+    setTimingFormCapacity(timing.capacity || 20);
+    setTimingFormFeeOverride(timing.feeOverride !== undefined ? String(timing.feeOverride) : '');
+    setTimingFormSection(timing.section || 'Section A');
+    setTimingFormStatus(timing.status);
+    setShowTimingModal(true);
+  };
+
+  const handleSaveTiming = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!timingTargetClassId) return;
+
+    const updatedClasses = classes.map(c => {
+      if (c.id !== timingTargetClassId) return c;
+
+      let updatedTimings: ClassTiming[] = [];
+      if (editingTiming) {
+        updatedTimings = c.timings.map(t => t.id === editingTiming.id ? {
+          ...t,
+          label: timingFormLabel as any,
+          timeRange: timingFormRange,
+          teachers: timingFormTeachers.length > 0 ? timingFormTeachers : ['Priyanshu Gupta (Founder)'],
+          capacity: Number(timingFormCapacity),
+          feeOverride: timingFormFeeOverride !== '' ? Number(timingFormFeeOverride) : undefined,
+          section: timingFormSection,
+          status: timingFormStatus
+        } : t);
+      } else {
+        const newTiming: ClassTiming = {
+          id: `timing-${Date.now()}`,
+          label: timingFormLabel as any,
+          timeRange: timingFormRange,
+          teachers: timingFormTeachers.length > 0 ? timingFormTeachers : ['Priyanshu Gupta (Founder)'],
+          capacity: Number(timingFormCapacity),
+          feeOverride: timingFormFeeOverride !== '' ? Number(timingFormFeeOverride) : undefined,
+          section: timingFormSection,
+          status: timingFormStatus
+        };
+        updatedTimings = [...c.timings, newTiming];
+      }
+
+      return {
+        ...c,
+        timings: updatedTimings
+      };
+    });
+
+    if (onUpdateClasses) onUpdateClasses(updatedClasses);
+    setShowTimingModal(false);
+    setEditingTiming(null);
+  };
+
+  const handleDeleteTiming = (classId: string, timingId: string) => {
+    if (confirm('Delete this timing slot from class?')) {
+      const updatedClasses = classes.map(c => {
+        if (c.id !== classId) return c;
+        return {
+          ...c,
+          timings: c.timings.filter(t => t.id !== timingId)
+        };
+      });
+      if (onUpdateClasses) onUpdateClasses(updatedClasses);
+    }
+  };
+
   const handleSubmitBatch = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingBatch) {
@@ -4953,6 +5151,20 @@ export default function AdminDashboard({
   const handleTriggerBackupSubmit = () => {
     onTriggerBackup();
     alert("PostgreSQL Database schema exported! Encryption check completed. Backup file saved: 'sunshine_classes_backup_latest.sql' (Size: 12.8 MB)");
+  };
+
+  const handleAbsolutePurge = async () => {
+    setIsPurging(true);
+    try {
+      await forceResetDatabase();
+      alert("🎉 Absolute Database Purge Completed! The live database and local cache have been completely wiped. The 6 requested clean, official staff and student accounts have been seeded. The system will now refresh to apply changes.");
+      window.location.reload();
+    } catch (err: any) {
+      alert("Failed to complete database purge: " + (err?.message || err));
+    } finally {
+      setIsPurging(false);
+      setShowPurgeConfirm(false);
+    }
   };
 
   const handleExportSystemState = () => {
@@ -5860,47 +6072,49 @@ ${data.log}`
         const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
         const isAdmin = currentUser?.role === 'ADMIN';
         const allTabs = [
-          { id: 'overview', label: 'Admin Operations Overview', icon: <Activity size={16} />, category: 'Core Operations' },
-          { id: 'admissions', label: 'Student Admissions Module', icon: <UserPlus size={16} className="text-amber-600" />, category: 'Core Operations' },
-          { id: 'students', label: `Manage Student ERP (${students.length})`, icon: <Users size={16} />, category: 'Core Operations' },
-          { id: 'fees', label: 'Manage Fees & Ledger', icon: <DollarSign size={16} />, category: 'Core Operations' },
-          { id: 'upi-verification', label: `Fee Payment Verification (${upiPayments.filter(p => p.status === 'PENDING_VERIFICATION').length})`, icon: <CheckSquare size={16} />, category: 'Core Operations' },
+          { id: 'overview', label: 'Admin Operations Overview', icon: <Activity size={16} />, category: 'Dashboard' },
+          { id: 'students', label: `Students (${students.length})`, icon: <Users size={16} />, category: 'Students' },
           
-          { id: 'teachers', label: 'Faculty Directory', icon: <BookOpen size={16} />, category: 'Academic & CMS' },
-          { id: 'batches', label: 'Batches & Timings', icon: <Calendar size={16} />, category: 'Academic & CMS' },
-          { id: 'study-material-cms', label: 'Study Material CMS (CM-001)', icon: <FileText size={16} className="text-amber-500 font-bold" />, category: 'Academic & CMS' },
-          { id: 'sunshine-store', label: 'Sunshine Store (SS-001)', icon: <ShoppingBag size={16} className="text-indigo-500 font-bold" />, category: 'Academic & CMS' },
-          { id: 'website', label: 'Public Website & Notes CMS', icon: <Sparkles size={16} />, category: 'Academic & CMS' },
-          { id: 'announcements', label: 'Broadcast Announcements', icon: <Bell size={16} />, category: 'Academic & CMS' },
+          { id: 'fees', label: 'Fee Management', icon: <DollarSign size={16} />, category: 'Finance' },
+          { id: 'upi-verification', label: `Fee Payment Verification (${upiPayments.filter(p => p.status === 'PENDING_VERIFICATION').length})`, icon: <CheckSquare size={16} />, category: 'Finance' },
+          { id: 'finance-reports', label: 'Finance Reports', icon: <TrendingUp size={16} className="text-emerald-600 font-bold" />, category: 'Finance' },
+          
+          { id: 'teachers', label: 'Faculty Directory', icon: <BookOpen size={16} />, category: 'Academics' },
+          { id: 'batches', label: 'Classes & Timings', icon: <Calendar size={16} />, category: 'Academics' },
+          { id: 'study-material-cms', label: 'Study Material', icon: <FileText size={16} className="text-amber-500 font-bold" />, category: 'Academics' },
+          { id: 'announcements', label: 'Broadcast Announcements', icon: <Bell size={16} />, category: 'Academics' },
+          
+          { id: 'website', label: 'Website Management', icon: <Sparkles size={16} />, category: 'Website' },
+          { id: 'sunshine-store', label: 'Sunshine Store', icon: <ShoppingBag size={16} className="text-indigo-500 font-bold" />, category: 'Sunshine Store' },
+          
+          { id: 'whatsapp', label: 'WhatsApp Messaging', icon: <MessageSquare size={16} />, category: 'Communications' },
+          { id: 'gmail', label: 'Gmail Communications', icon: <Mail size={16} className="text-blue-500 font-bold" />, category: 'Communications' },
+          
+          { id: 'sheets', label: 'Google Sheets Sync', icon: <FileSpreadsheet size={16} className="text-emerald-600 animate-pulse" />, category: 'Integrations' },
           
           { id: 'founder-office', label: "Founder's Executive Office", icon: <Crown size={16} className="text-amber-500 font-bold" />, category: 'Executive Suite' },
           { id: 'cofounder-office', label: "Co-Founder's Workspace", icon: <Award size={16} className="text-indigo-500 font-bold" />, category: 'Executive Suite' },
-          { id: 'finance-reports', label: 'Finance Dashboard & Reports', icon: <TrendingUp size={16} className="text-emerald-600 font-bold" />, category: 'Executive Suite' },
           
-          { id: 'roles', label: 'Role Management', icon: <Shield size={16} className="text-indigo-600 font-bold" />, category: 'Integrations & Logs' },
-          { id: 'auth-logs', label: 'Authentication Logs', icon: <Lock size={16} className="text-amber-600 font-bold" />, category: 'Integrations & Logs' },
-          { id: 'sheets', label: 'Google Sheets Sync', icon: <FileSpreadsheet size={16} className="text-emerald-600 animate-pulse" />, category: 'Integrations & Logs' },
-          { id: 'whatsapp', label: 'WhatsApp Messaging', icon: <MessageSquare size={16} />, category: 'Integrations & Logs' },
-          { id: 'gmail', label: 'Gmail Communications', icon: <Mail size={16} className="text-blue-500 font-bold" />, category: 'Integrations & Logs' },
-          { id: 'audit', label: 'Audit & System Logs', icon: <FileText size={16} />, category: 'Integrations & Logs' },
-          { id: 'diagnostics', label: 'System Diagnostics', icon: <Shield size={16} className="text-emerald-500" />, category: 'Integrations & Logs' },
-          { id: 'settings', label: 'System Settings & Backup', icon: <Settings size={16} />, category: 'Integrations & Logs' }
+          { id: 'roles', label: 'Users & Access', icon: <Shield size={16} className="text-indigo-600 font-bold" />, category: 'Administration' },
+          { id: 'auth-logs', label: 'Authentication Logs', icon: <Lock size={16} className="text-amber-600 font-bold" />, category: 'Administration' },
+          { id: 'audit', label: 'Audit & System Logs', icon: <FileText size={16} />, category: 'Administration' },
+          { id: 'diagnostics', label: 'System Diagnostics', icon: <Shield size={16} className="text-emerald-500" />, category: 'Administration' },
+          { id: 'settings', label: 'System Settings & Backup', icon: <Settings size={16} />, category: 'Administration' }
         ] as const;
 
         const tabsList = allTabs.filter(tab => {
-          // Founder has access to all tabs except cofounder-office (unless he wants to audit it, but let's keep it clean)
           if (isSuperAdmin) {
             return true;
           }
-          // Co-Founder has access to standard admin tabs plus his executive workspace
           if (isAdmin) {
-            const allowedAdminTabs = ['overview', 'admissions', 'students', 'fees', 'upi-verification', 'teachers', 'batches', 'study-material-cms', 'sunshine-store', 'announcements', 'cofounder-office', 'auth-logs', 'gmail', 'finance-reports'];
+            const allowedAdminTabs = ['overview', 'admissions', 'students', 'fees', 'upi-verification', 'teachers', 'batches', 'study-material-cms', 'sunshine-store', 'announcements', 'cofounder-office', 'auth-logs', 'gmail', 'finance-reports', 'website'];
             return allowedAdminTabs.includes(tab.id);
           }
-          // Default fallback
-          const allowedAdminTabs = ['overview', 'admissions', 'students', 'fees', 'upi-verification', 'teachers', 'batches', 'study-material-cms', 'sunshine-store', 'announcements', 'gmail', 'finance-reports'];
+          const allowedAdminTabs = ['overview', 'admissions', 'students', 'fees', 'upi-verification', 'teachers', 'batches', 'study-material-cms', 'sunshine-store', 'announcements', 'gmail', 'finance-reports', 'website'];
           return allowedAdminTabs.includes(tab.id);
         });
+
+        const sidebarCategories = Array.from(new Set(tabsList.map(t => t.category)));
 
         return (
           <div className="grid gap-6 lg:grid-cols-4">
@@ -6011,7 +6225,7 @@ ${data.log}`
                 </div>
 
                 <div className="flex flex-col gap-4">
-                  {(['Core Operations', 'Academic & CMS', 'Integrations & Logs'] as const).map((category) => {
+                  {sidebarCategories.map((category) => {
                     const categoryTabs = tabsList.filter(t => t.category === category);
                     return (
                       <div key={category} className="space-y-1">
@@ -9982,115 +10196,646 @@ ${data.log}`
         );
       })()}
 
-          {/* TAB: MANAGE BATCHES & TIMINGS */}
+          {/* TAB: MANAGE CLASSES & TIMINGS (CLASS-CENTRIC ARCHITECTURE) */}
           {activeTab === 'batches' && (
             <div className="space-y-6">
-              {/* Add / Edit Batch Form */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex items-center justify-between mb-1">
-                  <h3 className="font-display font-bold text-base text-slate-800">
-                    {editingBatch ? 'Edit Batch Configuration' : 'Create New Academic Batch'}
-                  </h3>
-                  {editingBatch && (
-                    <button
-                      id="btn-cancel-batch-edit"
-                      onClick={() => {
-                        setEditingBatch(null);
-                        setBatchFormName('');
-                        setBatchFormTime('');
-                        setBatchFormClass('');
-                        setBatchFormTeacher('');
-                        setBatchFormFee(0);
-                        setBatchFormStatus('ACTIVE');
-                        setBatchFormCapacity(30);
-                        setShowBatchForm(false);
-                      }}
-                      className="text-xs text-slate-500 hover:text-slate-800 underline"
-                    >
-                      Cancel Edit
-                    </button>
-                  )}
-                </div>
-                <p className="text-xs text-slate-500 mb-4">
-                  Define your daily class slots, academic class levels, timing routines, and monthly subscription fee structures.
-                </p>
-
-                {(!showBatchForm && !editingBatch) ? (
+              {/* Header Banner & Stats */}
+              <div className="rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-900 via-slate-900 to-indigo-950 p-6 text-white shadow-md">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-indigo-800/60 pb-5">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="rounded-full bg-amber-400/20 px-2.5 py-0.5 text-[10px] font-extrabold uppercase text-amber-300 border border-amber-400/30">
+                        Class-Centric ERP Module
+                      </span>
+                      <span className="text-xs text-indigo-200">• Sunshine Academic Core</span>
+                    </div>
+                    <h2 className="font-display font-bold text-xl text-white">Class & Timing Hierarchy Management</h2>
+                    <p className="text-xs text-indigo-200/90 mt-1 max-w-2xl">
+                      Manage academic levels (Class 1 – Class 12) as primary entities, with timing slots (Morning, Evening, Weekend), assigned faculty, tuition fees, and capacity metrics as sub-attributes.
+                    </p>
+                  </div>
                   <button
-                    id="btn-trigger-new-batch"
-                    onClick={() => setShowBatchForm(true)}
-                    className="flex items-center gap-1.5 rounded-xl bg-indigo-900 hover:bg-indigo-950 px-4 py-2 text-xs font-bold text-white shadow transition-colors"
+                    id="btn-open-add-class-modal"
+                    onClick={() => {
+                      setEditingClass(null);
+                      setClassFormName('');
+                      setClassFormCode('');
+                      setClassFormDefaultFee(1000);
+                      setClassFormCapacity(40);
+                      setClassFormSession('2026-2027');
+                      setClassFormStream('');
+                      setClassFormSubjects('');
+                      setShowClassModal(true);
+                    }}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-amber-400 hover:bg-amber-300 px-5 py-2.5 text-xs font-black text-indigo-950 shadow-lg transition-all transform active:scale-95 shrink-0"
                   >
-                    <Plus size={14} /> Add New Class Batch
+                    <Plus size={16} /> Create Academic Class
                   </button>
+                </div>
+
+                {/* Summary Metrics Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-5">
+                  <div className="rounded-xl bg-white/10 p-3.5 backdrop-blur-xs border border-white/10">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-200 block">Active Classes</span>
+                    <span className="font-display text-2xl font-black text-white mt-0.5 block">{classes.length}</span>
+                    <span className="text-[10px] text-indigo-300">Primary Academic Levels</span>
+                  </div>
+                  <div className="rounded-xl bg-white/10 p-3.5 backdrop-blur-xs border border-white/10">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-200 block">Total Timing Slots</span>
+                    <span className="font-display text-2xl font-black text-amber-300 mt-0.5 block">
+                      {classes.reduce((sum, c) => sum + (c.timings?.length || 0), 0)}
+                    </span>
+                    <span className="text-[10px] text-indigo-300">Morning / Evening / Custom</span>
+                  </div>
+                  <div className="rounded-xl bg-white/10 p-3.5 backdrop-blur-xs border border-white/10">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-200 block">Enrolled Students</span>
+                    <span className="font-display text-2xl font-black text-emerald-300 mt-0.5 block">
+                      {students.length}
+                    </span>
+                    <span className="text-[10px] text-indigo-300">Active Sunshine Scholars</span>
+                  </div>
+                  <div className="rounded-xl bg-white/10 p-3.5 backdrop-blur-xs border border-white/10">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-200 block">Capacity Utilization</span>
+                    <span className="font-display text-2xl font-black text-white mt-0.5 block">
+                      {(() => {
+                        const totalCap = classes.reduce((sum, c) => sum + (c.totalCapacity || 40), 0);
+                        return totalCap > 0 ? `${Math.min(100, Math.round((students.length / totalCap) * 100))}%` : '0%';
+                      })()}
+                    </span>
+                    <span className="text-[10px] text-indigo-300">Seat Occupancy Rate</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Filters & Controls */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="relative w-full sm:w-80">
+                  <Search size={16} className="absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    id="input-search-class-mgmt"
+                    type="text"
+                    placeholder="Search class or timing..."
+                    value={classSearchQuery}
+                    onChange={(e) => setClassSearchQuery(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-600 focus:bg-white"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  <span className="text-xs text-slate-500 font-medium">Filter Timing:</span>
+                  <select
+                    id="select-filter-timing-slot"
+                    value={classTimingFilter}
+                    onChange={(e) => setClassTimingFilter(e.target.value)}
+                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-600"
+                  >
+                    <option value="ALL">All Timings</option>
+                    <option value="Morning">Morning</option>
+                    <option value="Afternoon">Afternoon</option>
+                    <option value="Evening">Evening</option>
+                    <option value="Weekend">Weekend</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Primary Class-Centric Cards Grid */}
+              <div className="space-y-6">
+                {classes.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-12 text-center">
+                    <BookOpen size={36} className="mx-auto text-slate-400 mb-2" />
+                    <h3 className="font-bold text-slate-700 text-sm">No Academic Classes Configured</h3>
+                    <p className="text-xs text-slate-500 mt-1">Click "Create Academic Class" above to set up your Class 1 – 12 hierarchy.</p>
+                  </div>
                 ) : (
-                  <form onSubmit={handleSubmitBatch} className="space-y-4">
-                    <div className="rounded-xl bg-amber-50/50 border border-amber-200/60 p-3.5 mb-2 text-xs text-slate-700 flex items-start gap-2.5">
-                      <span className="text-lg">☀️</span>
-                      <div>
-                        <span className="font-bold text-amber-900 block">1-Teacher Operation Mode</span>
-                        <p className="text-slate-600 mt-0.5">
-                          Since you are currently running with a single-teacher setup, new batches will automatically assign <strong>Priyanshu Gupta</strong> (or the default faculty) as the main teacher unless you specify a secondary educator.
-                        </p>
-                      </div>
+                  classes
+                    .filter((c) => {
+                      const matchesQuery = c.name.toLowerCase().includes(classSearchQuery.toLowerCase()) ||
+                        c.subjects?.some(s => s.toLowerCase().includes(classSearchQuery.toLowerCase())) ||
+                        c.timings?.some(t => t.timeRange.toLowerCase().includes(classSearchQuery.toLowerCase()));
+                      if (!matchesQuery) return false;
+                      if (classTimingFilter !== 'ALL') {
+                        return c.timings?.some(t => t.label.toLowerCase() === classTimingFilter.toLowerCase());
+                      }
+                      return true;
+                    })
+                    .map((classItem) => {
+                      const classStudents = students.filter(
+                        (s) => s.class === classItem.name || s.preferredBatch?.startsWith(classItem.name)
+                      );
+                      const totalClassCap = classItem.totalCapacity || 40;
+                      const fillPercentage = Math.min(100, Math.round((classStudents.length / totalClassCap) * 100));
+
+                      return (
+                        <div
+                          key={classItem.id}
+                          className="rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+                        >
+                          {/* Class Card Header */}
+                          <div className="p-5 border-b border-slate-100 bg-slate-50/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="flex items-start gap-3">
+                              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-900 text-white font-black text-sm shadow-sm shrink-0">
+                                {classItem.code || 'CLS'}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-display font-bold text-base text-slate-900">{classItem.name}</h3>
+                                  {classItem.stream && (
+                                    <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-[10px] font-bold text-indigo-800">
+                                      {classItem.stream} Stream
+                                    </span>
+                                  )}
+                                  <span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase ${
+                                    classItem.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                                  }`}>
+                                    {classItem.status}
+                                  </span>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 mt-0.5">
+                                  <span>Academic Session: <strong>{classItem.academicSession || '2026-2027'}</strong></span>
+                                  <span>•</span>
+                                  <span>Standard Fee: <strong className="text-slate-900 font-bold">₹{classItem.defaultMonthlyFee}/mo</strong></span>
+                                  <span>•</span>
+                                  <span>Capacity: <strong>{classStudents.length} / {totalClassCap} Enrolled ({fillPercentage}%)</strong></span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Class Level Actions */}
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button
+                                id={`btn-add-timing-${classItem.id}`}
+                                onClick={() => handleOpenAddTiming(classItem.id)}
+                                className="flex items-center gap-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 text-xs font-bold text-indigo-900 transition-colors"
+                              >
+                                <Plus size={14} /> Add Timing Slot
+                              </button>
+                              <button
+                                id={`btn-edit-class-${classItem.id}`}
+                                onClick={() => {
+                                  setEditingClass(classItem);
+                                  setClassFormName(classItem.name);
+                                  setClassFormCode(classItem.code || '');
+                                  setClassFormDefaultFee(classItem.defaultMonthlyFee);
+                                  setClassFormCapacity(classItem.totalCapacity);
+                                  setClassFormSession(classItem.academicSession || '2026-2027');
+                                  setClassFormStream(classItem.stream || '');
+                                  setClassFormStatus(classItem.status);
+                                  setClassFormSubjects(classItem.subjects?.join(', ') || '');
+                                  setShowClassModal(true);
+                                }}
+                                className="rounded-xl border border-slate-200 hover:bg-slate-100 p-2 text-slate-600 transition-colors"
+                                title="Edit Class Details"
+                              >
+                                <Edit size={14} />
+                              </button>
+                              <button
+                                id={`btn-delete-class-${classItem.id}`}
+                                onClick={() => handleDeleteClass(classItem.id)}
+                                className="rounded-xl border border-rose-100 hover:bg-rose-50 p-2 text-rose-600 transition-colors"
+                                title="Archive Class"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Timings Hierarchy Body */}
+                          <div className="p-5 space-y-3">
+                            <div className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider pb-1 border-b border-slate-100">
+                              <span>Timings & Timeslots Hierarchy</span>
+                              <span>{classItem.timings?.length || 0} Slots Configured</span>
+                            </div>
+
+                            {(!classItem.timings || classItem.timings.length === 0) ? (
+                              <div className="p-4 text-center text-xs text-slate-400 bg-slate-50 rounded-xl">
+                                No timing slots defined yet for {classItem.name}. Click "Add Timing Slot" to configure.
+                              </div>
+                            ) : (
+                              <div className="grid gap-3 md:grid-cols-2">
+                                {classItem.timings.map((timing) => {
+                                  // Count students assigned to this timing
+                                  const timingEnrolledCount = students.filter(
+                                    (s) => (s.class === classItem.name || s.preferredBatch?.includes(classItem.name)) &&
+                                           (s.preferredTiming === timing.timeRange || s.preferredBatch?.includes(timing.label))
+                                  ).length;
+
+                                  const timingCap = timing.capacity || 20;
+                                  const timingFill = Math.min(100, Math.round((timingEnrolledCount / timingCap) * 100));
+
+                                  return (
+                                    <div
+                                      key={timing.id}
+                                      className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs hover:border-indigo-300 transition-all flex flex-col justify-between gap-3"
+                                    >
+                                      <div>
+                                        <div className="flex items-center justify-between gap-2 mb-2">
+                                          <div className="flex items-center gap-2">
+                                            <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-black uppercase ${
+                                              timing.label === 'Morning' ? 'bg-amber-100 text-amber-900 border border-amber-200' :
+                                              timing.label === 'Afternoon' ? 'bg-orange-100 text-orange-900 border border-orange-200' :
+                                              timing.label === 'Evening' ? 'bg-indigo-100 text-indigo-900 border border-indigo-200' :
+                                              'bg-emerald-100 text-emerald-900 border border-emerald-200'
+                                            }`}>
+                                              <Clock size={12} /> {timing.label} Slot
+                                            </span>
+                                            {timing.section && (
+                                              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                                {timing.section}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="flex items-center gap-1">
+                                            <button
+                                              id={`btn-edit-timing-${timing.id}`}
+                                              onClick={() => handleOpenEditTiming(classItem.id, timing)}
+                                              className="p-1 text-slate-400 hover:text-indigo-600 rounded transition-colors"
+                                              title="Edit Slot"
+                                            >
+                                              <Edit size={13} />
+                                            </button>
+                                            <button
+                                              id={`btn-delete-timing-${timing.id}`}
+                                              onClick={() => handleDeleteTiming(classItem.id, timing.id)}
+                                              className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
+                                              title="Delete Slot"
+                                            >
+                                              <Trash2 size={13} />
+                                            </button>
+                                          </div>
+                                        </div>
+
+                                        <div className="font-mono text-sm font-bold text-slate-900">
+                                          {timing.timeRange}
+                                        </div>
+
+                                        <div className="text-xs text-slate-600 mt-2 flex flex-wrap items-center gap-1.5">
+                                          <span className="font-semibold text-slate-500">Faculty:</span>
+                                          {timing.teachers && timing.teachers.length > 0 ? (
+                                            timing.teachers.map((tch, idx) => (
+                                              <span key={idx} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
+                                                {tch}
+                                              </span>
+                                            ))
+                                          ) : (
+                                            <span className="text-slate-400 italic text-[11px]">Priyanshu Gupta (Founder)</span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                                        <div>
+                                          <span className="text-slate-500 text-[10px] block font-medium">Monthly Fee</span>
+                                          <span className="font-bold text-slate-900">
+                                            ₹{timing.feeOverride ?? classItem.defaultMonthlyFee}
+                                            {timing.feeOverride !== undefined && (
+                                              <span className="text-[9px] text-amber-600 ml-1 font-semibold">(Custom)</span>
+                                            )}
+                                          </span>
+                                        </div>
+
+                                        <div className="text-right">
+                                          <span className="text-slate-500 text-[10px] block font-medium">Enrolled / Cap</span>
+                                          <span className="font-bold text-indigo-900">
+                                            {timingEnrolledCount} / {timingCap} ({timingFill}%)
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                )}
+              </div>
+
+              {/* Student Enrollment & Timings Assignment Card */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+                <div>
+                  <h3 className="font-display font-bold text-base text-slate-800 flex items-center gap-2">
+                    <Clock size={18} className="text-indigo-600" /> Student Class & Timing Assignment Manager
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Assign students to their primary academic class level and preferred timing slot.
+                  </p>
+                </div>
+
+                <form onSubmit={handleEnrollAndScheduleUpdate} className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+                    <div>
+                      <label className="mb-1.5 block text-[10px] font-bold text-slate-500 uppercase">Select Student</label>
+                      <select
+                        id="select-enroll-student"
+                        value={enrollStudentId}
+                        onChange={(e) => handleStudentSelectChange(e.target.value)}
+                        required
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-700 focus:bg-white"
+                      >
+                        <option value="">-- Choose Student --</option>
+                        {students.map(s => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} ({s.class} - {s.rollNo})
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
-                    <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                    <div>
+                      <label className="mb-1.5 block text-[10px] font-bold text-slate-500 uppercase">Class Level</label>
+                      <select
+                        id="select-enroll-class-level"
+                        value={enrollBatchId}
+                        onChange={(e) => {
+                          setEnrollBatchId(e.target.value);
+                          const selected = batches.find(b => b.id === e.target.value);
+                          if (selected) {
+                            setEnrollBatchTime(selected.time);
+                            setEnrollMonthlyFee(selected.monthlyFee);
+                          }
+                        }}
+                        required
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-700 focus:bg-white"
+                      >
+                        <option value="">-- Choose Class / Batch Slot --</option>
+                        {classes.flatMap(c => (c.timings || []).map(t => ({
+                          id: `b-${c.id}-${t.label.toLowerCase()}`,
+                          label: `${c.name} - ${t.label} (${t.timeRange})`,
+                          fee: t.feeOverride ?? c.defaultMonthlyFee,
+                          time: t.timeRange
+                        }))).map(b => (
+                          <option key={b.id} value={b.id}>
+                            {b.label} - ₹{b.fee}/mo
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-[10px] font-bold text-slate-500 uppercase">Timing Slot</label>
+                      <input
+                        id="input-enroll-batch-time"
+                        type="text"
+                        value={enrollBatchTime}
+                        onChange={(e) => setEnrollBatchTime(e.target.value)}
+                        placeholder="e.g. 07:00 AM – 09:00 AM"
+                        required
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-700 focus:bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-[10px] font-bold text-slate-500 uppercase">Monthly Fee (₹)</label>
+                      <input
+                        id="input-enroll-monthly-fee"
+                        type="number"
+                        value={enrollMonthlyFee}
+                        onChange={(e) => setEnrollMonthlyFee(Number(e.target.value))}
+                        placeholder="Monthly rate"
+                        required
+                        min={0}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-700 focus:bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      id="btn-confirm-enrollment"
+                      type="submit"
+                      className="rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-bold text-xs px-5 py-2.5 shadow flex items-center gap-1.5 cursor-pointer transition-all"
+                    >
+                      <CheckCircle size={14} /> Update Student Class & Schedule
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* MODAL 1: ADD / EDIT CLASS MODAL */}
+              {showClassModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in">
+                  <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl relative text-slate-800">
+                    <button
+                      id="btn-close-class-modal"
+                      onClick={() => setShowClassModal(false)}
+                      className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 rounded-full p-1"
+                    >
+                      <X size={18} />
+                    </button>
+                    <h3 className="font-display font-bold text-lg text-slate-900 mb-1">
+                      {editingClass ? 'Edit Academic Class' : 'Create Academic Class'}
+                    </h3>
+                    <p className="text-xs text-slate-500 mb-5">
+                      Configure the primary Class entity (e.g. Class 6, Class 10) and standard tuition fee.
+                    </p>
+
+                    <form onSubmit={handleSaveClass} className="space-y-4">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">Class Name *</label>
+                          <input
+                            id="input-class-modal-name"
+                            type="text"
+                            required
+                            placeholder="e.g. Class 10"
+                            value={classFormName}
+                            onChange={(e) => setClassFormName(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-900 focus:bg-white"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">Class Code</label>
+                          <input
+                            id="input-class-modal-code"
+                            type="text"
+                            placeholder="e.g. C10"
+                            value={classFormCode}
+                            onChange={(e) => setClassFormCode(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-900 focus:bg-white"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">Default Monthly Fee (₹) *</label>
+                          <input
+                            id="input-class-modal-fee"
+                            type="number"
+                            required
+                            min="0"
+                            placeholder="1200"
+                            value={classFormDefaultFee}
+                            onChange={(e) => setClassFormDefaultFee(Number(e.target.value))}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-900 focus:bg-white"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">Total Class Capacity *</label>
+                          <input
+                            id="input-class-modal-capacity"
+                            type="number"
+                            required
+                            min="1"
+                            placeholder="40"
+                            value={classFormCapacity}
+                            onChange={(e) => setClassFormCapacity(Number(e.target.value))}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-900 focus:bg-white"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">Academic Session</label>
+                          <input
+                            id="input-class-modal-session"
+                            type="text"
+                            placeholder="e.g. 2026-2027"
+                            value={classFormSession}
+                            onChange={(e) => setClassFormSession(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-900 focus:bg-white"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">Academic Stream (Optional)</label>
+                          <select
+                            id="select-class-modal-stream"
+                            value={classFormStream}
+                            onChange={(e) => setClassFormStream(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-900 focus:bg-white"
+                          >
+                            <option value="">General (No Stream)</option>
+                            <option value="Science">Science Stream</option>
+                            <option value="Commerce">Commerce Stream</option>
+                            <option value="Arts / Humanities">Arts / Humanities</option>
+                          </select>
+                        </div>
+                      </div>
+
                       <div>
-                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">Batch Name</label>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">Subjects (Comma separated)</label>
                         <input
-                          id="input-batch-name"
+                          id="input-class-modal-subjects"
                           type="text"
-                          required
-                          placeholder="e.g. Class 10 - Morning Excellence"
-                          value={batchFormName}
-                          onChange={(e) => setBatchFormName(e.target.value)}
+                          placeholder="Mathematics, Physics, Chemistry, English"
+                          value={classFormSubjects}
+                          onChange={(e) => setClassFormSubjects(e.target.value)}
                           className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-900 focus:bg-white"
                         />
                       </div>
 
-                      <div>
-                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">Class Level</label>
-                        <select
-                          id="select-batch-class"
-                          required
-                          value={batchFormClass}
-                          onChange={(e) => setBatchFormClass(e.target.value)}
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-900 focus:bg-white animate-none"
+                      <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                        <button
+                          id="btn-cancel-class-modal"
+                          type="button"
+                          onClick={() => setShowClassModal(false)}
+                          className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
                         >
-                          <option value="">-- Choose Class --</option>
-                          <option value="Class 10 Board Specialists">Class 10 Board Specialists (₹1,200/mo)</option>
-                          <option value="Class 9 Foundation Course">Class 9 Foundation Course (₹1,000/mo)</option>
-                          <option value="Classes 5 to 8 Apex Learning">Classes 5 to 8 Apex Learning (₹700/mo)</option>
-                          <option value="Classes 1 to 4 Junior Sunshine">Classes 1 to 4 Junior Sunshine (₹500/mo)</option>
-                        </select>
+                          Cancel
+                        </button>
+                        <button
+                          id="btn-save-class-modal-submit"
+                          type="submit"
+                          className="rounded-xl bg-indigo-900 hover:bg-indigo-950 px-5 py-2 text-xs font-bold text-white shadow transition-colors"
+                        >
+                          {editingClass ? 'Save Changes' : 'Create Class'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* MODAL 2: ADD / EDIT TIMING SLOT MODAL */}
+              {showTimingModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in">
+                  <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl relative text-slate-800">
+                    <button
+                      id="btn-close-timing-modal"
+                      onClick={() => setShowTimingModal(false)}
+                      className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 rounded-full p-1"
+                    >
+                      <X size={18} />
+                    </button>
+                    <h3 className="font-display font-bold text-lg text-slate-900 mb-1">
+                      {editingTiming ? 'Edit Timing Slot' : 'Add Timing Slot'}
+                    </h3>
+                    <p className="text-xs text-slate-500 mb-5">
+                      Configure a secondary timing attribute (e.g. Morning, Evening) for this class level.
+                    </p>
+
+                    <form onSubmit={handleSaveTiming} className="space-y-4">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">Timing Slot Label *</label>
+                          <select
+                            id="select-timing-modal-label"
+                            required
+                            value={timingFormLabel}
+                            onChange={(e) => setTimingFormLabel(e.target.value as TimingSlotLabel)}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-900 focus:bg-white"
+                          >
+                            <option value="Morning">Morning</option>
+                            <option value="Afternoon">Afternoon</option>
+                            <option value="Evening">Evening</option>
+                            <option value="Weekend">Weekend</option>
+                            <option value="Custom">Custom</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">Time Range (e.g. 07:00 AM – 09:00 AM) *</label>
+                          <input
+                            id="input-timing-modal-range"
+                            type="text"
+                            required
+                            placeholder="07:00 AM – 09:00 AM"
+                            value={timingFormRange}
+                            onChange={(e) => setTimingFormRange(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-900 focus:bg-white"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">Slot Student Capacity *</label>
+                          <input
+                            id="input-timing-modal-capacity"
+                            type="number"
+                            required
+                            min="1"
+                            placeholder="20"
+                            value={timingFormCapacity}
+                            onChange={(e) => setTimingFormCapacity(Number(e.target.value))}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-900 focus:bg-white"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">Fee Override (₹) (Optional)</label>
+                          <input
+                            id="input-timing-modal-fee-override"
+                            type="number"
+                            min="0"
+                            placeholder="Leave empty for class default"
+                            value={timingFormFeeOverride}
+                            onChange={(e) => setTimingFormFeeOverride(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-900 focus:bg-white"
+                          />
+                        </div>
                       </div>
 
                       <div>
-                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">Timing Slot</label>
-                        <input
-                          id="input-batch-time"
-                          type="text"
-                          required
-                          placeholder="e.g. 07:00 AM - 08:30 AM"
-                          value={batchFormTime}
-                          onChange={(e) => setBatchFormTime(e.target.value)}
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">Allocated Faculty</label>
+                        <select
+                          id="select-timing-modal-teacher"
+                          value={timingFormTeachers[0] || 'Priyanshu Gupta (Founder)'}
+                          onChange={(e) => setTimingFormTeachers([e.target.value])}
                           className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-900 focus:bg-white"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">Main Teacher</label>
-                        <select
-                          id="select-batch-teacher"
-                          required
-                          value={batchFormTeacher}
-                          onChange={(e) => setBatchFormTeacher(e.target.value)}
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-900 focus:bg-white animate-none"
                         >
-                          <option value="">-- Choose Educator --</option>
                           <option value="Priyanshu Gupta (Founder)">Priyanshu Gupta (Founder)</option>
-                          {teachers.map((t) => (
+                          {teachers.map(t => (
                             <option key={t.id} value={t.name}>
                               {t.name} ({t.qualification || 'Faculty'})
                             </option>
@@ -10098,351 +10843,27 @@ ${data.log}`
                         </select>
                       </div>
 
-                      <div>
-                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">Monthly Tuition Fee (₹)</label>
-                        <input
-                          id="input-batch-fee"
-                          type="number"
-                          required
-                          min="0"
-                          placeholder="e.g. 1200"
-                          value={batchFormFee || ''}
-                          onChange={(e) => setBatchFormFee(Number(e.target.value))}
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-900 focus:bg-white"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">Batch Status</label>
-                        <select
-                          id="select-batch-status"
-                          required
-                          value={batchFormStatus}
-                          onChange={(e) => setBatchFormStatus(e.target.value as 'ACTIVE' | 'DUE' | 'EXPIRED')}
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-900 focus:bg-white animate-none"
+                      <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                        <button
+                          id="btn-cancel-timing-modal"
+                          type="button"
+                          onClick={() => setShowTimingModal(false)}
+                          className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
                         >
-                          <option value="ACTIVE">ACTIVE</option>
-                          <option value="DUE">DUE (In arrears)</option>
-                          <option value="EXPIRED">EXPIRED / SUSPENDED</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">Student Capacity</label>
-                        <input
-                          id="input-batch-capacity"
-                          type="number"
-                          required
-                          min="1"
-                          placeholder="e.g. 30"
-                          value={batchFormCapacity || ''}
-                          onChange={(e) => setBatchFormCapacity(Number(e.target.value))}
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-900 focus:bg-white"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end gap-2 pt-2">
-                      <button
-                        id="btn-cancel-batch-form"
-                        type="button"
-                        onClick={() => {
-                          setShowBatchForm(false);
-                          setEditingBatch(null);
-                          setBatchFormName('');
-                          setBatchFormTime('');
-                          setBatchFormClass('');
-                          setBatchFormTeacher('');
-                          setBatchFormFee(0);
-                          setBatchFormStatus('ACTIVE');
-                          setBatchFormCapacity(30);
-                        }}
-                        className="rounded-xl border border-slate-200 hover:bg-slate-50 px-4 py-2 text-xs font-bold text-slate-600 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        id="btn-save-batch-submit"
-                        type="submit"
-                        className="rounded-xl bg-indigo-900 hover:bg-indigo-950 px-5 py-2 text-xs font-bold text-white shadow transition-colors"
-                      >
-                        {editingBatch ? 'Save Batch Changes' : 'Confirm & Create Batch'}
-                      </button>
-                    </div>
-                  </form>
-                )}
-              </div>
-
-              {/* Batches Table / Grid */}
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                  <div>
-                    <h3 className="font-display font-bold text-base text-slate-800">Active Sunshine Batches & Schedules</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Real-time status of tuition programs, timeslots, and monthly pricing metrics.</p>
-                  </div>
-                  <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
-                    {batches.length} Active Classes
-                  </span>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse text-left text-xs">
-                     <thead>
-                      <tr className="border-b border-slate-100 bg-slate-50/75 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                        <th className="px-6 py-3.5">Batch Name & Class</th>
-                        <th className="px-6 py-3.5">Daily Timing</th>
-                        <th className="px-6 py-3.5">Allocated Faculty</th>
-                        <th className="px-6 py-3.5">Monthly Fee</th>
-                        <th className="px-6 py-3.5">Capacity Usage</th>
-                        <th className="px-6 py-3.5">Status</th>
-                        <th className="px-6 py-3.5 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                      {batches.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="px-6 py-10 text-center text-slate-400 font-medium">
-                            No batches registered in database yet. Create one above.
-                          </td>
-                        </tr>
-                      ) : (
-                        batches.map((b) => {
-                          const enrolledCount = students.filter((s) => s.preferredBatch === b.name).length;
-                          const capLimit = b.capacity || 30;
-                          const fillPercent = Math.min(100, Math.round((enrolledCount / capLimit) * 100));
-
-                          return (
-                            <tr key={b.id} className="hover:bg-slate-50/50 transition-colors">
-                              <td className="px-6 py-4">
-                                <div className="font-bold text-slate-800">{b.name}</div>
-                                <div className="text-[10px] text-slate-400 font-normal">{b.class} • Created on {b.startDate}</div>
-                              </td>
-                              <td className="px-6 py-4 font-mono text-slate-600">
-                                {b.time}
-                              </td>
-                              <td className="px-6 py-4 text-slate-600">
-                                {b.teacherName || 'Founder (Priyanshu Gupta)'}
-                              </td>
-                              <td className="px-6 py-4 font-bold text-slate-900">
-                                ₹{b.monthlyFee}
-                              </td>
-                              <td className="px-6 py-4">
-                                <div className="flex flex-col gap-1.5 max-w-[120px]">
-                                  <div className="flex items-center justify-between text-[10px]">
-                                    <span className="font-bold text-slate-700">{enrolledCount} / {capLimit}</span>
-                                    <span className={`font-mono text-[9px] font-extrabold ${
-                                      fillPercent >= 100
-                                        ? 'text-red-600'
-                                        : fillPercent >= 80
-                                        ? 'text-amber-600'
-                                        : 'text-indigo-600'
-                                    }`}>
-                                      {fillPercent}%
-                                    </span>
-                                  </div>
-                                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden border border-slate-200/40">
-                                    <div
-                                      className={`h-full rounded-full transition-all duration-500 ${
-                                        fillPercent >= 100
-                                          ? 'bg-rose-500'
-                                          : fillPercent >= 80
-                                          ? 'bg-amber-500'
-                                          : 'bg-indigo-600'
-                                      }`}
-                                      style={{ width: `${fillPercent}%` }}
-                                    />
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4">
-                                <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                                  b.status === 'ACTIVE'
-                                    ? 'bg-emerald-50 text-emerald-700'
-                                    : b.status === 'DUE'
-                                    ? 'bg-amber-50 text-amber-700'
-                                    : 'bg-slate-100 text-slate-600'
-                                }`}>
-                                  {b.status}
-                                </span>
-                              </td>
-                            <td className="px-6 py-4 text-right">
-                              <div className="flex justify-end gap-1.5">
-                                <button
-                                  id={`btn-edit-batch-${b.id}`}
-                                  onClick={() => handleEditBatchClick(b)}
-                                  className="rounded p-1.5 text-indigo-600 hover:bg-indigo-50 transition-colors"
-                                  title="Edit Timing / Fee"
-                                >
-                                  <Edit size={14} />
-                                </button>
-                                <button
-                                  id={`btn-delete-batch-${b.id}`}
-                                  onClick={() => handleDeleteBatch(b.id, b.name)}
-                                  className="rounded p-1.5 text-brand-red hover:bg-red-50 transition-colors"
-                                  title="Delete Batch"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Batch Enrollment & Timings Manager */}
-              <div className="grid gap-6 lg:grid-cols-3">
-                {/* Manager Form */}
-                <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-                  <div>
-                    <h3 className="font-display font-bold text-base text-slate-800 flex items-center gap-2">
-                      <Clock size={18} className="text-indigo-600" /> Student Batch Enrollment & Timings Manager
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Assign students to tuition batches, configure personalized billing fees, regular schedules, or post temporary timing updates with automatic outbound notifications.
-                    </p>
-                  </div>
-
-                  <form onSubmit={handleEnrollAndScheduleUpdate} className="space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="mb-1.5 block text-[10px] font-bold text-slate-400 uppercase">Select Student</label>
-                        <select
-                          id="select-enroll-student"
-                          value={enrollStudentId}
-                          onChange={(e) => handleStudentSelectChange(e.target.value)}
-                          required
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-700 focus:bg-white"
+                          Cancel
+                        </button>
+                        <button
+                          id="btn-save-timing-modal-submit"
+                          type="submit"
+                          className="rounded-xl bg-indigo-900 hover:bg-indigo-950 px-5 py-2 text-xs font-bold text-white shadow transition-colors"
                         >
-                          <option value="">-- Choose Student to Enroll --</option>
-                          {students.map(s => (
-                            <option key={s.id} value={s.id}>
-                              {s.name} ({s.class} - {s.rollNo})
-                            </option>
-                          ))}
-                        </select>
+                          {editingTiming ? 'Save Slot Changes' : 'Add Timing Slot'}
+                        </button>
                       </div>
-
-                      <div>
-                        <label className="mb-1.5 block text-[10px] font-bold text-slate-400 uppercase">Select Target Batch</label>
-                        <select
-                          id="select-enroll-batch"
-                          value={enrollBatchId}
-                          onChange={(e) => {
-                            setEnrollBatchId(e.target.value);
-                            const selected = batches.find(b => b.id === e.target.value);
-                            if (selected) {
-                              setEnrollBatchTime(selected.time);
-                              setEnrollMonthlyFee(selected.monthlyFee);
-                            }
-                          }}
-                          required
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-700 focus:bg-white"
-                        >
-                          <option value="">-- Choose Batch --</option>
-                          {batches.map(b => (
-                            <option key={b.id} value={b.id}>
-                              {b.name} ({b.class} - Fee: ₹{b.monthlyFee}/mo)
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="mb-1.5 block text-[10px] font-bold text-slate-400 uppercase">Regular Batch Time</label>
-                        <input
-                          id="input-enroll-batch-time"
-                          type="text"
-                          value={enrollBatchTime}
-                          onChange={(e) => setEnrollBatchTime(e.target.value)}
-                          placeholder="e.g. 04:00 PM - 06:30 PM"
-                          required
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-700 focus:bg-white"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="mb-1.5 block text-[10px] font-bold text-slate-400 uppercase">Monthly Subscription Fee (₹)</label>
-                        <input
-                          id="input-enroll-monthly-fee"
-                          type="number"
-                          value={enrollMonthlyFee}
-                          onChange={(e) => setEnrollMonthlyFee(Number(e.target.value))}
-                          placeholder="Monthly billing rate"
-                          required
-                          min={0}
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-700 focus:bg-white"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-4 space-y-3">
-                      <div className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping"></span>
-                        <h4 className="text-xs font-bold text-amber-900 uppercase">Publish Temporary Timing Change</h4>
-                      </div>
-                      <p className="text-[11px] text-amber-700 leading-relaxed">
-                        If there are temporary shifts (e.g. delay by 1 hour, emergency cancellation), provide the reason/timing below. Students will receive an instant WhatsApp text notification, and the alert will flash directly on their dynamic dashboard.
-                      </p>
-                      <div>
-                        <input
-                          id="input-enroll-temp-timing"
-                          type="text"
-                          value={enrollTempTimeChange}
-                          onChange={(e) => setEnrollTempTimeChange(e.target.value)}
-                          placeholder="e.g. Today's class will start at 05:00 PM temporarily due to heavy rain."
-                          className="w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs text-amber-950 placeholder-amber-400 outline-none focus:border-amber-500"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end">
-                      <button
-                        id="btn-confirm-enrollment"
-                        type="submit"
-                        className="rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-bold text-xs px-5 py-2.5 shadow-md flex items-center gap-1.5 cursor-pointer transition-all"
-                      >
-                        <CheckCircle size={14} /> Assign Batch & Update Schedule
-                      </button>
-                    </div>
-                  </form>
-                </div>
-
-                {/* WhatsApp Sim Logs */}
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-sm space-y-4">
-                  <div className="flex items-center justify-between border-b border-slate-150 pb-2">
-                    <h4 className="font-display font-bold text-xs uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                      💬 WhatsApp Dispatch Logs
-                    </h4>
-                    <span className="text-[9px] bg-green-100 text-green-700 px-2 py-0.5 rounded font-black uppercase">
-                      Active Sim
-                    </span>
-                  </div>
-
-                  <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
-                    {whatsAppLogs.length === 0 ? (
-                      <div className="text-center py-12 text-xs text-slate-400">
-                        <span className="block font-medium">No WhatsApp notifications dispatched yet.</span>
-                        <span className="text-[10px] text-slate-400 block mt-1">Modify any student timing with a temporary shift to test alerts.</span>
-                      </div>
-                    ) : (
-                      whatsAppLogs.map(log => (
-                        <div key={log.id} className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 shadow-xs space-y-1 relative">
-                          <span className="text-[8px] text-emerald-600 font-bold uppercase tracking-wider block">Dispatched to {log.studentName}</span>
-                          <p className="text-[11px] text-emerald-950 leading-relaxed font-mono">
-                            "{log.message}"
-                          </p>
-                          <span className="text-[9px] text-slate-400 text-right block mt-1">{log.date} via WhatsApp API</span>
-                        </div>
-                      ))
-                    )}
+                    </form>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -13561,6 +13982,63 @@ ${data.log}`
                     <Database size={13} /> Force Backup Dump
                   </button>
                 </div>
+
+                <div className="border-t border-slate-150 pt-4 space-y-4">
+                  <div>
+                    <h4 className="text-xs font-bold text-rose-600 flex items-center gap-1.5">
+                      <ShieldAlert size={14} className="text-rose-600" /> Absolute Database Purge & Hard-Reset
+                    </h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Wipe all tables, collections, fake student records, fake teachers, and fake admins from the live Firestore database and browser cache. Restores the database to exactly the 6 clean, official accounts.
+                    </p>
+                  </div>
+
+                  {!showPurgeConfirm ? (
+                    <button
+                      id="btn-absolute-db-purge"
+                      type="button"
+                      onClick={() => setShowPurgeConfirm(true)}
+                      className="rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-800 border border-rose-200/60 px-4 py-2 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Trash2 size={13} /> Clear Everything & Reset Database
+                    </button>
+                  ) : (
+                    <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-4 space-y-3">
+                      <p className="text-xs font-bold text-rose-800 flex items-center gap-1">
+                        ⚠️ WARNING: Are you absolutely sure? This action is permanent and irreversible.
+                      </p>
+                      <p className="text-[10px] text-rose-700 leading-relaxed font-medium">
+                        All student registries, transactions, and custom mock records will be deleted. The system will immediately seed the 6 requested official accounts (Founder, Co-Founder, 2 Admins, 1 Teacher, 1 Student) with their default secure passcodes.
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          id="btn-absolute-db-purge-proceed"
+                          type="button"
+                          disabled={isPurging}
+                          onClick={handleAbsolutePurge}
+                          className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 text-xs font-bold shadow-sm transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          {isPurging ? (
+                            <>
+                              <RefreshCw size={12} className="animate-spin" /> Purging database...
+                            </>
+                          ) : (
+                            <>Confirm Absolute Purge</>
+                          )}
+                        </button>
+                        <button
+                          id="btn-absolute-db-purge-cancel"
+                          type="button"
+                          disabled={isPurging}
+                          onClick={() => setShowPurgeConfirm(false)}
+                          className="rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2 text-xs font-bold transition-all cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Local Storage Backup & Recovery Center */}
@@ -14803,6 +15281,24 @@ ${data.log}`
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+                      {(['ALL', 'ACTIVE', 'SUSPENDED', 'ARCHIVED', 'DELETED'] as const).map((st) => (
+                        <button
+                          key={st}
+                          id={`btn-filter-user-status-${st.toLowerCase()}`}
+                          type="button"
+                          onClick={() => setStatusFilter(st)}
+                          className={`px-2.5 py-1 text-[10px] font-extrabold rounded-lg transition-all cursor-pointer ${
+                            statusFilter === st
+                              ? 'bg-white text-indigo-900 shadow-2xs font-black'
+                              : 'text-slate-500 hover:text-slate-800'
+                          }`}
+                        >
+                          {st === 'ALL' ? 'All Accounts' : st.charAt(0) + st.slice(1).toLowerCase()}
+                        </button>
+                      ))}
+                    </div>
+
                     <button
                       type="button"
                       id="btn-export-credentials"
@@ -14834,30 +15330,37 @@ ${data.log}`
                         <th className="p-3">User Profile</th>
                         <th className="p-3">Username</th>
                         <th className="p-3">Assigned Role</th>
-                        <th className="p-3">Passcode</th>
-                        <th className="p-3">Account Status</th>
+                        <th className="p-3">Contact & Audit</th>
+                        <th className="p-3">Lifecycle Status</th>
+                        <th className="p-3">Last Login</th>
                         <th className="p-3 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50 text-xs text-slate-700">
                       {users
                         .filter(u => {
+                          if (statusFilter !== 'ALL') {
+                            const currentStatus = u.status || (u.active !== false ? 'ACTIVE' : 'SUSPENDED');
+                            if (currentStatus !== statusFilter) return false;
+                          }
                           const query = roleSearchQuery.toLowerCase();
                           return (
                             u.name.toLowerCase().includes(query) ||
                             u.username.toLowerCase().includes(query) ||
                             u.role.toLowerCase().includes(query) ||
-                            (u.email && u.email.toLowerCase().includes(query))
+                            (u.email && u.email.toLowerCase().includes(query)) ||
+                            (u.phone && u.phone.includes(query))
                           );
                         })
                         .map((user) => {
                           const isSelf = currentUser?.id === user.id;
+                          const effectiveStatus: UserAccountStatus = user.status || (user.active !== false ? 'ACTIVE' : 'SUSPENDED');
 
                           return (
                             <tr key={user.id} className="hover:bg-slate-50/50">
                               <td className="p-3">
                                 <div className="font-bold text-slate-900">{user.name}</div>
-                                <div className="text-[10px] text-slate-400 font-mono">{user.email || 'No email registered'}</div>
+                                <div className="text-[10px] text-slate-400 font-mono">ID: {user.id}</div>
                               </td>
                               <td className="p-3 font-mono font-bold text-slate-700">@{user.username}</td>
                               <td className="p-3">
@@ -14885,45 +15388,73 @@ ${data.log}`
                                 </select>
                               </td>
                               <td className="p-3">
-                                <div className="flex items-center gap-1.5 font-mono text-xs font-semibold">
-                                  <span>
-                                    {visiblePasscodes[user.id] 
-                                      ? getDecryptedPassword(user) 
-                                      : '••••••••'}
-                                  </span>
-                                  <button
-                                    id={`btn-toggle-reveal-pass-${user.id}`}
-                                    type="button"
-                                    onClick={() => handleTogglePasscodeReveal(user.id)}
-                                    className="p-1 text-slate-400 hover:text-slate-600 transition-colors rounded hover:bg-slate-100"
-                                    title={visiblePasscodes[user.id] ? "Hide Password" : "Show Password"}
-                                  >
-                                    {visiblePasscodes[user.id] ? <EyeOff size={14} /> : <Eye size={14} />}
-                                  </button>
+                                <div className="text-xs font-semibold text-slate-800">{user.phone || 'No Mobile'}</div>
+                                <div className="text-[10px] text-slate-400 font-mono">{user.email || 'No Email'}</div>
+                                <div className="text-[9px] text-slate-400 font-sans mt-0.5">
+                                  Created by <span className="font-semibold text-slate-600">{user.createdBy || 'Admin'}</span> on <span className="font-mono">{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Initial'}</span>
                                 </div>
                               </td>
                               <td className="p-3">
-                                <div className="flex flex-wrap gap-1">
-                                  {user.active !== false ? (
-                                    <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700 border border-emerald-200">Enabled</span>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-0.5 rounded-full bg-rose-50 px-1.5 py-0.5 text-[9px] font-bold text-rose-700 border border-rose-200">Disabled</span>
+                                <div className="flex flex-col gap-1 items-start">
+                                  {effectiveStatus === 'ACTIVE' && (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                                      🟢 Active
+                                    </span>
                                   )}
-                                  {user.isLocked ? (
-                                    <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 border border-amber-200">Locked</span>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-0.5 rounded-full bg-slate-50 px-1.5 py-0.5 text-[9px] font-bold text-slate-700 border border-slate-200">Unlocked</span>
+                                  {effectiveStatus === 'SUSPENDED' && (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200" title={user.suspensionReason}>
+                                      🟠 Suspended
+                                    </span>
                                   )}
-                                  {user.forcePasswordChange && (
-                                    <span className="inline-flex items-center gap-0.5 rounded-full bg-indigo-50 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700 border border-indigo-200">Forced reset</span>
+                                  {effectiveStatus === 'ARCHIVED' && (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 border border-slate-300">
+                                      ⚪ Archived
+                                    </span>
                                   )}
+                                  {effectiveStatus === 'DELETED' && (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-200">
+                                      🔴 Soft Deleted
+                                    </span>
+                                  )}
+
+                                  {user.suspensionReason && (
+                                    <div className="text-[9px] text-amber-800 italic bg-amber-50/50 px-1.5 py-0.5 rounded border border-amber-100 max-w-[150px] truncate" title={user.suspensionReason}>
+                                      Reason: {user.suspensionReason}
+                                    </div>
+                                  )}
+
+                                  <div className="flex gap-1 mt-0.5">
+                                    {user.isLocked && (
+                                      <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 border border-amber-200">Locked</span>
+                                    )}
+                                    {user.forcePasswordChange && (
+                                      <span className="inline-flex items-center gap-0.5 rounded-full bg-indigo-50 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700 border border-indigo-200">Force Reset</span>
+                                    )}
+                                  </div>
                                 </div>
+                              </td>
+                              <td className="p-3 text-[11px] text-slate-500 font-mono">
+                                {(user as any).lastLoginAt ? new Date((user as any).lastLoginAt).toLocaleDateString() : 'Never'}
                               </td>
                               <td className="p-3 text-right flex justify-end gap-2 items-center">
                                 <button
                                   id={`btn-manage-user-admin-${user.id}`}
                                   type="button"
                                   onClick={() => {
+                                    // Check RBAC Hierarchy before opening reset/manage modal
+                                    const resetterRole = currentUser?.role?.toUpperCase() || 'ADMIN';
+                                    const targetRole = user.role?.toUpperCase() || 'STUDENT';
+                                    const canReset = (
+                                      resetterRole === 'SUPER_ADMIN' ||
+                                      (resetterRole === 'ADMIN' && ['STUDENT', 'TEACHER', 'RECEPTIONIST'].includes(targetRole)) ||
+                                      (resetterRole === 'RECEPTIONIST' && ['STUDENT', 'TEACHER'].includes(targetRole))
+                                    );
+
+                                    if (!canReset) {
+                                      alert(`Access Denied: As a ${resetterRole}, you are not permitted to manage or reset credentials for a ${targetRole} account.`);
+                                      return;
+                                    }
+
                                     setResettingUser({
                                       userId: user.id,
                                       username: user.username,
@@ -14932,7 +15463,9 @@ ${data.log}`
                                     });
                                     setNewPasswordForUser('');
                                     setEditUsername(user.username);
-                                    setUserActive(user.active !== false);
+                                    setUserActive(user.active !== false && (user.status || 'ACTIVE') === 'ACTIVE');
+                                    setUserStatus(user.status || (user.active !== false ? 'ACTIVE' : 'SUSPENDED'));
+                                    setUserSuspensionReason(user.suspensionReason || '');
                                     setUserLocked(user.isLocked || false);
                                     setUserForceChange(user.forcePasswordChange || false);
                                   }}
@@ -17870,6 +18403,71 @@ ${data.log}`
                 </div>
               </div>
 
+              {/* Account Lifecycle Status Dropdown */}
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 font-display">Account Lifecycle Status</label>
+                <select
+                  id="select-manage-lifecycle-status"
+                  value={userStatus}
+                  onChange={(e) => {
+                    const st = e.target.value as UserAccountStatus;
+                    setUserStatus(st);
+                    if (st === 'ACTIVE') {
+                      setUserActive(true);
+                    } else {
+                      setUserActive(false);
+                    }
+                  }}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-indigo-900 focus:bg-white font-bold cursor-pointer"
+                >
+                  <option value="ACTIVE">🟢 Active (Operating normally)</option>
+                  <option value="SUSPENDED">🟠 Suspended (Temporary lock)</option>
+                  <option value="ARCHIVED">⚪ Archived (Left organization)</option>
+                  <option value="DELETED">🔴 Deleted (Soft delete)</option>
+                </select>
+              </div>
+
+              {/* Suspension or Deletion Reason */}
+              {(userStatus === 'SUSPENDED' || userStatus === 'ARCHIVED' || userStatus === 'DELETED') && (
+                <div>
+                  <label className="block text-[10px] font-bold text-rose-600 uppercase tracking-wider mb-1 font-display">Reason for Status / Suspension</label>
+                  <input
+                    id="input-manage-suspension-reason"
+                    type="text"
+                    placeholder="e.g. Resigned on 2026-06-30 / Non-payment / Completed Course"
+                    value={userSuspensionReason}
+                    onChange={(e) => setUserSuspensionReason(e.target.value)}
+                    className="w-full rounded-xl border border-rose-200 bg-rose-50/40 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-rose-500 focus:bg-white font-medium"
+                  />
+                </div>
+              )}
+
+              {/* Audit Trail Metadata Preview */}
+              {(() => {
+                const targetUserObj = users.find(u => u.id === resettingUser.userId);
+                return (
+                  <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 space-y-1.5 text-[11px] font-mono text-slate-600">
+                    <span className="font-bold text-slate-700 uppercase text-[9px] tracking-wider block font-sans mb-1">Account Audit Trail</span>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Created By:</span>
+                      <span className="font-bold text-slate-800">{targetUserObj?.createdBy || 'System Admin'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Created On:</span>
+                      <span className="font-bold text-slate-800">{targetUserObj?.createdAt ? new Date(targetUserObj.createdAt).toLocaleDateString() : 'Initial Setup'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Last Updated By:</span>
+                      <span className="font-bold text-slate-800">{targetUserObj?.lastUpdatedBy || 'System Admin'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Last Updated On:</span>
+                      <span className="font-bold text-slate-800">{targetUserObj?.lastUpdatedAt ? new Date(targetUserObj.lastUpdatedAt).toLocaleDateString() : 'N/A'}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Toggle Switches */}
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3.5">
                 {/* Active Status */}
@@ -17883,7 +18481,15 @@ ${data.log}`
                       id="toggle-manage-active"
                       type="checkbox"
                       checked={userActive}
-                      onChange={(e) => setUserActive(e.target.checked)}
+                      onChange={(e) => {
+                        const val = e.target.checked;
+                        setUserActive(val);
+                        if (val && userStatus !== 'ACTIVE') {
+                          setUserStatus('ACTIVE');
+                        } else if (!val && userStatus === 'ACTIVE') {
+                          setUserStatus('SUSPENDED');
+                        }
+                      }}
                       className="sr-only peer"
                     />
                     <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
@@ -17967,7 +18573,7 @@ ${data.log}`
                       const payload: any = {
                         uid: resettingUser.userId,
                         email: resettingUser.email,
-                        disabled: !userActive
+                        disabled: !userActive || userStatus !== 'ACTIVE'
                       };
                       if (newPwd) {
                         payload.password = newPwd;
@@ -17989,14 +18595,20 @@ ${data.log}`
                       return;
                     }
 
+                    const adminModifierName = currentUser?.name || currentUser?.username || 'System Admin';
+
                     const updated = users.map(u => {
                       if (u.id === resettingUser.userId) {
-                        const updatedUser = {
+                        const updatedUser: User = {
                           ...u,
                           username: cleanUsername,
-                          active: userActive,
+                          active: userActive && userStatus === 'ACTIVE',
+                          status: userStatus,
+                          suspensionReason: userSuspensionReason.trim() || undefined,
                           isLocked: userLocked,
-                          forcePasswordChange: userForceChange
+                          forcePasswordChange: userForceChange,
+                          lastUpdatedBy: adminModifierName,
+                          lastUpdatedAt: new Date().toISOString()
                         };
                         return updatedUser;
                       }

@@ -481,23 +481,23 @@ export const WebsiteManagementSystem: React.FC<WebsiteManagementSystemProps> = (
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-100 dark:border-slate-800">
                   <span className="text-[10px] text-slate-400 font-bold block">Today's Visitors</span>
-                  <span className="text-lg font-black text-slate-900 dark:text-white">1,428</span>
-                  <span className="text-[10px] text-emerald-500 font-bold block">↑ +14.2% vs yesterday</span>
+                  <span className="text-lg font-black text-slate-900 dark:text-white">0</span>
+                  <span className="text-[10px] text-slate-400 font-bold block">No tracking active</span>
                 </div>
                 <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-100 dark:border-slate-800">
                   <span className="text-[10px] text-slate-400 font-bold block">Monthly Page Views</span>
-                  <span className="text-lg font-black text-slate-900 dark:text-white">38,920</span>
-                  <span className="text-[10px] text-emerald-500 font-bold block">↑ +22.5% vs last mo</span>
+                  <span className="text-lg font-black text-slate-900 dark:text-white">0</span>
+                  <span className="text-[10px] text-slate-400 font-bold block">No data yet</span>
                 </div>
                 <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-100 dark:border-slate-800">
                   <span className="text-[10px] text-slate-400 font-bold block">Avg Time on Site</span>
-                  <span className="text-lg font-black text-slate-900 dark:text-white">4m 12s</span>
-                  <span className="text-[10px] text-slate-400 font-bold block">High Engagement</span>
+                  <span className="text-lg font-black text-slate-900 dark:text-white">—</span>
+                  <span className="text-[10px] text-slate-400 font-bold block">No session log</span>
                 </div>
                 <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-100 dark:border-slate-800">
                   <span className="text-[10px] text-slate-400 font-bold block">Bounce Rate</span>
-                  <span className="text-lg font-black text-slate-900 dark:text-white">28.4%</span>
-                  <span className="text-[10px] text-emerald-500 font-bold block">Optimal</span>
+                  <span className="text-lg font-black text-slate-900 dark:text-white">—</span>
+                  <span className="text-[10px] text-slate-400 font-bold block">No analytics engine</span>
                 </div>
               </div>
             </div>
@@ -513,18 +513,18 @@ export const WebsiteManagementSystem: React.FC<WebsiteManagementSystemProps> = (
 
               <div className="space-y-2.5 text-xs">
                 {[
-                  { title: 'Homepage (/)', views: '18,450', pct: '47%' },
-                  { title: 'Free Study Material (/study-material)', views: '9,820', pct: '25%' },
-                  { title: 'Sunshine Store Books (/store)', views: '5,310', pct: '14%' },
-                  { title: 'Online Admissions (/admissions)', views: '3,120', pct: '8%' },
-                  { title: 'Class 10 PYQ Notes (/notes-10)', views: '2,220', pct: '6%' }
+                  { title: 'Homepage (/)', views: '0', pct: '0%' },
+                  { title: 'Free Study Material (/study-material)', views: '0', pct: '0%' },
+                  { title: 'Sunshine Store Books (/store)', views: '0', pct: '0%' },
+                  { title: 'Online Admissions (/admissions)', views: '0', pct: '0%' },
+                  { title: 'Class 10 PYQ Notes (/notes-10)', views: '0', pct: '0%' }
                 ].map((pg, idx) => (
                   <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-850">
                     <div>
                       <span className="font-bold text-slate-800 dark:text-slate-200 block">{pg.title}</span>
-                      <span className="text-[10px] text-slate-400 font-medium">{pg.views} page views</span>
+                      <span className="text-[10px] text-slate-400 font-medium">0 page views — No data yet</span>
                     </div>
-                    <span className="font-mono font-black text-amber-500 text-xs">{pg.pct}</span>
+                    <span className="font-mono font-black text-slate-400 text-xs">0%</span>
                   </div>
                 ))}
               </div>

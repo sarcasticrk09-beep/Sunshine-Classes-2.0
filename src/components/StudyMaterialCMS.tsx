@@ -540,7 +540,7 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
               <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 Content & Study Material CMS
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-semibold border border-amber-200 dark:border-amber-800">
-                  CM-001
+                  Study Material
                 </span>
               </h2>
               <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">

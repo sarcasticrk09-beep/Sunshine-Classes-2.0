@@ -334,7 +334,7 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ currentUser 
         <div>
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wider bg-indigo-50 text-indigo-700 rounded-md border border-indigo-100/80">
-              FM-007
+              Finance
             </span>
             <h1 className="text-2xl font-bold font-display text-slate-800">Finance Dashboard & Reports</h1>
           </div>

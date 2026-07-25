@@ -205,7 +205,9 @@ const shouldIgnore = (args: any[]): boolean => {
     msg.includes("Disconnecting idle stream") ||
     msg.includes("Timed out waiting for new targets") ||
     msg.includes("CANCELLED") ||
-    msg.includes("GrpcConnection RPC")
+    msg.includes("GrpcConnection RPC") ||
+    msg.includes("RESOURCE_EXHAUSTED") ||
+    msg.includes("Quota exceeded")
   );
 };
 
@@ -537,10 +539,12 @@ async function startServer() {
         console.log(`[Startup] Loaded ${enrollmentLogs.length} persisted enrollment telemetry logs.`);
       }
     }).catch((err: any) => {
-      console.warn("[Startup] Failed to load persisted telemetry logs:", err.message);
+      if (!err?.message?.includes('RESOURCE_EXHAUSTED') && !err?.message?.includes('Quota exceeded')) {
+        console.warn("[Startup] Failed to load persisted telemetry logs:", err.message);
+      }
     });
   } catch (err) {
-    console.warn("[Startup] Telemetry log loader failed:", err);
+    // Silent catch
   }
 
   // Support Tickets for unsuccessful/failed enrollment attempts
@@ -565,10 +569,12 @@ async function startServer() {
         console.log(`[Startup] Loaded ${supportTickets.length} persisted support tickets.`);
       }
     }).catch((err: any) => {
-      console.warn("[Startup] Failed to load persisted support tickets:", err.message);
+      if (!err?.message?.includes('RESOURCE_EXHAUSTED') && !err?.message?.includes('Quota exceeded')) {
+        console.warn("[Startup] Failed to load persisted support tickets:", err.message);
+      }
     });
   } catch (err) {
-    console.warn("[Startup] Support ticket loader failed:", err);
+    // Silent catch
   }
 
   async function logEnrollmentEvent(type: "INFO" | "WARNING" | "ERROR", message: string, payload?: any, error?: string) {

@@ -76,9 +76,17 @@ export class AuthController {
         await AuditLogger.log('LOGOUT', req.user.username || 'user', 'User logged out', 'SUCCESS', req.user.userId || req.user.id);
       }
 
-      res.clearCookie('sunshine_access_token', { path: '/' });
-      res.clearCookie('sunshine_token', { path: '/' });
-      res.clearCookie('sunshine_refresh_token', { path: '/' });
+      const isProd = process.env.NODE_ENV === 'production';
+      const cookieOpts = {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: 'lax' as const,
+        path: '/'
+      };
+
+      res.clearCookie('sunshine_access_token', cookieOpts);
+      res.clearCookie('sunshine_token', cookieOpts);
+      res.clearCookie('sunshine_refresh_token', cookieOpts);
 
       return res.status(200).json({ success: true, message: 'Logged out successfully.' });
     } catch (err: any) {
