@@ -103,7 +103,7 @@ import { PublicStorePage } from './pages/PublicStorePage';
 import { PublicProductDetailsPage } from './pages/PublicProductDetailsPage';
 import { SEOHead, trackAdmissionSubmit } from './components/SEOHead';
 
-import { db } from './lib/firebase';
+import { db, getCachedIdToken } from './lib/firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { interpolateWhatsAppTemplate, sendWhatsAppMessage } from './lib/whatsappService';
 import {
@@ -256,7 +256,15 @@ export default function App() {
   // Theme Management
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('sunshine_theme');
-    return (saved === 'dark' || saved === 'light') ? saved : 'light';
+    if (saved === 'dark' || saved === 'light') {
+      return saved;
+    }
+    try {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      return prefersDark ? 'dark' : 'light';
+    } catch (e) {
+      return 'light';
+    }
   });
 
   // State for the stunning brand introduction splash screen/preloader
@@ -3615,23 +3623,23 @@ Sunshine Classes`;
               y: -80,
               transition: { duration: 0.6, ease: [0.76, 0, 0.24, 1] } 
             }}
-            className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 p-6 transition-colors duration-300 select-none"
+            className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-slate-50 dark:bg-[#0a0f1d] p-6 transition-colors duration-300 select-none"
           >
             {/* Ambient Background Glows */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-amber-400/10 dark:bg-amber-400/5 blur-[120px] animate-pulse"></div>
-              <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-blue-600/10 dark:bg-blue-600/5 blur-[120px] animate-pulse" style={{ animationDelay: '1.5s' }}></div>
+              <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-amber-400/10 dark:bg-amber-400/8 blur-[120px] animate-pulse"></div>
+              <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-blue-600/10 dark:bg-blue-600/8 blur-[120px] animate-pulse" style={{ animationDelay: '1.5s' }}></div>
             </div>
 
             <div className="text-center max-w-md flex flex-col items-center relative z-10">
-              {/* Logo container with scale-up entrance */}
+              {/* Logo container with scale-up entrance and correct theme-aware text contrast */}
               <motion.div
                 initial={{ scale: 0.85, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.8, ease: [0.34, 1.56, 0.64, 1] }}
                 className="mb-8"
               >
-                <SunshineLogo size="xl" layout="vertical" />
+                <SunshineLogo size="xl" layout="vertical" textColor={theme === 'dark' ? 'light' : 'dark'} />
               </motion.div>
 
               {/* Technical elegant custom loading bar */}
@@ -3649,7 +3657,7 @@ Sunshine Classes`;
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 0.8, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.5 }}
-                className="flex items-center gap-2 bg-white dark:bg-slate-900 py-2.5 px-5 rounded-full border border-slate-100 dark:border-slate-800 shadow-sm transition-colors"
+                className="flex items-center gap-2 bg-white dark:bg-slate-900/90 py-2.5 px-5 rounded-full border border-slate-100 dark:border-slate-800 shadow-sm transition-colors"
               >
                 <RefreshCw className="h-3.5 w-3.5 text-brand-orange animate-spin" />
                 <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 tracking-wider uppercase">
@@ -3993,7 +4001,7 @@ Sunshine Classes`;
                 }
 
                 try {
-                  const token = localStorage.getItem('sunshine_token');
+                  const token = getCachedIdToken();
                   const response = await fetch('/api/auth/change-password', {
                     method: 'POST',
                     headers: {

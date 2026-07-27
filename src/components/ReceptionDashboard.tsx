@@ -35,6 +35,7 @@ import SunshineLogo from './SunshineLogo';
 import { WhatsAppCommunication } from './WhatsAppCommunication';
 import { getCurrentAndNextMonths } from '../lib/feeUtils';
 import AdmissionsModule from './admissions/AdmissionsModule';
+import { getCachedIdToken } from '../lib/firebase';
 
 interface ReceptionDashboardProps {
   students: Student[];
@@ -988,7 +989,7 @@ export default function ReceptionDashboard({
           {activeTab === 'fees' && (
             <div className="space-y-6">
               {/* Fee Collection Engine (FM-003) */}
-              <FeeCollectionManager jwtToken={localStorage.getItem('sunshine_token') || ''} />
+              <FeeCollectionManager jwtToken={getCachedIdToken() || ''} />
 
               {/* Fee Overview Widget */}
               <div id="fee-overview-widget" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

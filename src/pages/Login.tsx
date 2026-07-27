@@ -44,6 +44,21 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
     }
   };
 
+  const handleQuickLogin = async (username: string, pass: string) => {
+    if (loading) return;
+    setError(null);
+    setLoading(true);
+    setEmail(username);
+    setPassword(pass);
+    try {
+      await login(username, pass, rememberMe);
+    } catch (err: any) {
+      setError(err.message || 'Authentication failed. Please verify credentials.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGoogleLogin = async () => {
     setError(null);
     setLoading(true);
@@ -396,6 +411,71 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
             <span>{googleLoginStep}</span>
           </div>
         )}
+
+        {/* Quick Developer Access / Login Help */}
+        <div className="mt-6 pt-5 border-t border-slate-100" id="dev-quick-login-container">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              ⚡ Quick Developer Access
+            </span>
+            <span className="text-[9px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
+              Dev Stage Helper
+            </span>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-2" id="dev-quick-login-grid">
+            <button
+              type="button"
+              id="quick-login-superadmin"
+              onClick={() => handleQuickLogin('superadmin', 'Sunshine@123')}
+              disabled={loading}
+              className="p-2 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-xl text-left transition-all cursor-pointer disabled:opacity-50 flex flex-col justify-between group"
+            >
+              <div className="text-[10px] font-bold text-slate-700 group-hover:text-indigo-900 uppercase">Super Admin</div>
+              <div className="text-[9px] text-slate-400 font-mono mt-0.5">@superadmin</div>
+            </button>
+            <button
+              type="button"
+              id="quick-login-admin"
+              onClick={() => handleQuickLogin('admin', 'Admin@123')}
+              disabled={loading}
+              className="p-2 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-xl text-left transition-all cursor-pointer disabled:opacity-50 flex flex-col justify-between group"
+            >
+              <div className="text-[10px] font-bold text-slate-700 group-hover:text-rose-900 uppercase">Admin</div>
+              <div className="text-[9px] text-slate-400 font-mono mt-0.5">@admin</div>
+            </button>
+            <button
+              type="button"
+              id="quick-login-teacher"
+              onClick={() => handleQuickLogin('teacher', 'Teacher@123')}
+              disabled={loading}
+              className="p-2 bg-slate-50 hover:bg-violet-50 border border-slate-200 hover:border-violet-200 rounded-xl text-left transition-all cursor-pointer disabled:opacity-50 flex flex-col justify-between group"
+            >
+              <div className="text-[10px] font-bold text-slate-700 group-hover:text-violet-900 uppercase">Teacher</div>
+              <div className="text-[9px] text-slate-400 font-mono mt-0.5">@teacher</div>
+            </button>
+            <button
+              type="button"
+              id="quick-login-reception"
+              onClick={() => handleQuickLogin('reception', 'Reception@123')}
+              disabled={loading}
+              className="p-2 bg-slate-50 hover:bg-amber-50 border border-slate-200 hover:border-amber-200 rounded-xl text-left transition-all cursor-pointer disabled:opacity-50 flex flex-col justify-between group"
+            >
+              <div className="text-[10px] font-bold text-slate-700 group-hover:text-amber-900 uppercase">Receptionist</div>
+              <div className="text-[9px] text-slate-400 font-mono mt-0.5">@reception</div>
+            </button>
+            <button
+              type="button"
+              id="quick-login-student"
+              onClick={() => handleQuickLogin('student', 'Student@123')}
+              disabled={loading}
+              className="col-span-2 p-2 bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 rounded-xl text-left transition-all cursor-pointer disabled:opacity-50 flex flex-col justify-between group"
+            >
+              <div className="text-[10px] font-bold text-slate-700 group-hover:text-emerald-900 uppercase">Student</div>
+              <div className="text-[9px] text-slate-400 font-mono mt-0.5">@student (Rahul Verma)</div>
+            </button>
+          </div>
+        </div>
 
       </div>
     </div>

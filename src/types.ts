@@ -16,6 +16,7 @@ export type UserAccountStatus = 'ACTIVE' | 'SUSPENDED' | 'ARCHIVED' | 'DELETED';
 
 export interface User {
   id: string;
+  uid?: string;
   username: string;
   name: string;
   email: string;

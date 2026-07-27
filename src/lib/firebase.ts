@@ -75,6 +75,13 @@ export function clearCachedAccessToken(): void {
   cachedAccessToken = null;
 }
 
+// In-memory Firebase ID Token storage
+let cachedIdToken: string | null = null;
+export const getCachedIdToken = (): string | null => cachedIdToken;
+export const setCachedIdToken = (token: string | null): void => {
+  cachedIdToken = token;
+};
+
 export async function googleSignInForGmail(): Promise<{ user: User; accessToken: string }> {
   const result = await signInWithPopup(auth, googleProvider);
   const credential = GoogleAuthProvider.credentialFromResult(result);

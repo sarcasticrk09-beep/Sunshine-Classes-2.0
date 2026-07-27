@@ -350,14 +350,16 @@ export const UserProfileSecurityModal: React.FC<UserProfileSecurityModalProps> =
               )}
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Current Password</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Current Password {currentUser.role === 'SUPER_ADMIN' && <span className="text-[10px] text-amber-600 font-normal">(Optional for Super Admin)</span>}
+                </label>
                 <input
                   type="password"
                   id="input-current-password"
-                  required
+                  required={currentUser.role !== 'SUPER_ADMIN'}
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Enter your existing password"
+                  placeholder={currentUser.role === 'SUPER_ADMIN' ? "Bypassed for Super Admin (Optional)" : "Enter your existing password"}
                   className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-2.5 text-xs text-slate-800 dark:text-slate-100 focus:bg-white focus:outline-none font-mono"
                 />
               </div>

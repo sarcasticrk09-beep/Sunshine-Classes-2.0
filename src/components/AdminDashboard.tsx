@@ -69,7 +69,7 @@ import {
 import { Student, Teacher, User, UserRole, UserAccountStatus, Course, Batch, ClassEntity, ClassTiming, TimingSlotLabel, Topper, StudyMaterial, FounderMember, FeeStatus, FeeReceipt, AuditLog, AppNotification, StudentSubscription, SubscriptionPayment, SubscriptionReceipt, SubscriptionNotification, SubscriptionConfig, Admission, Attendance, Test, StudentMark, Homework, HomeworkSubmission, BlogPost, Testimonial, GalleryItem, Inquiry, TimetableEntry, EmailTemplatesConfig, WhatsAppTemplatesConfig, DepartedStudent, EmailLog, UPIPayment } from '../types';
 import { interpolateTemplate, getFeeForClass } from '../data';
 import { sendWhatsAppMessage, interpolateWhatsAppTemplate } from '../lib/whatsappService';
-import { googleSignIn, getCachedAccessToken, clearCachedAccessToken, db } from '../lib/firebase';
+import { googleSignIn, getCachedAccessToken, clearCachedAccessToken, db, getCachedIdToken } from '../lib/firebase';
 import { doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { studentService } from '../services/studentService';
 import { noticesService } from '../services/firestoreDbService';
@@ -261,6 +261,7 @@ export default function AdminDashboard({
   const [authActionCategory, setAuthActionCategory] = useState<'all' | 'login' | 'password' | 'role'>('all');
   const [authSearchQuery, setAuthSearchQuery] = useState('');
   const [feeSubTab, setFeeSubTab] = useState<'board' | 'email-logs' | 'upi-verification' | 'payment-history' | 'structures'>('board');
+  const [settingsSubTab, setSettingsSubTab] = useState<'billing' | 'templates' | 'database' | 'integrations'>('billing');
   const [paymentHistorySearch, setPaymentHistorySearch] = useState('');
   const [paymentHistoryMonth, setPaymentHistoryMonth] = useState('ALL');
   const [paymentHistoryMethod, setPaymentHistoryMethod] = useState<'ALL' | 'CASH' | 'UPI' | 'ONLINE'>('ALL');
@@ -8562,13 +8563,13 @@ ${data.log}`
             return (
               <div className="space-y-6">
                 {/* Fee Collection Engine (FM-003) */}
-                <FeeCollectionManager jwtToken={localStorage.getItem('sunshine_token') || ''} />
+                <FeeCollectionManager jwtToken={getCachedIdToken() || ''} />
 
                 {/* Fee Reminder & Notification Engine (FM-005) */}
-                <FeeReminderManager userToken={localStorage.getItem('sunshine_token') || ''} userRole={'ADMIN'} />
+                <FeeReminderManager userToken={getCachedIdToken() || ''} userRole={'ADMIN'} />
 
                 {/* WhatsApp Cloud Provider Engine */}
-                <WhatsAppNotificationManager userToken={localStorage.getItem('sunshine_token') || ''} userRole={'ADMIN'} />
+                <WhatsAppNotificationManager userToken={getCachedIdToken() || ''} userRole={'ADMIN'} />
 
 
                 {/* Financial Health Stats Grid */}
@@ -12562,8 +12563,65 @@ ${data.log}`
           {/* TAB 6: SETTINGS & BACKUP */}
           {activeTab === 'settings' && (
             <div className="space-y-6">
-              {/* ERP Configuration Settings Form */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              {/* Refined settings sub-tab control bar */}
+              <div className="flex border border-slate-200 overflow-x-auto whitespace-nowrap scrollbar-none bg-slate-50/80 p-1.5 rounded-xl gap-1" id="settings-tabs-container">
+                <button
+                  id="btn-settings-subtab-billing"
+                  type="button"
+                  onClick={() => setSettingsSubTab('billing')}
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                    settingsSubTab === 'billing'
+                      ? 'bg-white text-indigo-950 shadow-sm border border-slate-150'
+                      : 'text-slate-600 hover:text-indigo-950 hover:bg-white/40'
+                  }`}
+                >
+                  <DollarSign size={14} />
+                  <span>Fee Billing & Security</span>
+                </button>
+                <button
+                  id="btn-settings-subtab-templates"
+                  type="button"
+                  onClick={() => setSettingsSubTab('templates')}
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                    settingsSubTab === 'templates'
+                      ? 'bg-white text-indigo-950 shadow-sm border border-slate-150'
+                      : 'text-slate-600 hover:text-indigo-950 hover:bg-white/40'
+                  }`}
+                >
+                  <Mail size={14} />
+                  <span>Communication Templates</span>
+                </button>
+                <button
+                  id="btn-settings-subtab-integrations"
+                  type="button"
+                  onClick={() => setSettingsSubTab('integrations')}
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                    settingsSubTab === 'integrations'
+                      ? 'bg-white text-indigo-950 shadow-sm border border-slate-150'
+                      : 'text-slate-600 hover:text-indigo-950 hover:bg-white/40'
+                  }`}
+                >
+                  <Cloud size={14} />
+                  <span>API & Integrations</span>
+                </button>
+                <button
+                  id="btn-settings-subtab-database"
+                  type="button"
+                  onClick={() => setSettingsSubTab('database')}
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                    settingsSubTab === 'database'
+                      ? 'bg-white text-indigo-950 shadow-sm border border-slate-150'
+                      : 'text-slate-600 hover:text-indigo-950 hover:bg-white/40'
+                  }`}
+                >
+                  <Database size={14} />
+                  <span>Database & Recovery</span>
+                </button>
+              </div>
+
+              {settingsSubTab === 'billing' && (
+                /* ERP Configuration Settings Form */
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="mb-4 border-b border-slate-150 pb-3">
                   <h3 className="font-display font-bold text-base text-slate-800">ERP & Fee Billing Settings</h3>
                   <p className="text-xs text-slate-500">Configure subscription cycles, grace periods, late fee structures, and automated SMS/WhatsApp alerts.</p>
@@ -13436,9 +13494,11 @@ ${data.log}`
                   </div>
                 </form>
               </div>
+              )}
 
-              {/* Custom Email Templates Configuration UI */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              {settingsSubTab === 'templates' && (
+                /* Custom Email Templates Configuration UI */
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="mb-6 border-b border-slate-150 pb-4">
                   <h3 className="font-display font-bold text-base text-slate-800 flex items-center gap-2">
                     <Mail className="text-brand-orange" size={20} />
@@ -13642,9 +13702,11 @@ ${data.log}`
                   </div>
                 </div>
               </div>
+              )}
 
-              {/* Custom WhatsApp Templates Configuration UI */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              {settingsSubTab === 'templates' && (
+                /* Custom WhatsApp Templates Configuration UI */
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="mb-6 border-b border-slate-150 pb-4">
                   <h3 className="font-display font-bold text-base text-slate-800 flex items-center gap-2">
                     <MessageSquare className="text-emerald-600" size={20} />
@@ -13827,11 +13889,13 @@ ${data.log}`
                   </div>
                 </div>
               </div>
+              )}
 
-              {/* ERP Security Shield Control Center */}
-              <div className={`rounded-2xl border p-6 shadow-sm space-y-6 transition-all duration-300 ${
-                strictMode ? 'border-emerald-200 bg-emerald-50/10' : 'border-amber-200 bg-amber-50/10'
-              }`}>
+              {settingsSubTab === 'billing' && (
+                /* ERP Security Shield Control Center */
+                <div className={`rounded-2xl border p-6 shadow-sm space-y-6 transition-all duration-300 ${
+                  strictMode ? 'border-emerald-200 bg-emerald-50/10' : 'border-amber-200 bg-amber-50/10'
+                }`}>
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   <div className="flex items-start gap-3">
                     <div className={`p-2.5 rounded-xl ${
@@ -13958,9 +14022,11 @@ ${data.log}`
                   </ul>
                 </div>
               </div>
+              )}
 
-              {/* Database Admin Section */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+              {settingsSubTab === 'database' && (
+                /* Database Admin Section */
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
                 <div>
                   <h3 className="font-display font-bold text-base text-slate-800 mb-1">Database Administration</h3>
                   <p className="text-xs text-slate-500">Trigger standard structural exports of the PostgreSQL database schemas.</p>
@@ -14040,9 +14106,11 @@ ${data.log}`
                   )}
                 </div>
               </div>
+              )}
 
-              {/* Local Storage Backup & Recovery Center */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+              {settingsSubTab === 'database' && (
+                /* Local Storage Backup & Recovery Center */
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
                 <div>
                   <h3 className="font-display font-bold text-base text-slate-800 mb-1 flex items-center gap-2">
                     <Archive className="text-indigo-900" size={18} /> Local Storage Backup & Recovery Center
@@ -14207,9 +14275,11 @@ ${data.log}`
                   </div>
                 </div>
               </div>
+              )}
 
-              {/* 📦 Master Yearly Data Archive & Student Deactivation Card */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+              {settingsSubTab === 'database' && (
+                /* 📦 Master Yearly Data Archive & Student Deactivation Card */
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
                 <div>
                   <h3 className="font-display font-bold text-base text-slate-800 mb-1 flex items-center gap-2">
                     <Archive className="text-indigo-900" size={18} /> Master Yearly Data Archival & Student Cleanup
@@ -14409,9 +14479,11 @@ ${data.log}`
                   </div>
                 </div>
               </div>
+              )}
 
-              {/* 🎓 Class 10 Graduation & Coaching Departure Registry Card */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+              {settingsSubTab === 'database' && (
+                /* 🎓 Class 10 Graduation & Coaching Departure Registry Card */
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
                 <div>
                   <h3 className="font-display font-bold text-base text-slate-800 mb-1 flex items-center gap-2">
                     <Award className="text-emerald-700" size={18} /> Class 10 Graduation & Coaching Departure Registry
@@ -14771,9 +14843,11 @@ ${data.log}`
                   })()}
                 </div>
               </div>
+              )}
 
-              {/* Dedicated Integrations Settings Section */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              {settingsSubTab === 'integrations' && (
+                /* Dedicated Integrations Settings Section */
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="mb-6 border-b border-slate-150 pb-4">
                   <h3 className="font-display font-bold text-base text-slate-800 flex items-center gap-2">
                     <Cloud className="text-indigo-600" size={20} />
@@ -15033,9 +15107,11 @@ ${data.log}`
                   </div>
                 </div>
               </div>
+              )}
 
-              {/* Firebase Configuration References Management Card */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4" id="firebase-references-manager">
+              {settingsSubTab === 'integrations' && (
+                /* Firebase Configuration References Management Card */
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4" id="firebase-references-manager">
                 <div>
                   <h3 className="font-display font-bold text-base text-slate-800 flex items-center gap-2">
                     <Database size={18} className="text-orange-500" /> Firebase Configuration References
@@ -15117,9 +15193,11 @@ ${data.log}`
                   </div>
                 </form>
               </div>
+              )}
 
-              {/* Backup & Restore Controls Panel */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6" id="backup-restore-panel">
+              {settingsSubTab === 'database' && (
+                /* Backup & Restore Controls Panel */
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6" id="backup-restore-panel">
                 <div>
                   <h3 className="font-display font-bold text-base text-slate-800 flex items-center gap-2">
                     <RefreshCw size={18} className="text-indigo-600" /> Backup & System Recovery Control Panel
@@ -15177,6 +15255,7 @@ ${data.log}`
                   </div>
                 </div>
               </div>
+              )}
             </div>
           )}
 

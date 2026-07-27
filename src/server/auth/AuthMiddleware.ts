@@ -1,30 +1,53 @@
 import { Request, Response, NextFunction } from 'express';
-import { JWTService, JWTPayload } from './JWTService';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 
 export interface AuthenticatedRequest extends Request {
-  user?: JWTPayload;
+  user?: {
+    uid: string;
+    id: string;
+    userId: string;
+    role: string;
+    email?: string;
+    username?: string;
+    name?: string;
+  };
 }
 
-export function authMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+export async function authMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   let token: string | undefined;
 
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.split(' ')[1];
-  } else if (req.cookies && (req.cookies.sunshine_access_token || req.cookies.sunshine_token)) {
-    token = req.cookies.sunshine_access_token || req.cookies.sunshine_token;
+  } else if (req.cookies && (req.cookies.sunshine_token || req.cookies.sunshine_access_token)) {
+    token = req.cookies.sunshine_token || req.cookies.sunshine_access_token;
   }
 
   if (!token) {
     return res.status(401).json({ error: 'Unauthorized: Missing or invalid token.' });
   }
 
-  const payload = JWTService.verifyAccessToken(token) || JWTService.verifyToken(token);
+  try {
+    const decodedToken = await getAuth().verifyIdToken(token);
+    
+    // Fetch role and details from Firestore
+    const userDoc = await getFirestore().collection('users').doc(decodedToken.uid).get();
+    const userData = userDoc.exists ? userDoc.data() : null;
 
-  if (!payload) {
-    return res.status(401).json({ error: 'Unauthorized: Invalid or expired access token.' });
+    req.user = {
+      uid: decodedToken.uid,
+      id: decodedToken.uid,
+      userId: decodedToken.uid,
+      email: decodedToken.email,
+      role: userData?.role || 'STUDENT',
+      username: userData?.username || decodedToken.email?.split('@')[0] || 'user',
+      name: userData?.name || decodedToken.name || 'User',
+    };
+    
+    next();
+  } catch (err: any) {
+    console.error('[authMiddleware] Token verification failed:', err.message);
+    return res.status(401).json({ error: 'Unauthorized: Invalid or expired Firebase ID Token.' });
   }
-
-  req.user = payload;
-  next();
 }

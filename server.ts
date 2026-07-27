@@ -9,6 +9,7 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import nodemailer from "nodemailer";
 import { initializeApp as initializeAdminApp, cert } from "firebase-admin/app";
+import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import helmet from "helmet";
 import compression from "compression";
 import cors from "cors";
@@ -17,8 +18,6 @@ import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
 
 import { PasswordService } from "./src/server/auth/PasswordService";
-import { JWTService } from "./src/server/auth/JWTService";
-import { AuthService } from "./src/server/auth/AuthService";
 import { AuthController } from "./src/server/auth/AuthController";
 import { authMiddleware, AuthenticatedRequest } from "./src/server/auth/AuthMiddleware";
 import { roleMiddleware } from "./src/server/auth/RoleMiddleware";
@@ -35,6 +34,7 @@ import { NotificationController } from "./src/server/notifications/NotificationC
 import { WebhookVerificationController } from "./src/server/notifications/WebhookVerificationController";
 import { WebhookController } from "./src/server/notifications/WebhookController";
 import { FinanceReportController } from "./src/server/reports/FinanceReportController";
+import { SEED_USERS } from "./src/data";
 
 
 // Ensure process env variables are available (for local testing fallback)
@@ -2038,12 +2038,25 @@ async function startServer() {
     try {
       const snap = await getDocs(collection(db, 'users'));
       if (!snap.empty) {
-        return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+        const list = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+        // Check if we have any valid seeded admin user
+        const hasSuperAdmin = list.some((u: any) => u.username?.toLowerCase() === 'superadmin' && (u.passwordHash || u.password));
+        if (hasSuperAdmin) {
+          // Filter out the empty usr-superadmin-001 user from initializeAndSeedFirestore to avoid username conflict if any
+          return list.filter((u: any) => !(u.id === 'usr-superadmin-001' && u.username === 'admin' && !u.password && !u.passwordHash));
+        }
       }
+
+      console.log("[server.ts] Users list in database is empty or missing standard superadmin. Seeding/Re-seeding from SEED_USERS fallback...");
+      const fallbackUsers = [...SEED_USERS];
+      for (const u of fallbackUsers) {
+        await setDoc(doc(db, 'users', u.id), u, { merge: true });
+      }
+      return fallbackUsers;
     } catch (e) {
       console.error("[getERPUsersList] Firestore read error:", e);
     }
-    return [];
+    return SEED_USERS;
   };
 
   // Helper to save users array to Firestore
@@ -2068,7 +2081,7 @@ async function startServer() {
 
   // 1. Login endpoint (username + password)
   app.post("/api/auth/login", async (req, res) => {
-    return AuthController.login(req, res, getERPUsersList, saveERPUsersList);
+    return AuthController.login(req, res);
   });
 
   // 2. Logout endpoint
@@ -2078,27 +2091,27 @@ async function startServer() {
 
   // 3. Refresh access token endpoint
   app.post("/api/auth/refresh", async (req, res) => {
-    return AuthController.refresh(req, res, getERPUsersList);
+    return AuthController.refresh(req, res);
   });
 
   // 4. Get current user profile endpoint
   app.get("/api/auth/me", authMiddleware, async (req: AuthenticatedRequest, res) => {
-    return AuthController.me(req, res, getERPUsersList);
+    return AuthController.me(req, res);
   });
 
   // 5. Change own password endpoint (JWT required)
   app.post("/api/auth/change-password", authMiddleware, async (req: AuthenticatedRequest, res) => {
-    return AuthController.changePassword(req, res, getERPUsersList, saveERPUsersList);
+    return AuthController.changePassword(req, res);
   });
 
   // 6. Reset password endpoint (Hierarchy enforced in AuthController)
   app.post("/api/auth/reset-password", authMiddleware, async (req: AuthenticatedRequest, res) => {
-    return AuthController.resetPassword(req, res, getERPUsersList, saveERPUsersList);
+    return AuthController.resetPassword(req, res);
   });
 
   // 7. Unlock account endpoint (Admin only)
   app.post("/api/auth/unlock-account", authMiddleware, async (req: AuthenticatedRequest, res) => {
-    return AuthController.unlockAccount(req, res, getERPUsersList, saveERPUsersList);
+    return AuthController.unlockAccount(req, res);
   });
 
   // --- Phase 3.1 Admissions Module REST APIs ---
@@ -2423,39 +2436,62 @@ async function startServer() {
   // 3. Admin create user endpoint
   app.post("/api/admin/create-user", async (req, res) => {
     try {
-      const { username, name, email, password, role } = req.body;
+      const { username, name, email: reqEmail, password, role } = req.body;
       if (!username || !password) {
         return res.status(400).json({ error: "Username and password are required." });
       }
 
-      const users = await getERPUsersList();
       const cleanUsername = username.trim().toLowerCase();
       
-      const existing = users.find((u: any) => u.username?.toLowerCase() === cleanUsername);
-      if (existing) {
-        return res.status(400).json({ error: `Username "${username}" is already registered.` });
+      const resolveEmailLocal = (usr: string) => {
+        const trimmed = usr.trim().toLowerCase();
+        if (trimmed.includes('@')) return trimmed;
+        if (trimmed === 'superadmin') return 'superadmin@sunshineclasses.net';
+        if (trimmed === 'admin') return 'admin@sunshineclasses.net';
+        if (trimmed === 'teacher') return 'teacher@sunshineclasses.net';
+        if (trimmed === 'reception' || trimmed === 'receptionist') return 'reception@sunshineclasses.net';
+        if (trimmed === 'student') return 'student@sunshineclasses.net';
+        return `${trimmed}@sunshineclasses.net`;
+      };
+
+      const email = reqEmail?.trim() || resolveEmailLocal(cleanUsername);
+
+      // Check if user already exists in Firebase Auth
+      let existingUser: any = null;
+      try {
+        existingUser = await getAdminAuth().getUserByEmail(email);
+      } catch (e) {}
+
+      if (existingUser) {
+        return res.status(400).json({ error: `User with email/username "${email}" is already registered in Firebase Authentication.` });
       }
 
-      const passwordHash = await PasswordService.hashPassword(password);
-      const newUserId = `u-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      // Create user in Firebase Auth
+      const authRecord = await getAdminAuth().createUser({
+        email,
+        password,
+        displayName: name || username,
+      });
+
+      const newUserId = authRecord.uid;
       const newUser = {
         id: newUserId,
+        uid: newUserId,
         username: username.trim(),
         name: name || username,
-        email: email?.trim() || `${cleanUsername}@sunshineerp.com`,
+        email: email,
         role: role || 'STUDENT',
-        passwordHash,
-        password: passwordHash,
         active: true,
         mustChangePassword: true,
+        forcePasswordChange: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
 
-      users.push(newUser);
-      await saveERPUsersList(users);
+      // Set user profile document in Firestore 'users' collection
+      await adminDb.collection("users").doc(newUserId).set(newUser);
 
-      AuditLogger.log("CREATE_USER", "Admin", `Created account for user ${username} (${role})`);
+      AuditLogger.log("CREATE_USER", "Admin", `Created Firebase Auth account & Firestore profile for user ${username} (${role})`);
 
       return res.status(200).json({
         success: true,
@@ -2481,47 +2517,57 @@ async function startServer() {
         return res.status(400).json({ error: "User ID is required." });
       }
 
-      const users = await getERPUsersList();
-      const userIndex = users.findIndex((u: any) => u.id === uid || u.username?.toLowerCase() === String(uid).toLowerCase() || u.email?.toLowerCase() === String(email || '').toLowerCase());
-
-      if (userIndex === -1) {
+      const userDoc = await adminDb.collection("users").doc(uid).get();
+      if (!userDoc.exists) {
         return res.status(404).json({ error: "User account not found." });
       }
 
-      const user = users[userIndex];
-      let newHash = user.passwordHash || user.password;
-      let forcePasswordChange = user.mustChangePassword ?? false;
+      const user = userDoc.data() || {};
+      const updateData: any = {
+        updatedAt: new Date().toISOString()
+      };
 
+      const firebaseUpdate: any = {};
+
+      if (displayName) {
+        updateData.name = displayName;
+        firebaseUpdate.displayName = displayName;
+      }
+      if (email) {
+        updateData.email = email;
+        firebaseUpdate.email = email;
+      }
       if (password) {
-        newHash = await PasswordService.hashPassword(password);
-        forcePasswordChange = true;
+        firebaseUpdate.password = password;
+        updateData.mustChangePassword = true;
+        updateData.forcePasswordChange = true;
       }
 
       let accountActive = user.active ?? true;
       if (typeof disabled === "boolean") {
         accountActive = !disabled;
+        firebaseUpdate.disabled = disabled;
       } else if (typeof active === "boolean") {
         accountActive = active;
+        firebaseUpdate.disabled = !active;
       }
 
-      const updatedUser = {
-        ...user,
-        name: displayName || user.name,
-        email: email || user.email,
-        passwordHash: newHash,
-        password: newHash,
-        active: accountActive,
-        isLocked: typeof isLocked === "boolean" ? isLocked : (user.isLocked ?? false),
-        mustChangePassword: forcePasswordChange,
-        updatedAt: new Date().toISOString()
-      };
+      updateData.active = accountActive;
+      if (typeof isLocked === "boolean") {
+        updateData.isLocked = isLocked;
+      }
 
-      users[userIndex] = updatedUser;
-      await saveERPUsersList(users);
+      // Update in Firebase Authentication
+      if (Object.keys(firebaseUpdate).length > 0) {
+        await getAdminAuth().updateUser(uid, firebaseUpdate);
+      }
 
-      AuditLogger.log("UPDATE_USER", "Admin", `Updated user ${user.username}. Active: ${accountActive}, Password Reset: ${!!password}`);
+      // Update in Firestore
+      await adminDb.collection("users").doc(uid).set(updateData, { merge: true });
 
-      return res.status(200).json({ success: true, uid: user.id });
+      AuditLogger.log("UPDATE_USER", "Admin", `Updated user ${user.username || uid}. Active: ${accountActive}, Password Reset: ${!!password}`);
+
+      return res.status(200).json({ success: true, uid });
     } catch (err: any) {
       console.error("[Admin Update User Error]:", err);
       return res.status(500).json({ error: err.message || "Failed to update user." });
@@ -2536,9 +2582,15 @@ async function startServer() {
         return res.status(400).json({ error: "User ID is required." });
       }
 
-      let users = await getERPUsersList();
-      users = users.filter((u: any) => u.id !== uid && u.username !== uid);
-      await saveERPUsersList(users);
+      // Delete from Firebase Auth
+      try {
+        await getAdminAuth().deleteUser(uid);
+      } catch (authErr: any) {
+        console.warn(`[Admin Delete User] Warn: Auth deletion bypassed or failed:`, authErr.message);
+      }
+
+      // Delete from Firestore
+      await adminDb.collection("users").doc(uid).delete();
 
       AuditLogger.log("DELETE_USER", "Admin", `Deleted user account ID: ${uid}`);
       return res.status(200).json({ success: true });
@@ -3544,6 +3596,93 @@ Sunshine Classes — *Excellence in Education* ☀️`;
         }
       });
     });
+  }
+
+  const ensureSeedUsersExist = async () => {
+    console.log("[Firebase Init] Running background seed users assertion...");
+    try {
+      const authInstance = getAdminAuth();
+      for (const user of SEED_USERS) {
+        if (!user.email) continue;
+        
+        let uid = user.id;
+        let exists = false;
+        let authUserRecord: any = null;
+
+        try {
+          authUserRecord = await authInstance.getUserByEmail(user.email);
+          exists = true;
+          uid = authUserRecord.uid;
+          console.log(`[Firebase Init] Seed user email "${user.email}" already exists with UID: ${uid}`);
+        } catch (authErr: any) {
+          if (authErr.code !== 'auth/user-not-found') {
+            console.warn(`[Firebase Init] Error checking user "${user.email}":`, authErr.message);
+          }
+        }
+
+        if (!exists) {
+          try {
+            const rawPassword = user.password || 'Sunshine@123';
+            console.log(`[Firebase Init] Creating seed user "${user.username}" (${user.email}) in Firebase Auth...`);
+            authUserRecord = await authInstance.createUser({
+              email: user.email,
+              password: rawPassword,
+              displayName: user.name || user.username,
+              emailVerified: true
+            });
+            uid = authUserRecord.uid;
+            console.log(`[Firebase Init] Created seed user "${user.username}" successfully with UID: ${uid}`);
+          } catch (createErr: any) {
+            console.error(`[Firebase Init] Failed to create seed user "${user.email}" in Firebase Auth:`, createErr.message);
+            continue;
+          }
+        }
+
+        // Ensure matching Firestore profile document exists
+        try {
+          const docRef = adminDb.collection("users").doc(uid);
+          const docSnap = await docRef.get();
+          
+          if (!docSnap.exists) {
+            console.log(`[Firebase Init] Firestore profile missing for UID "${uid}". Creating profile...`);
+            const newProfile = {
+              id: uid,
+              uid: uid,
+              username: user.username,
+              name: user.name || user.username,
+              email: user.email,
+              role: user.role,
+              phone: user.phone || '',
+              active: true,
+              mustChangePassword: false,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
+            await docRef.set(newProfile);
+          } else {
+            await docRef.set({
+              role: user.role,
+              active: true,
+              username: user.username,
+              email: user.email,
+              id: uid,
+              uid: uid
+            }, { merge: true });
+          }
+        } catch (firestoreErr: any) {
+          console.error(`[Firebase Init] Failed to synchronize Firestore profile for "${user.email}":`, firestoreErr.message);
+        }
+      }
+      console.log("[Firebase Init] Seed users assertion completed successfully.");
+    } catch (err: any) {
+      console.error("[Firebase Init] Error in ensureSeedUsersExist:", err.message);
+    }
+  };
+
+  if (!isProduction || process.env.FORCE_SEED_USERS === "true") {
+    await ensureSeedUsersExist();
+  } else {
+    console.log("[Firebase Init] Production environment detected. Skipping automatic seed users assertion.");
   }
 
   const primaryServer = app.listen(PORT, "0.0.0.0", () => {

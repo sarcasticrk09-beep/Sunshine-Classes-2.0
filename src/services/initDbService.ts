@@ -89,20 +89,25 @@ export async function initializeAndSeedFirestore(): Promise<MigrationReport> {
     }
 
     // 2. Seed Default SUPER_ADMIN Role & User
-    const superAdminUid = "usr-superadmin-001";
+    const superAdminUid = "u-superadmin";
     await SyncService.set("users", superAdminUid, {
+      id: superAdminUid,
       userId: superAdminUid,
-      username: "admin",
-      name: "Director Priyanshu Gupta",
-      email: "admin@sunshineclasses.com",
+      username: "superadmin",
+      name: "Super Admin",
+      email: "superadmin@sunshineclasses.net",
       role: "SUPER_ADMIN",
+      phone: "9999911111",
+      password: "Sunshine@123",
+      passwordHash: "Sunshine@123",
       status: "ACTIVE",
       active: true,
+      mustChangePassword: false,
       lastLogin: timestamp,
       createdAt: timestamp,
       updatedAt: timestamp
     }, { merge: true });
-    seededUsersList.push("SUPER_ADMIN (admin@sunshineclasses.com)");
+    seededUsersList.push("SUPER_ADMIN (superadmin@sunshineclasses.net)");
 
     // 3. Seed Default Permission Definitions in Settings
     await SyncService.set("settings", "permissions", {
