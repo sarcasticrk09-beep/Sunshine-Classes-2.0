@@ -42,30 +42,52 @@ import "dotenv/config";
 
 // Initialize Firebase Admin SDK
 const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+let adminAppInitialized = false;
 
-if (!serviceAccountJson) {
-  console.error("[Firebase Admin SDK] Critical Error: FIREBASE_SERVICE_ACCOUNT_JSON environment variable is missing.");
-  process.exit(1);
+if (serviceAccountJson) {
+  try {
+    const serviceAccount = typeof serviceAccountJson === "string" ? JSON.parse(serviceAccountJson) : serviceAccountJson;
+    
+    if (serviceAccount.private_key && typeof serviceAccount.private_key === "string") {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
+    }
+
+    if (!serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
+      throw new Error("Missing required fields in FIREBASE_SERVICE_ACCOUNT_JSON (project_id, private_key, client_email)");
+    }
+
+    initializeAdminApp({
+      credential: cert(serviceAccount)
+    });
+    console.log(`[Firebase Admin SDK] Initialized successfully with Service Account for project: ${serviceAccount.project_id}`);
+    adminAppInitialized = true;
+  } catch (e: any) {
+    console.error("[Firebase Admin SDK] Error during service account initialization:", e.message);
+  }
 }
 
-try {
-  const serviceAccount = typeof serviceAccountJson === "string" ? JSON.parse(serviceAccountJson) : serviceAccountJson;
-  
-  if (serviceAccount.private_key && typeof serviceAccount.private_key === "string") {
-    serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
-  }
+if (!adminAppInitialized) {
+  try {
+    // Try to fall back to Application Default Credentials
+    // Read from firebase-applet-config.json if possible to get projectId
+    let projectId: string | undefined = undefined;
+    try {
+      const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        projectId = config.projectId;
+      }
+    } catch (err) {
+      // Ignore
+    }
 
-  if (!serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
-    throw new Error("Missing required fields in FIREBASE_SERVICE_ACCOUNT_JSON (project_id, private_key, client_email)");
+    initializeAdminApp(projectId ? { projectId } : undefined);
+    console.log(`[Firebase Admin SDK] Initialized successfully with Application Default Credentials (ADC)${projectId ? ` for project: ${projectId}` : ""}`);
+    adminAppInitialized = true;
+  } catch (e: any) {
+    console.error("[Firebase Admin SDK] Warning: Failed to initialize Firebase Admin SDK. Backend Firebase operations may fail. Error:", e.message);
+    // DO NOT call process.exit(1) so the dev server can start and display the preview!
   }
-
-  initializeAdminApp({
-    credential: cert(serviceAccount)
-  });
-  console.log(`[Firebase Admin SDK] Initialized successfully with Service Account for project: ${serviceAccount.project_id}`);
-} catch (e: any) {
-  console.error("[Firebase Admin SDK] Critical Error during initialization:", e.message);
-  process.exit(1);
 }
 
 // Initialize server-side firebase instance

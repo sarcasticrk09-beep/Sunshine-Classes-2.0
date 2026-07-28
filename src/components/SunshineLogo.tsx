@@ -179,8 +179,8 @@ export default function SunshineLogo({
 
         {/* Book Cover / Pages Gradient */}
         <linearGradient id="bookGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#0B2545" /> {/* Very Deep Blue */}
-          <stop offset="100%" stopColor="#1E40AF" /> {/* Blue 800 */}
+          <stop offset="0%" stopColor={textColor === 'light' ? '#3b82f6' : '#0B2545'} /> {/* Vibrant blue in dark mode, Deep Blue in light mode */}
+          <stop offset="100%" stopColor={textColor === 'light' ? '#1d4ed8' : '#1E40AF'} />
         </linearGradient>
 
         {/* Book Edge / Trim Accent Gradient */}
@@ -253,14 +253,14 @@ export default function SunshineLogo({
 
       {/* ==================== CENTRAL HUMAN FIGURE (Y-SHAPE) ==================== */}
       <g id="human-figure">
-        <circle cx="100" cy="78" r="8" fill="#0B2545" />
+        <circle cx="100" cy="78" r="8" fill={textColor === 'light' ? '#FFFFFF' : '#0B2545'} />
         <path
           d="M100 120 
              C98 110 93 96 76 86
              C88 90 95 98 100 110
              C105 98 112 90 124 86
              C107 96 102 110 100 120 Z"
-          fill="#0B2545"
+          fill={textColor === 'light' ? '#FFFFFF' : '#0B2545'}
         />
       </g>
     </svg>
