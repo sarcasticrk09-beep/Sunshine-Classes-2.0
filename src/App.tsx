@@ -3700,6 +3700,7 @@ Sunshine Classes`;
           <Route path="/" element={landingPageElement} />
           <Route path="/about" element={landingPageElement} />
           <Route path="/courses" element={landingPageElement} />
+          <Route path="/courses/*" element={landingPageElement} />
           <Route path="/enroll" element={landingPageElement} />
           <Route path="/admissions" element={landingPageElement} />
           <Route path="/results" element={landingPageElement} />

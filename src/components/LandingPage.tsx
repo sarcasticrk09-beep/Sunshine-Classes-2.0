@@ -60,6 +60,10 @@ import { ContactSection } from './landing/ContactSection';
 import { Footer } from './landing/Footer';
 import { MobileBottomNav } from './landing/MobileBottomNav';
 import { PublicStudyMaterialPage } from '../pages/PublicStudyMaterialPage';
+import { UNIVERSAL_COURSES, getCourseBySlug } from '../data/coursesData';
+import { CourseDirectoryPage } from './courses/CourseDirectoryPage';
+import { CourseDetailPage } from './courses/CourseDetailPage';
+import { AdmissionsPage } from './admissions/AdmissionsPage';
 
 const WhatsAppIcon = ({ className = "w-5 h-5", size = 20 }: { className?: string; size?: number }) => (
   <svg 
@@ -132,7 +136,7 @@ export default function LandingPage({
 
   const getSectionFromPath = (pathname: string) => {
     if (pathname === '/about') return 'about';
-    if (pathname === '/courses') return 'courses';
+    if (pathname === '/courses' || pathname.startsWith('/courses/')) return 'courses';
     if (pathname === '/enroll' || pathname === '/admissions') return 'admissions';
     if (pathname === '/results') return 'results';
     if (pathname === '/resources') return 'resources';
@@ -459,9 +463,16 @@ export default function LandingPage({
             <CoursesSection
               onSelectClassForAdmission={(cls) => {
                 setAdmClass(cls);
-                setActiveSection('admissions');
+                navigate('/enroll');
               }}
-              onNavigateSection={(sec) => setActiveSection(sec as any)}
+              onNavigateSection={(sec) => {
+                if (sec.startsWith('courses/')) {
+                  navigate(`/${sec}`);
+                } else {
+                  setActiveSection(sec as any);
+                }
+              }}
+              onExploreCourse={(slug) => navigate(`/courses/${slug}`)}
             />
 
             <StudyMaterialShowcase
@@ -612,459 +623,178 @@ export default function LandingPage({
           </div>
         )}
 
-        {/* VIEW 3: COURSES DETAIL */}
-        {activeSection === 'courses' && (
-          <div className="mx-auto max-w-7xl px-4 py-12 space-y-12">
-            <div className="text-center max-w-xl mx-auto">
-              <span className="text-xs font-black uppercase text-brand-orange tracking-widest block mb-1">Our Programs</span>
-              <h3 className="font-display text-3xl font-black text-slate-800">Tuition Courses & Fee Structure</h3>
-              <p className="text-xs text-slate-500 mt-1">Classroom modules mapped meticulously against NCERT textbook guidelines for primary and board exams.</p>
-            </div>
+        {/* VIEW 3: COURSES DIRECTORY & DEDICATED CLASS PAGES */}
+        {activeSection === 'courses' && (() => {
+          const isCourseClassPage = location.pathname.startsWith('/courses/class-');
+          const currentClassSlug = isCourseClassPage ? location.pathname.replace('/courses/', '').trim().toLowerCase() : null;
+          const currentCourse = currentClassSlug ? getCourseBySlug(currentClassSlug) : undefined;
 
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {courses.map((course) => (
-                <div key={course.id} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:border-slate-300 transition-all flex flex-col justify-between">
-                  <div>
-                    <span className="rounded bg-brand-orange/15 text-brand-orange text-[9px] font-bold px-2 py-0.5 uppercase block mb-3 w-max">
-                      NCERT Mapped
-                    </span>
-                    <h4 className="font-display font-bold text-sm text-slate-800 mb-2 leading-snug">{course.name}</h4>
-                    <p className="text-xs text-slate-500">Subjects: {course.subjects.join(', ')}</p>
-                    <p className="text-xs font-bold text-brand-blue mt-2">Duration: {course.duration}</p>
-                    
-                    <div className="my-4 border-t border-slate-100 pt-4 space-y-2 text-xs text-slate-600">
-                      {course.features.map((f, i) => (
-                        <div key={i} className="flex items-start gap-1.5">
-                          <span className="text-green-500">✔</span>
-                          <span>{f}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+          if (currentCourse) {
+            return (
+              <CourseDetailPage
+                course={currentCourse}
+                onNavigateSection={(sec) => {
+                  if (sec.startsWith('courses/')) {
+                    navigate(`/${sec}`);
+                  } else {
+                    setActiveSection(sec as any);
+                  }
+                }}
+                onSelectClassForAdmission={(className) => {
+                  setAdmClass(className);
+                  navigate('/enroll');
+                }}
+                onExploreCourse={(slug) => navigate(`/courses/${slug}`)}
+              />
+            );
+          }
 
-                  <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase block">Monthly Fees</span>
-                      <span className="font-display text-base font-black text-slate-800">₹{course.fees}/mo</span>
-                    </div>
-                    <button
-                      id={`btn-course-apply-${course.id}`}
-                      onClick={() => {
-                        setAdmClass(course.name.includes('10') ? 'Class 10' : course.name.includes('9') ? 'Class 9' : 'Class 8');
-                        setActiveSection('admissions');
-                      }}
-                      className="rounded-xl bg-brand-blue hover:bg-brand-blue-hover text-white text-xs font-bold px-4 py-2 shadow-sm"
-                    >
-                      Apply Now
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+          return (
+            <CourseDirectoryPage
+              onExploreCourse={(slug) => navigate(`/courses/${slug}`)}
+              onSelectClassForAdmission={(className) => {
+                setAdmClass(className);
+                navigate('/enroll');
+              }}
+              onNavigateSection={(sec) => {
+                if (sec.startsWith('courses/')) {
+                  navigate(`/${sec}`);
+                } else {
+                  setActiveSection(sec as any);
+                }
+              }}
+            />
+          );
+        })()}
 
         {/* VIEW 4: ONLINE ADMISSIONS FORM */}
         {activeSection === 'admissions' && (
-          <div className="mx-auto max-w-3xl px-4 py-12">
-            {!generatedAdmId ? (
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-md">
-                <div className="text-center mb-8">
-                  <span className="text-xs font-black uppercase text-brand-orange tracking-widest block mb-1">Enrolment Form</span>
-                  <h3 className="font-display text-2xl font-black text-slate-800">Online Admission Application 2026-27</h3>
-                  <p className="text-xs text-slate-500 mt-1">Submit digital parameters. Generated Admission IDs register student file under pending queue.</p>
-                </div>
-
-                <form onSubmit={handleAdmissionSubmit} className="space-y-6">
-                  {/* Student Details */}
-                  <div className="space-y-4">
-                    <h4 className="font-display font-bold text-xs uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1">
-                      1. Student Identity Details
-                    </h4>
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="sm:col-span-2">
-                        <CloudinaryUpload
-                          id="adm-photo-picker-main-cloudinary"
-                          folder="students"
-                          cloudName={subConfig.cloudinaryCloudName}
-                          uploadPreset={subConfig.cloudinaryUploadPreset}
-                          apiKey={subConfig.cloudinaryApiKey}
-                          maxSizeMB={subConfig.cloudinaryMaxFileSize}
-                          initialUrl={admPhotoUrl}
-                          onUploadSuccess={(url) => setAdmPhotoUrl(url)}
-                          onFileDeleted={() => setAdmPhotoUrl('')}
-                          allowedTypes={['jpg', 'jpeg', 'png', 'webp']}
-                          label="Student Passport Photo (Optional)"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">Student Name</label>
-                        <input
-                          id="adm-input-name"
-                          type="text"
-                          required
-                          value={admName}
-                          onChange={(e) => setAdmName(e.target.value)}
-                          placeholder="Type student name clearly..."
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white"
-                        />
-                      </div>
-
-                        <div>
-                          <label className="mb-1.5 block text-xs font-semibold text-slate-700">Date of Birth</label>
-                          <input
-                            id="adm-input-dob"
-                            type="date"
-                            required
-                            value={admDob}
-                            onChange={(e) => setAdmDob(e.target.value)}
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-1.5 block text-xs font-semibold text-slate-700">Gender</label>
-                          <select
-                            id="adm-select-gender"
-                            value={admGender}
-                            onChange={(e) => setAdmGender(e.target.value)}
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white"
-                          >
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="mb-1.5 block text-xs font-semibold text-slate-700">Academic Class Intake</label>
-                          <select
-                            id="adm-select-class"
-                            value={admClass}
-                            onChange={(e) => {
-                              const selectedClass = e.target.value;
-                              setAdmClass(selectedClass);
-                              if (selectedClass === 'Class 10') {
-                                setAdmBatch('Class 10 - Evening Stars');
-                                setAdmTiming('04:00 PM - 06:30 PM');
-                              } else if (selectedClass === 'Class 9') {
-                                setAdmBatch('Class 9 - Foundation Group');
-                                setAdmTiming('03:00 PM - 05:00 PM');
-                              } else if (['Class 8', 'Class 7', 'Class 6', 'Class 5'].includes(selectedClass)) {
-                                setAdmBatch('Classes 5 to 8 - Apex Learning');
-                                setAdmTiming('02:00 PM - 04:00 PM');
-                              } else {
-                                setAdmBatch('Classes 1 to 4 - Early Steps');
-                                setAdmTiming('01:00 PM - 02:30 PM');
-                              }
-                            }}
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white"
-                          >
-                            <option value="Class 10">Class 10</option>
-                            <option value="Class 9">Class 9</option>
-                            <option value="Class 8">Class 8</option>
-                            <option value="Class 7">Class 7</option>
-                            <option value="Class 6">Class 6</option>
-                            <option value="Class 5">Class 5</option>
-                            <option value="Class 4">Class 4</option>
-                            <option value="Class 3">Class 3</option>
-                            <option value="Class 2">Class 2</option>
-                            <option value="Class 1">Class 1</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="mb-1.5 block text-xs font-semibold text-slate-700">Previous School</label>
-                          <input
-                            id="adm-input-prev-school"
-                            type="text"
-                            value={admPrevSchool}
-                            onChange={(e) => setAdmPrevSchool(e.target.value)}
-                            placeholder="Type previous school name..."
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-1.5 block text-xs font-semibold text-slate-700">Aadhar Card Number</label>
-                          <input
-                            id="adm-input-aadhar"
-                            type="text"
-                            maxLength={12}
-                            value={admAadhar}
-                            onChange={(e) => setAdmAadhar(e.target.value.replace(/\D/g, ''))}
-                            placeholder="12-digit Aadhar number..."
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Parental Details */}
-                    <div className="space-y-4">
-                      <h4 className="font-display font-bold text-xs uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1">
-                        2. Parental details & contacts
-                      </h4>
-
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div>
-                          <label className="mb-1.5 block text-xs font-semibold text-slate-700">Father Name</label>
-                          <input
-                            id="adm-input-father"
-                            type="text"
-                            required
-                            value={admFather}
-                            onChange={(e) => setAdmFather(e.target.value)}
-                            placeholder="e.g. Ram Pal Verma"
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-1.5 block text-xs font-semibold text-slate-700">Mother Name</label>
-                          <input
-                            id="adm-input-mother"
-                            type="text"
-                            required
-                            value={admMother}
-                            onChange={(e) => setAdmMother(e.target.value)}
-                            placeholder="e.g. Shanti Devi"
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-1.5 block text-xs font-semibold text-slate-700">Student WhatsApp Number *</label>
-                          <input
-                            id="adm-input-wa"
-                            type="tel"
-                            required
-                            value={admWhatsapp}
-                            onChange={(e) => setAdmWhatsapp(e.target.value)}
-                            placeholder="Active Student WhatsApp number..."
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-1.5 block text-xs font-semibold text-slate-700">Student Email ID *</label>
-                          <input
-                            id="adm-input-email"
-                            type="email"
-                            required
-                            value={admEmail}
-                            onChange={(e) => setAdmEmail(e.target.value)}
-                            placeholder="Active Student Email address..."
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-1.5 block text-xs font-semibold text-slate-700">Parent's WhatsApp Number *</label>
-                          <input
-                            id="adm-input-parent-wa"
-                            type="tel"
-                            required
-                            value={admParentMobile}
-                            onChange={(e) => setAdmParentMobile(e.target.value)}
-                            placeholder="Parent's active WhatsApp number..."
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-1.5 block text-xs font-semibold text-slate-700">Mobile Calling Number</label>
-                          <input
-                            id="adm-input-mobile"
-                            type="tel"
-                            required
-                            value={admMobile}
-                            onChange={(e) => setAdmMobile(e.target.value)}
-                            placeholder="Calling phone number..."
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Complete details */}
-                    <div className="space-y-4">
-                      <h4 className="font-display font-bold text-xs uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1">
-                        3. Home address & parameters
-                      </h4>
-
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="sm:col-span-2">
-                          <label className="mb-1.5 block text-xs font-semibold text-slate-700">Correspondence Address</label>
-                          <textarea
-                            id="adm-ta-address"
-                            required
-                            rows={2}
-                            value={admAddress}
-                            onChange={(e) => setAdmAddress(e.target.value)}
-                            placeholder="e.g. Mohalla Mishrana, Opposite Subhash Park, Pihani, UP..."
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white"
-                          ></textarea>
-                        </div>
-
-                        <div>
-                          <label className="mb-1.5 block text-xs font-semibold text-slate-700">Preferred Batch</label>
-                          <select
-                            id="adm-select-batch"
-                            value={admBatch}
-                            onChange={(e) => setAdmBatch(e.target.value)}
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white"
-                          >
-                            <option value="Class 10 - Evening Stars">Class 10 - Evening Stars</option>
-                            <option value="Class 9 - Foundation Group">Class 9 - Foundation Group</option>
-                            <option value="Classes 5 to 8 - Apex Learning">Classes 5 to 8 - Apex Learning</option>
-                            <option value="Classes 1 to 4 - Early Steps">Classes 1 to 4 - Early Steps</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="mb-1.5 block text-xs font-semibold text-slate-700">Preferred Timing</label>
-                          <select
-                            id="adm-select-timing"
-                            value={admTiming}
-                            onChange={(e) => setAdmTiming(e.target.value)}
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white"
-                          >
-                            <option value="04:00 PM - 06:30 PM">04:00 PM - 06:30 PM</option>
-                            <option value="03:00 PM - 05:00 PM">03:00 PM - 05:00 PM</option>
-                            <option value="02:00 PM - 04:00 PM">02:00 PM - 04:00 PM</option>
-                            <option value="01:00 PM - 02:30 PM">01:00 PM - 02:30 PM</option>
-                            <option value="07:00 AM - 09:30 AM">07:00 AM - 09:30 AM</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-
-                    {admError && (
-                      <div className="rounded-xl bg-red-50 border border-red-100 p-4 text-xs text-red-600 font-sans mt-4 space-y-3 shadow-sm" id="enrollment-error-container">
-                        <div className="flex items-start gap-2">
-                          <span className="text-sm">⚠️</span>
-                          <div>
-                            <span className="font-bold block text-red-800">Enrollment Attempt Failed</span>
-                            <span className="text-red-700">{admError}</span>
-                          </div>
-                        </div>
-                        <div className="pt-2 border-t border-red-200 flex justify-between items-center gap-2">
-                          <span className="text-[10px] text-red-500 font-medium font-sans uppercase tracking-wider">Report this error to admin panel</span>
-                          <button
-                            id="btn-trigger-support-form-error"
-                            type="button"
-                            onClick={() => {
-                              setSupportName(admName || '');
-                              setSupportMobile(admMobile || '');
-                              setSupportClass(admClass || 'Class 10');
-                              setSupportErrorMsg(admError);
-                              setShowSupportForm(true);
-                              setSupportSuccess(false);
-                            }}
-                            className="bg-red-600 hover:bg-red-700 text-white font-black px-3 py-1.5 rounded-lg transition-all cursor-pointer shadow-sm text-[10px] flex items-center gap-1.5"
-                          >
-                            📋 File Support Ticket
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex justify-between pt-4 items-center gap-4">
-                      <div>
-                        <button
-                          id="btn-open-general-support"
-                          type="button"
-                          onClick={() => {
-                            setSupportName(admName || '');
-                            setSupportMobile(admMobile || '');
-                            setSupportClass(admClass || 'Class 10');
-                            setSupportErrorMsg('General Form Submission Issue');
-                            setShowSupportForm(true);
-                            setSupportSuccess(false);
-                          }}
-                          className="text-xs text-brand-blue hover:text-brand-blue-hover font-bold hover:underline cursor-pointer"
-                        >
-                          ❓ Having issues? Open Support Form
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        {isAdmLoading && (
-                          <span className="text-xs text-slate-500 flex items-center gap-2 font-sans animate-pulse font-bold">
-                            <span className="h-3 w-3 border-2 border-brand-orange border-t-transparent rounded-full animate-spin"></span>
-                            Processing Admission File...
-                          </span>
-                        )}
-                        <button
-                          id="btn-admission-submit"
-                          type="submit"
-                          disabled={isAdmLoading}
-                          className={`rounded-xl bg-brand-orange hover:bg-amber-500 text-white px-6 py-3 text-xs font-black shadow-md transition-all flex items-center gap-2 ${isAdmLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
-                        >
-                          {isAdmLoading ? "Submitting..." : "Submit Admission File"}
-                        </button>
-                      </div>
-                    </div>
-                  </form>
-                </div>
-              ) : (
-                /* PREMIUM SUCCESS VIEW */
-                <div className="rounded-3xl border border-emerald-100 bg-emerald-50/50 p-8 shadow-md text-center space-y-6 max-w-md mx-auto">
-                  <div className="h-14 w-14 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-2xl font-black mx-auto">
-                    ✓
-                  </div>
-                  <div>
-                    <h3 className="font-display font-black text-xl text-emerald-800">Admission Request Submitted!</h3>
-                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                      Sunshine Classes academic panel will evaluate your digital credentials file. Direct roll number allocated on admission approvals!
-                    </p>
-                  </div>
-
-                  <div className="bg-white rounded-2xl border border-emerald-100 p-4 shadow-sm font-mono text-xs">
-                    <span className="text-slate-400 block uppercase font-sans tracking-wider text-[10px] mb-1 font-bold">Your Application ID</span>
-                    <span className="font-bold text-emerald-700 text-sm">{generatedAdmId}</span>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <button
-                      id="btn-admission-success-done"
-                      onClick={() => setGeneratedAdmId(null)}
-                      className="rounded-xl bg-brand-orange hover:bg-amber-500 text-white px-5 py-2.5 text-xs font-black shadow transition-all cursor-pointer"
-                    >
-                      Done / Apply Again
-                    </button>
-                  </div>
-                </div>
-              )}
-          </div>
+          <AdmissionsPage
+            admName={admName}
+            setAdmName={setAdmName}
+            admDob={admDob}
+            setAdmDob={setAdmDob}
+            admGender={admGender}
+            setAdmGender={setAdmGender}
+            admClass={admClass}
+            setAdmClass={setAdmClass}
+            admPrevSchool={admPrevSchool}
+            setAdmPrevSchool={setAdmPrevSchool}
+            admAadhar={admAadhar}
+            setAdmAadhar={setAdmAadhar}
+            admFather={admFather}
+            setAdmFather={setAdmFather}
+            admMother={admMother}
+            setAdmMother={setAdmMother}
+            admPhone={admMobile}
+            setAdmPhone={setAdmMobile}
+            admWhatsapp={admWhatsapp}
+            setAdmWhatsapp={setAdmWhatsapp}
+            admAddress={admAddress}
+            setAdmAddress={setAdmAddress}
+            admBatch={admBatch}
+            setAdmBatch={setAdmBatch}
+            admTiming={admTiming}
+            setAdmTiming={setAdmTiming}
+            admPhotoUrl={admPhotoUrl}
+            setAdmPhotoUrl={setAdmPhotoUrl}
+            generatedAdmId={generatedAdmId}
+            handleAdmissionSubmit={handleAdmissionSubmit}
+            subConfig={subConfig}
+            onNavigateSection={(sec) => {
+              if (sec.startsWith('courses/')) {
+                navigate(`/${sec}`);
+              } else {
+                setActiveSection(sec as any);
+              }
+            }}
+            resetForm={() => setGeneratedAdmId(null)}
+          />
         )}
 
         {/* VIEW 5: RESULTS & BOARD TOPPERS */}
         {activeSection === 'results' && (
-          <div className="mx-auto max-w-7xl px-4 py-12 space-y-12">
-            <div className="text-center max-w-xl mx-auto">
-              <span className="text-xs font-black uppercase text-brand-orange tracking-widest block mb-1">Our Proud Toppers</span>
-              <h3 className="font-display text-3xl font-black text-slate-800">Class 10 State Merit Board list</h3>
-              <p className="text-xs text-slate-500 mt-1">Exceptional score ratios secured by Class 10 board students of Sunshine Classes.</p>
+          <div className="mx-auto max-w-7xl px-4 py-12 space-y-10">
+            <div className="text-center max-w-xl mx-auto space-y-2">
+              <span className="text-xs font-black uppercase text-amber-600 dark:text-amber-400 tracking-widest block">
+                Hall of Fame
+              </span>
+              <h3 className="font-display text-3xl font-black text-slate-900 dark:text-white">
+                Class 10 State & District Board Merit List
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                Consistent top score ratios secured by students of Sunshine Classes across consecutive Board Exam years.
+              </p>
             </div>
 
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {(toppers && toppers.length > 0 ? toppers : [
-                { id: 'top1', name: 'Priya Mishra', score: '98.4%', rank: 'State Topper Rank 4', desc: 'Outstanding logical step marks in Math & Physics numerical sheets.', img: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=60' },
-                { id: 'top2', name: 'Anuj Soni', score: '96.2%', rank: 'Hardoi District Rank 12', desc: 'Outstanding chemical reactions balancing with flawless grammar papers.', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=60' },
-                { id: 'top3', name: 'Aditi Shukla', score: '95.0%', rank: 'District Rank 18', desc: 'Perfect scoring in Social Studies maps and English grammar assessments.', img: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&auto=format&fit=crop&q=60' }
+                { id: 'top1', name: 'Priya Mishra', score: '98.4%', rank: 'State Merit Rank 4', desc: 'Outstanding logical step marks in Math & Physics numerical sheets.', img: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=80', year: '2025' },
+                { id: 'top2', name: 'Anuj Soni', score: '96.2%', rank: 'Hardoi District Rank 1', desc: 'Outstanding chemical reactions balancing with flawless grammar papers.', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80', year: '2025' },
+                { id: 'top3', name: 'Aditi Shukla', score: '95.0%', rank: 'Pihani Zone Rank 1', desc: 'Perfect scoring in Social Studies maps and English grammar assessments.', img: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&auto=format&fit=crop&q=80', year: '2025' },
+                { id: 'top4', name: 'Vikas Kumar', score: '94.8%', rank: 'District Rank 5', desc: 'High scores in Advanced Science numericals and CBSE level algebra.', img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&auto=format&fit=crop&q=80', year: '2024' },
+                { id: 'top5', name: 'Riya Gupta', score: '93.6%', rank: 'Pihani Rank 2', desc: 'Specialized commendation in Biology diagrams and Hindi literature.', img: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&auto=format&fit=crop&q=80', year: '2024' },
+                { id: 'top6', name: 'Amit Singh', score: '92.5%', rank: 'School Rank 1', desc: 'Highest attendance record and top marks in Mock Board Test Series.', img: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=200&auto=format&fit=crop&q=80', year: '2024' }
               ]).map((top, idx) => (
-                <div key={top.id || idx} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm text-center">
-                  <div className="h-20 w-20 rounded-full border-4 border-amber-300 overflow-hidden mx-auto mb-3 shadow">
-                    <img src={top.img} alt={top.name} width={80} height={80} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                <div 
+                  key={top.id || idx} 
+                  className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xs hover:border-amber-400 transition-all text-center space-y-4 flex flex-col justify-between"
+                >
+                  <div className="space-y-3">
+                    <div className="relative mx-auto h-20 w-20 rounded-full border-4 border-amber-300 dark:border-amber-500/60 overflow-hidden shadow-sm">
+                      <img 
+                        src={top.img || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80'} 
+                        alt={top.name} 
+                        width={80} 
+                        height={80} 
+                        loading="lazy" 
+                        decoding="async" 
+                        className="h-full w-full object-cover" 
+                      />
+                      <div className="absolute bottom-0 inset-x-0 bg-amber-500 text-slate-950 font-black text-[9px] uppercase py-0.5">
+                        {top.year || '2025'}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 tracking-wider block">
+                        {top.rank}
+                      </span>
+                      <h4 className="font-display font-black text-base text-slate-900 dark:text-white mt-0.5">
+                        {top.name}
+                      </h4>
+                      <span className="text-2xl font-black text-amber-600 dark:text-amber-400 block mt-1">
+                        {top.score}
+                      </span>
+                    </div>
+                    {top.desc && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-snug font-medium">
+                        {top.desc}
+                      </p>
+                    )}
                   </div>
-                  <h4 className="font-display font-bold text-xs text-brand-orange uppercase">{top.rank}</h4>
-                  <h3 className="font-display font-black text-base text-slate-800 mt-0.5">{top.name}</h3>
-                  <span className="text-2xl font-black text-brand-blue block my-2">{top.score} Marks</span>
-                  <p className="text-xs text-slate-500 leading-relaxed">{top.desc}</p>
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Verified Sunshine Roll File
+                  </div>
                 </div>
               ))}
+            </div>
+
+            <div className="p-6 rounded-3xl bg-indigo-950 text-white flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+              <div>
+                <h4 className="font-display font-bold text-base text-white">Targeting 90%+ in Class 10 Boards 2027?</h4>
+                <p className="text-xs text-slate-300 mt-0.5">Join Sunshine Classes Board Specialist batch today with personalized doubt clearing.</p>
+              </div>
+              <button
+                id="btn-results-enroll-cta"
+                type="button"
+                onClick={() => {
+                  setAdmClass('Class 10');
+                  navigate('/enroll');
+                }}
+                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs cursor-pointer shrink-0"
+              >
+                Enroll for Class 10
+              </button>
             </div>
           </div>
         )}

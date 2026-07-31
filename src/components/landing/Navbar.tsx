@@ -71,11 +71,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   // Grouped Navigation Data Structures
   const coursesDropdown = [
-    { label: 'Class 6 Tuition', desc: 'NCERT Foundation & Basics', action: () => handleNavClick('courses') },
-    { label: 'Class 7 Tuition', desc: 'Concept Building & Practice', action: () => handleNavClick('courses') },
-    { label: 'Class 8 Tuition', desc: 'Middle School Excellence', action: () => handleNavClick('courses') },
-    { label: 'Class 9 Foundation', desc: 'Board Exam Preparation', action: () => handleNavClick('courses') },
-    { label: 'Class 10 Board Batch', desc: 'High Scoring Special Batch', action: () => handleNavClick('courses') }
+    { label: 'Class 6 Junior Foundation', desc: 'NCERT Math, Science & Grammar', action: () => handleRouteClick('/courses/class-6') },
+    { label: 'Class 7 Middle School', desc: 'Concept Building & Practice', action: () => handleRouteClick('/courses/class-7') },
+    { label: 'Class 8 Apex Learning', desc: 'High School Foundation Prep', action: () => handleRouteClick('/courses/class-8') },
+    { label: 'Class 9 Board Foundation', desc: 'Physics, Chem & Math Focus', action: () => handleRouteClick('/courses/class-9') },
+    { label: 'Class 10 Board Specialist', desc: 'High Scoring Board Exam Batch', action: () => handleRouteClick('/courses/class-10') },
+    { label: 'All Courses Directory', desc: 'Explore all 5 tuition programs', action: () => handleRouteClick('/courses') }
   ];
 
   const admissionsDropdown = [
