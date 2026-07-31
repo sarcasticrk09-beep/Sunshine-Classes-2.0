@@ -33,6 +33,7 @@ import {
   Printer
 } from 'lucide-react';
 import { useAuth } from '../../auth/useAuth';
+import { LegalDocumentsModal } from '../legal/LegalDocumentsModal';
 
 interface AdmissionRecord {
   id: string;
@@ -105,6 +106,8 @@ export default function AdmissionsModule() {
   const [showEditModal, setShowEditModal] = useState<AdmissionRecord | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState<AdmissionRecord | null>(null);
   const [credentialsModal, setCredentialsModal] = useState<NewAdmissionCredentials | null>(null);
+  const [legalModalTab, setLegalModalTab] = useState<'privacy' | 'terms' | null>(null);
+  const [agreedToRules, setAgreedToRules] = useState<boolean>(true);
 
   // Form State for New Admission
   const [formData, setFormData] = useState({
@@ -872,6 +875,41 @@ Please change your password upon your first login at https://sunshineclasses.net
                 </div>
               </div>
 
+              {/* DECLARATION & TERMS SECTION */}
+              <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-2 text-xs">
+                <div className="font-bold text-amber-900 dark:text-amber-300 uppercase tracking-wider text-[11px] flex items-center justify-between">
+                  <span>DECLARATION & CODE OF CONDUCT</span>
+                  <div className="flex items-center gap-2 font-normal lowercase text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setLegalModalTab('terms')}
+                      className="text-indigo-700 underline font-semibold hover:text-indigo-900 cursor-pointer"
+                    >
+                      View 13 Rules
+                    </button>
+                    <span>•</span>
+                    <button
+                      type="button"
+                      onClick={() => setLegalModalTab('privacy')}
+                      className="text-indigo-700 underline font-semibold hover:text-indigo-900 cursor-pointer"
+                    >
+                      Privacy Policy
+                    </button>
+                  </div>
+                </div>
+                <label className="flex items-start gap-2 text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={agreedToRules}
+                    onChange={(e) => setAgreedToRules(e.target.checked)}
+                    className="mt-0.5 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                  />
+                  <span className="text-[11px] leading-relaxed">
+                    I hereby confirm that the information provided above is true and correct. I have read and agree to follow all the rules and regulations and privacy terms of <strong>SUNSHINE CLASSES</strong>.
+                  </span>
+                </label>
+              </div>
+
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                 <button
                   type="button"
@@ -883,7 +921,7 @@ Please change your password upon your first login at https://sunshineclasses.net
 
                 <button
                   type="submit"
-                  disabled={formSubmitting}
+                  disabled={formSubmitting || !agreedToRules}
                   className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-md hover:shadow-lg disabled:opacity-50 transition-all cursor-pointer"
                 >
                   {formSubmitting ? (
@@ -1200,6 +1238,12 @@ Please change your password upon your first login at https://sunshineclasses.net
           </div>
         </div>
       )}
+
+      <LegalDocumentsModal
+        isOpen={!!legalModalTab}
+        onClose={() => setLegalModalTab(null)}
+        initialTab={legalModalTab || 'terms'}
+      />
     </div>
   );
 }

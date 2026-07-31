@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Phone, 
   MapPin, 
@@ -16,6 +16,7 @@ import {
 import { WhatsAppIcon } from '../WhatsAppIcon';
 import SunshineLogo from '../SunshineLogo';
 import { useNavigate } from 'react-router-dom';
+import { LegalDocumentsModal } from '../legal/LegalDocumentsModal';
 
 interface FooterProps {
   setActiveSection: (sec: string) => void;
@@ -23,6 +24,7 @@ interface FooterProps {
 
 export const Footer: React.FC<FooterProps> = ({ setActiveSection }) => {
   const navigate = useNavigate();
+  const [legalModalTab, setLegalModalTab] = useState<'privacy' | 'terms' | null>(null);
 
   const handleNavClick = (sectionId: string) => {
     setActiveSection(sectionId);
@@ -253,19 +255,37 @@ export const Footer: React.FC<FooterProps> = ({ setActiveSection }) => {
             © {new Date().getFullYear()} Sunshine Classes Pihani. All Rights Reserved.
           </div>
           <div className="flex items-center gap-4">
-            <button onClick={() => handleNavClick('about')} className="hover:text-slate-400 transition-colors">
+            <button
+              id="btn-footer-privacy-policy"
+              onClick={() => setLegalModalTab('privacy')}
+              className="hover:text-amber-400 transition-colors cursor-pointer"
+            >
               Privacy Policy
             </button>
-            <button onClick={() => handleNavClick('about')} className="hover:text-slate-400 transition-colors">
+            <button
+              id="btn-footer-terms-of-admission"
+              onClick={() => setLegalModalTab('terms')}
+              className="hover:text-amber-400 transition-colors cursor-pointer"
+            >
               Terms of Admission
             </button>
-            <button onClick={() => handleNavClick('contact')} className="hover:text-slate-400 transition-colors">
+            <button
+              id="btn-footer-helpdesk"
+              onClick={() => handleNavClick('contact')}
+              className="hover:text-slate-400 transition-colors cursor-pointer"
+            >
               Helpdesk & Support
             </button>
           </div>
         </div>
 
       </div>
+
+      <LegalDocumentsModal
+        isOpen={!!legalModalTab}
+        onClose={() => setLegalModalTab(null)}
+        initialTab={legalModalTab || 'terms'}
+      />
     </footer>
   );
 };
