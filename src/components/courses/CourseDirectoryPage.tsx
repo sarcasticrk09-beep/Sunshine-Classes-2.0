@@ -18,22 +18,30 @@ import {
 } from 'lucide-react';
 import { UNIVERSAL_COURSES, UniversalCourse } from '../../data/coursesData';
 import { CourseCard } from './CourseCard';
+import { CourseDirectorySkeleton } from './CourseSkeletons';
 
 interface CourseDirectoryPageProps {
+  isLoading?: boolean;
   onExploreCourse: (slug: string) => void;
   onSelectClassForAdmission: (className: string) => void;
   onNavigateSection: (section: string) => void;
 }
 
 export const CourseDirectoryPage: React.FC<CourseDirectoryPageProps> = ({
+  isLoading = false,
   onExploreCourse,
   onSelectClassForAdmission,
   onNavigateSection
 }) => {
-  const [wingFilter, setWingFilter] = useState<'all' | 'middle' | 'high'>('all');
+  const [wingFilter, setWingFilter] = useState<'all' | 'primary' | 'middle' | 'high'>('all');
+
+  if (isLoading) {
+    return <CourseDirectorySkeleton />;
+  }
 
   const filteredCourses = UNIVERSAL_COURSES.filter(c => {
-    if (wingFilter === 'middle') return c.classNumber <= 8;
+    if (wingFilter === 'primary') return c.classNumber <= 4;
+    if (wingFilter === 'middle') return c.classNumber >= 5 && c.classNumber <= 8;
     if (wingFilter === 'high') return c.classNumber >= 9;
     return true;
   });
@@ -54,7 +62,7 @@ export const CourseDirectoryPage: React.FC<CourseDirectoryPageProps> = ({
           </h1>
 
           <p className="text-xs sm:text-sm text-slate-300 max-w-2xl mx-auto leading-relaxed">
-            Explore dedicated classroom programs for Class 6 to Class 10 with transparent monthly fees, subject roadmaps, and expert faculty in Pihani, Hardoi.
+            Explore dedicated classroom programs for Class 1 to Class 10 with transparent monthly fees, subject roadmaps, and expert faculty in Pihani, Hardoi.
           </p>
 
           {/* Quick Filter Tabs */}
@@ -72,6 +80,18 @@ export const CourseDirectoryPage: React.FC<CourseDirectoryPageProps> = ({
               All Programs ({UNIVERSAL_COURSES.length})
             </button>
             <button
+              id="btn-filter-primary"
+              type="button"
+              onClick={() => setWingFilter('primary')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                wingFilter === 'primary'
+                  ? 'bg-amber-500 text-slate-950 shadow-md'
+                  : 'bg-white/10 text-slate-300 hover:bg-white/20'
+              }`}
+            >
+              Primary Wing (Class 1-4)
+            </button>
+            <button
               id="btn-filter-middle"
               type="button"
               onClick={() => setWingFilter('middle')}
@@ -81,7 +101,7 @@ export const CourseDirectoryPage: React.FC<CourseDirectoryPageProps> = ({
                   : 'bg-white/10 text-slate-300 hover:bg-white/20'
               }`}
             >
-              Middle Wing (Class 6-8)
+              Middle Wing (Class 5-8)
             </button>
             <button
               id="btn-filter-high"

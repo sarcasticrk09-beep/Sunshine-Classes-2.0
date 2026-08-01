@@ -852,6 +852,8 @@ export interface StoreProduct {
   originalPrice?: number;
   discountPercent?: number;
   stockStatus?: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK';
+  stockQuantity?: number;
+  lowStockThreshold?: number;
   rating?: number;
   ratingCount?: number;
 
@@ -946,6 +948,32 @@ export interface StoreAnalyticsLog {
   searchQuery?: string;
   timestamp: string;
   date: string; // YYYY-MM-DD
+}
+
+export interface StoreOrderItem {
+  productId: string;
+  productTitle: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  featuredImage?: string;
+}
+
+export interface StoreOrder {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  customerEmail?: string;
+  customerPhone: string;
+  studentRollNo?: string;
+  items: StoreOrderItem[];
+  totalAmount: number;
+  paymentStatus: 'PAID' | 'PENDING' | 'FAILED' | 'REFUNDED';
+  orderStatus: 'NEW' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+  deliveryAddress?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 

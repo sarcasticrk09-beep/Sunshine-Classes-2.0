@@ -7,7 +7,9 @@ import {
   StoreProductType, 
   PurchaseLink,
   StoreAnalyticsLog,
-  StoreReview
+  StoreReview,
+  StoreOrder,
+  StoreOrderItem
 } from '../types';
 import { 
   subscribeStoreProducts, 
@@ -25,7 +27,10 @@ import {
   deleteStoreReview,
   bulkUpdateProducts,
   bulkDeleteProducts,
-  exportProductsToCSV
+  exportProductsToCSV,
+  subscribeStoreOrders,
+  updateStoreOrderStatus,
+  createStoreOrder
 } from '../services/storeService';
 import { db } from '../lib/firebase';
 import { setDoc, doc, deleteDoc } from 'firebase/firestore';
@@ -69,17 +74,28 @@ import {
   Monitor,
   Tablet,
   Smartphone,
-  Lock
+  Lock,
+  Truck,
+  CreditCard,
+  User,
+  Phone,
+  Clock,
+  CheckCircle2,
+  Printer,
+  ShoppingCart,
+  Box,
+  AlertCircle
 } from 'lucide-react';
 
 export const SunshineStoreAdmin: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'PRODUCTS' | 'CATEGORIES' | 'BRANDS' | 'REVIEWS' | 'SETTINGS'>('DASHBOARD');
+  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'PRODUCTS' | 'INVENTORY' | 'ORDERS' | 'CATEGORIES' | 'BRANDS' | 'REVIEWS' | 'SETTINGS'>('DASHBOARD');
 
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [categories, setCategories] = useState<StoreCategory[]>([]);
   const [brands, setBrands] = useState<StoreBrand[]>([]);
   const [settings, setSettings] = useState<StoreSetting>(getLocalStoreSettings());
   const [analyticsLogs, setAnalyticsLogs] = useState<StoreAnalyticsLog[]>([]);
+  const [orders, setOrders] = useState<StoreOrder[]>([]);
 
   // Search/Filter state for admin product list
   const [productSearch, setProductSearch] = useState('');
@@ -88,6 +104,24 @@ export const SunshineStoreAdmin: React.FC = () => {
   const [qualityFilter, setQualityFilter] = useState<'ALL' | 'MISSING_IMAGE' | 'MISSING_SEO' | 'MISSING_LINKS' | 'MISSING_RECOMMENDATION'>('ALL');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
   const [brandFilter, setBrandFilter] = useState<string>('ALL');
+
+  // Inventory Filter state
+  const [inventorySearch, setInventorySearch] = useState('');
+  const [inventoryStockFilter, setInventoryStockFilter] = useState<'ALL' | 'LOW_STOCK' | 'OUT_OF_STOCK' | 'IN_STOCK'>('ALL');
+
+  // Orders Filter & Modal state
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState<string>('ALL');
+  const [orderPaymentFilter, setOrderPaymentFilter] = useState<string>('ALL');
+  const [selectedOrder, setSelectedOrder] = useState<StoreOrder | null>(null);
+  const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
+  const [newOrderCustomerName, setNewOrderCustomerName] = useState('');
+  const [newOrderCustomerPhone, setNewOrderCustomerPhone] = useState('');
+  const [newOrderCustomerEmail, setNewOrderCustomerEmail] = useState('');
+  const [newOrderStudentRoll, setNewOrderStudentRoll] = useState('');
+  const [newOrderProductId, setNewOrderProductId] = useState('');
+  const [newOrderQuantity, setNewOrderQuantity] = useState(1);
+  const [newOrderNotes, setNewOrderNotes] = useState('');
 
   // Bulk Selection & Operations
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
@@ -217,15 +251,21 @@ export const SunshineStoreAdmin: React.FC = () => {
   };
 
   useEffect(() => {
-    const unsub = subscribeStoreProducts((data) => {
+    const unsubProducts = subscribeStoreProducts((data) => {
       setProducts(data);
+    });
+    const unsubOrders = subscribeStoreOrders((data) => {
+      setOrders(data);
     });
     setCategories(getLocalStoreCategories());
     setBrands(getLocalStoreBrands());
     setSettings(getLocalStoreSettings());
     setAnalyticsLogs(getLocalStoreAnalytics());
 
-    return () => unsub();
+    return () => {
+      unsubProducts();
+      unsubOrders();
+    };
   }, []);
 
   // Compute Quality Metrics
@@ -589,9 +629,110 @@ export const SunshineStoreAdmin: React.FC = () => {
     saveLocalStoreSettings(settings);
     try {
       await setDoc(doc(db, 'store_settings', 'main'), settings, { merge: true });
-      alert('Store settings saved successfully!');
+      showToast('Store settings saved successfully!');
     } catch (e) {
-      alert('Settings saved locally.');
+      showToast('Settings saved locally.');
+    }
+  };
+
+  // Quick Stock Level Adjustment Handler
+  const handleQuickStockUpdate = async (productId: string, newQty: number) => {
+    const finalQty = Math.max(0, newQty);
+    const updatedProducts = products.map(p => {
+      if (p.id === productId) {
+        const threshold = p.lowStockThreshold || 5;
+        let newStatus: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK' = 'IN_STOCK';
+        if (finalQty === 0) newStatus = 'OUT_OF_STOCK';
+        else if (finalQty <= threshold) newStatus = 'LIMITED';
+        return {
+          ...p,
+          stockQuantity: finalQty,
+          stockStatus: newStatus,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return p;
+    });
+    setProducts(updatedProducts);
+    saveLocalStoreProducts(updatedProducts);
+    const target = updatedProducts.find(p => p.id === productId);
+    if (target) {
+      try {
+        await setDoc(doc(db, 'store_products', productId), {
+          stockQuantity: target.stockQuantity,
+          stockStatus: target.stockStatus,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      } catch (e) {
+        console.warn('Sync stock to firestore failed:', e);
+      }
+    }
+    showToast(`Stock level updated to ${finalQty} units.`);
+  };
+
+  // Create Counter / Direct Order Handler
+  const handleCreateCounterOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newOrderCustomerName || !newOrderProductId) {
+      showToast('Please enter customer name and select a product.', 'error');
+      return;
+    }
+    const targetProd = products.find(p => p.id === newOrderProductId);
+    if (!targetProd) return;
+
+    const unitPrice = targetProd.price || 0;
+    const qty = Math.max(1, newOrderQuantity);
+    const totalPrice = unitPrice * qty;
+
+    const newOrderData: Omit<StoreOrder, 'id' | 'createdAt' | 'updatedAt'> = {
+      orderNumber: `ORD-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+      customerName: newOrderCustomerName,
+      customerPhone: newOrderCustomerPhone,
+      customerEmail: newOrderCustomerEmail,
+      studentRollNo: newOrderStudentRoll,
+      items: [
+        {
+          productId: targetProd.id,
+          productTitle: targetProd.title,
+          quantity: qty,
+          unitPrice,
+          totalPrice,
+          featuredImage: targetProd.featuredImage
+        }
+      ],
+      totalAmount: totalPrice,
+      paymentStatus: 'PAID',
+      orderStatus: 'NEW',
+      notes: newOrderNotes || 'Counter order created by Store Admin',
+    };
+
+    const created = await createStoreOrder(newOrderData);
+    showToast(`Order ${created.orderNumber} placed successfully!`);
+
+    // Auto deduct inventory stock
+    if (targetProd.stockQuantity !== undefined) {
+      const remaining = Math.max(0, targetProd.stockQuantity - qty);
+      handleQuickStockUpdate(targetProd.id, remaining);
+    }
+
+    setIsNewOrderModalOpen(false);
+    setNewOrderCustomerName('');
+    setNewOrderCustomerPhone('');
+    setNewOrderCustomerEmail('');
+    setNewOrderStudentRoll('');
+    setNewOrderProductId('');
+    setNewOrderQuantity(1);
+    setNewOrderNotes('');
+  };
+
+  // Update Order Status Handler
+  const handleUpdateOrderStatus = async (orderId: string, orderStatus?: StoreOrder['orderStatus'], paymentStatus?: StoreOrder['paymentStatus']) => {
+    const updated = await updateStoreOrderStatus(orderId, orderStatus, paymentStatus);
+    setOrders(updated);
+    showToast(`Order status updated successfully!`);
+    if (selectedOrder && selectedOrder.id === orderId) {
+      const match = updated.find(o => o.id === orderId);
+      if (match) setSelectedOrder(match);
     }
   };
 
@@ -624,6 +765,19 @@ export const SunshineStoreAdmin: React.FC = () => {
     }
     return true;
   });
+
+  // Calculated stock and order metrics
+  const totalStockUnits = products.reduce((sum, p) => sum + (p.stockQuantity !== undefined ? p.stockQuantity : 10), 0);
+  const lowStockCount = products.filter(p => {
+    const qty = p.stockQuantity !== undefined ? p.stockQuantity : 10;
+    const thresh = p.lowStockThreshold || 5;
+    return (qty > 0 && qty <= thresh) || p.stockStatus === 'LIMITED';
+  }).length;
+  const outOfStockCount = products.filter(p => {
+    const qty = p.stockQuantity !== undefined ? p.stockQuantity : 10;
+    return qty <= 0 || p.stockStatus === 'OUT_OF_STOCK';
+  }).length;
+  const pendingOrdersCount = orders.filter(o => o.orderStatus === 'NEW' || o.orderStatus === 'PROCESSING').length;
 
   return (
     <div className="space-y-6">
@@ -706,6 +860,16 @@ export const SunshineStoreAdmin: React.FC = () => {
         {[
           { id: 'DASHBOARD', label: 'Dashboard Overview', icon: BarChart2 },
           { id: 'PRODUCTS', label: `Products (${products.length})`, icon: Package },
+          { 
+            id: 'INVENTORY', 
+            label: `Inventory & Stock ${lowStockCount > 0 || outOfStockCount > 0 ? `(⚠️ ${lowStockCount + outOfStockCount})` : ''}`, 
+            icon: Box 
+          },
+          { 
+            id: 'ORDERS', 
+            label: `Orders (${orders.length}${pendingOrdersCount > 0 ? ` • ${pendingOrdersCount} New` : ''})`, 
+            icon: ShoppingCart 
+          },
           { id: 'CATEGORIES', label: `Categories (${categories.length})`, icon: Layers },
           { id: 'BRANDS', label: `Brands & Publishers (${brands.length})`, icon: Globe },
           { id: 'REVIEWS', label: `Reviews (${allProductReviews.length})`, icon: MessageSquare },
@@ -1241,6 +1405,434 @@ export const SunshineStoreAdmin: React.FC = () => {
         </div>
       )}
 
+      {/* TAB: INVENTORY & STOCK */}
+      {activeTab === 'INVENTORY' && (
+        <div className="space-y-6">
+          
+          {/* Inventory Overview Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1 shadow-xs">
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Total Inventory Items</span>
+              <p className="text-2xl font-black text-slate-900 dark:text-white">{products.length}</p>
+              <span className="text-[11px] text-slate-500">{totalStockUnits} Total Units</span>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1 shadow-xs">
+              <span className="text-[10px] font-extrabold text-amber-500 uppercase tracking-wider flex items-center gap-1">
+                <AlertTriangle size={12} /> Low Stock Alerts
+              </span>
+              <p className="text-2xl font-black text-amber-600 dark:text-amber-400">{lowStockCount}</p>
+              <span className="text-[11px] text-slate-500">Below threshold limit</span>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1 shadow-xs">
+              <span className="text-[10px] font-extrabold text-rose-500 uppercase tracking-wider flex items-center gap-1">
+                <AlertCircle size={12} /> Sold Out / Out of Stock
+              </span>
+              <p className="text-2xl font-black text-rose-600 dark:text-rose-400">{outOfStockCount}</p>
+              <span className="text-[11px] text-slate-500">Requires immediate restock</span>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1 shadow-xs">
+              <span className="text-[10px] font-extrabold text-emerald-500 uppercase tracking-wider flex items-center gap-1">
+                <CheckCircle2 size={12} /> Healthy Stock Level
+              </span>
+              <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{products.length - lowStockCount - outOfStockCount}</p>
+              <span className="text-[11px] text-slate-500">Above low stock limit</span>
+            </div>
+          </div>
+
+          {/* Search & Stock Status Filters */}
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-3 items-center justify-between">
+            <div className="relative w-full sm:w-80">
+              <Search size={15} className="absolute left-3 top-3 text-slate-400" />
+              <input
+                id="input-inventory-search"
+                type="text"
+                value={inventorySearch}
+                onChange={e => setInventorySearch(e.target.value)}
+                placeholder="Search inventory by title, author, class..."
+                className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+
+            <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto scrollbar-none">
+              {[
+                { id: 'ALL', label: `All Items (${products.length})` },
+                { id: 'LOW_STOCK', label: `⚠️ Low Stock (${lowStockCount})` },
+                { id: 'OUT_OF_STOCK', label: `🚫 Sold Out (${outOfStockCount})` },
+                { id: 'IN_STOCK', label: `✅ Healthy Stock` }
+              ].map(f => (
+                <button
+                  key={f.id}
+                  id={`btn-inv-filter-${f.id.toLowerCase()}`}
+                  onClick={() => setInventoryStockFilter(f.id as any)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    inventoryStockFilter === f.id
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Inventory Items Table */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-850 text-slate-400 uppercase tracking-wider font-extrabold text-[10px] border-b border-slate-200 dark:border-slate-800">
+                    <th className="p-3.5">Product & Details</th>
+                    <th className="p-3.5">Category</th>
+                    <th className="p-3.5 text-center">Unit Price</th>
+                    <th className="p-3.5 text-center">Current Stock Status</th>
+                    <th className="p-3.5 text-center">Quick Adjust Stock</th>
+                    <th className="p-3.5 text-center">Alert Limit</th>
+                    <th className="p-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                  {products
+                    .filter(p => {
+                      if (inventoryStockFilter === 'LOW_STOCK') {
+                        return (p.stockQuantity !== undefined && p.stockQuantity > 0 && p.stockQuantity <= (p.lowStockThreshold || 5)) || p.stockStatus === 'LIMITED';
+                      }
+                      if (inventoryStockFilter === 'OUT_OF_STOCK') {
+                        return (p.stockQuantity !== undefined && p.stockQuantity <= 0) || p.stockStatus === 'OUT_OF_STOCK';
+                      }
+                      if (inventoryStockFilter === 'IN_STOCK') {
+                        return (p.stockQuantity || 0) > (p.lowStockThreshold || 5) && p.stockStatus !== 'OUT_OF_STOCK';
+                      }
+                      return true;
+                    })
+                    .filter(p => {
+                      if (!inventorySearch.trim()) return true;
+                      const q = inventorySearch.toLowerCase();
+                      return p.title.toLowerCase().includes(q) || (p.author && p.author.toLowerCase().includes(q)) || (p.publisher && p.publisher.toLowerCase().includes(q)) || (p.categoryName && p.categoryName.toLowerCase().includes(q));
+                    })
+                    .map(p => {
+                      const qty = p.stockQuantity !== undefined ? p.stockQuantity : 10;
+                      const thresh = p.lowStockThreshold || 5;
+                      const isSoldOut = qty <= 0 || p.stockStatus === 'OUT_OF_STOCK';
+                      const isLowStock = !isSoldOut && (qty <= thresh || p.stockStatus === 'LIMITED');
+
+                      return (
+                        <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/50 transition-colors">
+                          <td className="p-3.5 flex items-center gap-3">
+                            <img src={p.featuredImage} alt={p.title} className="w-10 h-10 object-cover rounded-xl border border-slate-200 dark:border-slate-700 shrink-0 bg-slate-100" />
+                            <div>
+                              <h5 className="font-bold text-slate-900 dark:text-white line-clamp-1">{p.title}</h5>
+                              <p className="text-[11px] text-slate-500">{p.author || p.publisher || p.class || 'Sunshine Store'}</p>
+                            </div>
+                          </td>
+
+                          <td className="p-3.5">
+                            <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[10px]">
+                              {p.categoryName}
+                            </span>
+                          </td>
+
+                          <td className="p-3.5 text-center font-black text-indigo-900 dark:text-indigo-300">
+                            ₹{p.price || 0}
+                          </td>
+
+                          <td className="p-3.5 text-center">
+                            {isSoldOut ? (
+                              <span className="px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 font-extrabold text-[10px] inline-flex items-center gap-1">
+                                <AlertCircle size={11} /> SOLD OUT (0)
+                              </span>
+                            ) : isLowStock ? (
+                              <span className="px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 font-extrabold text-[10px] inline-flex items-center gap-1">
+                                <AlertTriangle size={11} /> LOW STOCK ({qty} left)
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-extrabold text-[10px] inline-flex items-center gap-1">
+                                <CheckCircle2 size={11} /> IN STOCK ({qty} left)
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="p-3.5 text-center">
+                            <div className="inline-flex items-center gap-1 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 p-0.5">
+                              <button
+                                id={`btn-stock-dec-${p.id}`}
+                                onClick={() => handleQuickStockUpdate(p.id, qty - 1)}
+                                className="w-6 h-6 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 font-bold text-xs flex items-center justify-center cursor-pointer shadow-xs"
+                              >
+                                -
+                              </button>
+                              <input
+                                id={`input-stock-qty-${p.id}`}
+                                type="number"
+                                value={qty}
+                                onChange={e => handleQuickStockUpdate(p.id, parseInt(e.target.value) || 0)}
+                                className="w-12 text-center bg-transparent font-black text-slate-900 dark:text-white focus:outline-none"
+                              />
+                              <button
+                                id={`btn-stock-inc-${p.id}`}
+                                onClick={() => handleQuickStockUpdate(p.id, qty + 1)}
+                                className="w-6 h-6 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 font-bold text-xs flex items-center justify-center cursor-pointer shadow-xs"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </td>
+
+                          <td className="p-3.5 text-center font-bold text-slate-500">
+                            {thresh} units
+                          </td>
+
+                          <td className="p-3.5 text-right space-x-1">
+                            <button
+                              id={`btn-restock-10-${p.id}`}
+                              onClick={() => handleQuickStockUpdate(p.id, qty + 10)}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-bold text-[10px] hover:bg-emerald-100 cursor-pointer"
+                            >
+                              +10 Restock
+                            </button>
+                            <button
+                              id={`btn-edit-inv-${p.id}`}
+                              onClick={() => {
+                                setEditingProduct(p);
+                                setIsProductModalOpen(true);
+                              }}
+                              className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-amber-500 hover:text-white transition-all cursor-pointer"
+                              title="Edit Product"
+                            >
+                              <Edit3 size={13} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* TAB: ORDERS & FULFILLMENT */}
+      {activeTab === 'ORDERS' && (
+        <div className="space-y-6">
+          
+          {/* Orders Key Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1 shadow-xs">
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Total Store Orders</span>
+              <p className="text-2xl font-black text-slate-900 dark:text-white">{orders.length}</p>
+              <span className="text-[11px] text-slate-500">All customer & counter bookings</span>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1 shadow-xs">
+              <span className="text-[10px] font-extrabold text-amber-500 uppercase tracking-wider flex items-center gap-1">
+                <Clock size={12} /> Pending Fulfillment
+              </span>
+              <p className="text-2xl font-black text-amber-600 dark:text-amber-400">{pendingOrdersCount}</p>
+              <span className="text-[11px] text-slate-500">New or processing orders</span>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1 shadow-xs">
+              <span className="text-[10px] font-extrabold text-blue-500 uppercase tracking-wider flex items-center gap-1">
+                <Truck size={12} /> Shipped / Delivered
+              </span>
+              <p className="text-2xl font-black text-blue-600 dark:text-blue-400">
+                {orders.filter(o => o.orderStatus === 'SHIPPED' || o.orderStatus === 'DELIVERED').length}
+              </p>
+              <span className="text-[11px] text-slate-500">Fulfilled orders</span>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1 shadow-xs">
+              <span className="text-[10px] font-extrabold text-emerald-500 uppercase tracking-wider flex items-center gap-1">
+                <CreditCard size={12} /> Total Collected Revenue
+              </span>
+              <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+                ₹{orders.filter(o => o.paymentStatus === 'PAID').reduce((sum, o) => sum + o.totalAmount, 0)}
+              </p>
+              <span className="text-[11px] text-slate-500">Paid orders revenue</span>
+            </div>
+          </div>
+
+          {/* Controls Bar: Search & New Order button */}
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-3 items-center justify-between">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <Search size={15} className="absolute left-3 top-3 text-slate-400" />
+                <input
+                  id="input-order-search"
+                  type="text"
+                  value={orderSearch}
+                  onChange={e => setOrderSearch(e.target.value)}
+                  placeholder="Search order #, customer, phone, roll..."
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              <select
+                id="select-order-status-filter"
+                value={orderStatusFilter}
+                onChange={e => setOrderStatusFilter(e.target.value)}
+                className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold cursor-pointer"
+              >
+                <option value="ALL">All Order Statuses</option>
+                <option value="NEW">New</option>
+                <option value="PROCESSING">Processing</option>
+                <option value="SHIPPED">Shipped</option>
+                <option value="DELIVERED">Delivered</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
+
+              <select
+                id="select-order-payment-filter"
+                value={orderPaymentFilter}
+                onChange={e => setOrderPaymentFilter(e.target.value)}
+                className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold cursor-pointer"
+              >
+                <option value="ALL">All Payment Statuses</option>
+                <option value="PAID">Paid</option>
+                <option value="PENDING">Pending</option>
+                <option value="FAILED">Failed</option>
+                <option value="REFUNDED">Refunded</option>
+              </select>
+            </div>
+
+            <button
+              id="btn-create-counter-order"
+              onClick={() => setIsNewOrderModalOpen(true)}
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Plus size={16} />
+              <span>Create Counter Order</span>
+            </button>
+          </div>
+
+          {/* Orders Table */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-850 text-slate-400 uppercase tracking-wider font-extrabold text-[10px] border-b border-slate-200 dark:border-slate-800">
+                    <th className="p-3.5">Order # & Date</th>
+                    <th className="p-3.5">Customer & Student</th>
+                    <th className="p-3.5">Items Purchased</th>
+                    <th className="p-3.5 text-center">Total Amount</th>
+                    <th className="p-3.5 text-center">Payment Status</th>
+                    <th className="p-3.5 text-center">Fulfillment Status</th>
+                    <th className="p-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                  {orders
+                    .filter(o => {
+                      if (orderStatusFilter !== 'ALL' && o.orderStatus !== orderStatusFilter) return false;
+                      if (orderPaymentFilter !== 'ALL' && o.paymentStatus !== orderPaymentFilter) return false;
+                      if (orderSearch.trim()) {
+                        const q = orderSearch.toLowerCase();
+                        return (
+                          o.orderNumber.toLowerCase().includes(q) ||
+                          o.customerName.toLowerCase().includes(q) ||
+                          (o.customerPhone && o.customerPhone.includes(q)) ||
+                          (o.studentRollNo && o.studentRollNo.includes(q))
+                        );
+                      }
+                      return true;
+                    })
+                    .map(o => (
+                      <tr key={o.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/50 transition-colors">
+                        <td className="p-3.5">
+                          <span className="font-extrabold text-slate-900 dark:text-white block font-mono">{o.orderNumber}</span>
+                          <span className="text-[10px] text-slate-400">{new Date(o.createdAt).toLocaleDateString()}</span>
+                        </td>
+
+                        <td className="p-3.5">
+                          <span className="font-bold text-slate-800 dark:text-slate-200 block">{o.customerName}</span>
+                          <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                            {o.customerPhone && <span>📞 {o.customerPhone}</span>}
+                            {o.studentRollNo && <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-bold">Roll #{o.studentRollNo}</span>}
+                          </div>
+                        </td>
+
+                        <td className="p-3.5">
+                          <div className="space-y-0.5 max-w-xs">
+                            {o.items.map((item, idx) => (
+                              <div key={idx} className="text-[11px] text-slate-700 dark:text-slate-300 font-medium line-clamp-1">
+                                {item.productTitle} <span className="font-bold text-indigo-900 dark:text-indigo-300">×{item.quantity}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+
+                        <td className="p-3.5 text-center font-black text-emerald-600 dark:text-emerald-400">
+                          ₹{o.totalAmount}
+                        </td>
+
+                        <td className="p-3.5 text-center">
+                          <select
+                            id={`select-pay-status-${o.id}`}
+                            value={o.paymentStatus}
+                            onChange={e => handleUpdateOrderStatus(o.id, undefined, e.target.value as any)}
+                            className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold cursor-pointer border ${
+                              o.paymentStatus === 'PAID'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                                : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+                            }`}
+                          >
+                            <option value="PAID">PAID</option>
+                            <option value="PENDING">PENDING</option>
+                            <option value="FAILED">FAILED</option>
+                            <option value="REFUNDED">REFUNDED</option>
+                          </select>
+                        </td>
+
+                        <td className="p-3.5 text-center">
+                          <select
+                            id={`select-order-status-${o.id}`}
+                            value={o.orderStatus}
+                            onChange={e => handleUpdateOrderStatus(o.id, e.target.value as any, undefined)}
+                            className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold cursor-pointer border ${
+                              o.orderStatus === 'DELIVERED'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : o.orderStatus === 'SHIPPED'
+                                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                : o.orderStatus === 'PROCESSING'
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : o.orderStatus === 'CANCELLED'
+                                ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                : 'bg-purple-50 text-purple-700 border-purple-200'
+                            }`}
+                          >
+                            <option value="NEW">NEW</option>
+                            <option value="PROCESSING">PROCESSING</option>
+                            <option value="SHIPPED">SHIPPED</option>
+                            <option value="DELIVERED">DELIVERED</option>
+                            <option value="CANCELLED">CANCELLED</option>
+                          </select>
+                        </td>
+
+                        <td className="p-3.5 text-right">
+                          <button
+                            id={`btn-view-order-${o.id}`}
+                            onClick={() => setSelectedOrder(o)}
+                            className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-white font-bold text-xs transition-all cursor-pointer inline-flex items-center gap-1"
+                          >
+                            <Eye size={13} />
+                            <span>Details</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      )}
+
       {/* TAB 3: CATEGORIES */}
       {activeTab === 'CATEGORIES' && (
         <div className="space-y-4">
@@ -1749,6 +2341,73 @@ export const SunshineStoreAdmin: React.FC = () => {
                       placeholder="e.g. Dr. RD Sharma"
                       className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
                     />
+                  </div>
+                </div>
+
+                {/* Pricing & Inventory Stock Inputs */}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <div>
+                    <label className="block font-bold mb-1">Price (₹)</label>
+                    <input
+                      type="number"
+                      value={editingProduct.price || ''}
+                      onChange={e => setEditingProduct({ ...editingProduct, price: parseFloat(e.target.value) || 0 })}
+                      placeholder="499"
+                      className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-emerald-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold mb-1">MRP Price (₹)</label>
+                    <input
+                      type="number"
+                      value={editingProduct.originalPrice || ''}
+                      onChange={e => setEditingProduct({ ...editingProduct, originalPrice: parseFloat(e.target.value) || 0 })}
+                      placeholder="650"
+                      className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-400 line-through"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold mb-1">Stock Quantity</label>
+                    <input
+                      type="number"
+                      value={editingProduct.stockQuantity !== undefined ? editingProduct.stockQuantity : 10}
+                      onChange={e => {
+                        const qty = parseInt(e.target.value) || 0;
+                        const thresh = editingProduct.lowStockThreshold || 5;
+                        let status: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK' = 'IN_STOCK';
+                        if (qty === 0) status = 'OUT_OF_STOCK';
+                        else if (qty <= thresh) status = 'LIMITED';
+                        setEditingProduct({ ...editingProduct, stockQuantity: qty, stockStatus: status });
+                      }}
+                      placeholder="15"
+                      className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold mb-1">Low Stock Limit</label>
+                    <input
+                      type="number"
+                      value={editingProduct.lowStockThreshold || 5}
+                      onChange={e => setEditingProduct({ ...editingProduct, lowStockThreshold: parseInt(e.target.value) || 5 })}
+                      placeholder="5"
+                      className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-amber-600 font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold mb-1">Stock Status</label>
+                    <select
+                      value={editingProduct.stockStatus || 'IN_STOCK'}
+                      onChange={e => setEditingProduct({ ...editingProduct, stockStatus: e.target.value as any })}
+                      className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold"
+                    >
+                      <option value="IN_STOCK">In Stock</option>
+                      <option value="LIMITED">Limited Stock</option>
+                      <option value="OUT_OF_STOCK">Out of Stock</option>
+                    </select>
                   </div>
                 </div>
               </div>
@@ -2784,6 +3443,237 @@ export const SunshineStoreAdmin: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ORDER DETAILS & FULFILLMENT */}
+      {selectedOrder && (
+        <div id="modal-order-details" className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-2xl my-8 space-y-6 text-xs">
+            
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-extrabold text-base text-slate-900 dark:text-white font-mono">
+                    Order {selectedOrder.orderNumber}
+                  </h3>
+                  <span className={`px-2.5 py-0.5 rounded-full font-extrabold text-[10px] ${
+                    selectedOrder.paymentStatus === 'PAID' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    {selectedOrder.paymentStatus}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400">Placed on {new Date(selectedOrder.createdAt).toLocaleString()}</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  id="btn-print-order-receipt"
+                  onClick={() => window.print()}
+                  className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Printer size={14} />
+                  <span>Print Receipt</span>
+                </button>
+                <button id="btn-close-order-modal" onClick={() => setSelectedOrder(null)} className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg cursor-pointer">
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Customer & Delivery Information */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800">
+              <div className="space-y-1">
+                <span className="font-extrabold text-slate-400 uppercase text-[10px] tracking-wider block">Customer Details</span>
+                <p className="font-bold text-slate-900 dark:text-white">{selectedOrder.customerName}</p>
+                {selectedOrder.customerPhone && <p className="text-slate-600 dark:text-slate-300">📞 Phone: {selectedOrder.customerPhone}</p>}
+                {selectedOrder.customerEmail && <p className="text-slate-600 dark:text-slate-300">✉️ Email: {selectedOrder.customerEmail}</p>}
+                {selectedOrder.studentRollNo && <p className="font-extrabold text-amber-600 dark:text-amber-400">🎓 Roll Number: {selectedOrder.studentRollNo}</p>}
+              </div>
+
+              <div className="space-y-1">
+                <span className="font-extrabold text-slate-400 uppercase text-[10px] tracking-wider block">Shipping Address / Delivery</span>
+                <p className="text-slate-700 dark:text-slate-300">
+                  {selectedOrder.shippingAddress || 'In-Person Campus Counter Pickup / Direct Distribution'}
+                </p>
+                {selectedOrder.notes && (
+                  <p className="text-[11px] text-slate-500 italic mt-2">
+                    Note: "{selectedOrder.notes}"
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Ordered Items Table */}
+            <div className="space-y-2">
+              <h4 className="font-bold text-slate-900 dark:text-white uppercase text-[10px] tracking-wider text-slate-400">Purchased Items</h4>
+              <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+                {selectedOrder.items.map((item, idx) => (
+                  <div key={idx} className="p-3 bg-white dark:bg-slate-900 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      {item.featuredImage && (
+                        <img src={item.featuredImage} alt={item.productTitle} className="w-10 h-10 object-cover rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50" />
+                      )}
+                      <div>
+                        <h5 className="font-bold text-slate-900 dark:text-white">{item.productTitle}</h5>
+                        <p className="text-[11px] text-slate-400">₹{item.unitPrice} × {item.quantity} units</p>
+                      </div>
+                    </div>
+                    <span className="font-black text-slate-900 dark:text-white text-sm">₹{item.totalPrice}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Total and Quick Actions */}
+            <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div>
+                <span className="text-[10px] uppercase font-extrabold text-slate-400 block">Grand Total</span>
+                <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">₹{selectedOrder.totalAmount}</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {selectedOrder.paymentStatus !== 'PAID' && (
+                  <button
+                    id="btn-mark-order-paid"
+                    onClick={() => handleUpdateOrderStatus(selectedOrder.id, undefined, 'PAID')}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold cursor-pointer"
+                  >
+                    Mark Paid
+                  </button>
+                )}
+                {selectedOrder.orderStatus !== 'DELIVERED' && (
+                  <button
+                    id="btn-mark-order-delivered"
+                    onClick={() => handleUpdateOrderStatus(selectedOrder.id, 'DELIVERED', undefined)}
+                    className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold cursor-pointer"
+                  >
+                    Mark Delivered
+                  </button>
+                )}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CREATE COUNTER ORDER */}
+      {isNewOrderModalOpen && (
+        <div id="modal-create-counter-order" className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 text-xs">
+            
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Create Counter / Campus Direct Order</h3>
+                <p className="text-[11px] text-slate-400">Instantly record textbook / study material purchase and deduct stock</p>
+              </div>
+              <button id="btn-close-new-order-modal" onClick={() => setIsNewOrderModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateCounterOrder} className="space-y-3">
+              <div>
+                <label className="block font-bold mb-1">Customer / Parent Name *</label>
+                <input
+                  id="input-new-order-name"
+                  type="text"
+                  required
+                  value={newOrderCustomerName}
+                  onChange={e => setNewOrderCustomerName(e.target.value)}
+                  placeholder="e.g. Ramesh Verma"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold mb-1">Contact Phone</label>
+                  <input
+                    id="input-new-order-phone"
+                    type="tel"
+                    value={newOrderCustomerPhone}
+                    onChange={e => setNewOrderCustomerPhone(e.target.value)}
+                    placeholder="e.g. 9876543210"
+                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold mb-1">Student Roll Number</label>
+                  <input
+                    id="input-new-order-roll"
+                    type="text"
+                    value={newOrderStudentRoll}
+                    onChange={e => setNewOrderStudentRoll(e.target.value)}
+                    placeholder="e.g. SUN-1042"
+                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold uppercase"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1">Select Product / Book / Material *</label>
+                <select
+                  id="select-new-order-product"
+                  required
+                  value={newOrderProductId}
+                  onChange={e => setNewOrderProductId(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold"
+                >
+                  <option value="">-- Choose Product --</option>
+                  {products.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.title} (₹{p.price}) - Stock: {p.stockQuantity !== undefined ? p.stockQuantity : 10} left
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1">Quantity</label>
+                <input
+                  id="input-new-order-qty"
+                  type="number"
+                  min={1}
+                  value={newOrderQuantity}
+                  onChange={e => setNewOrderQuantity(parseInt(e.target.value) || 1)}
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1">Internal Notes</label>
+                <input
+                  id="input-new-order-notes"
+                  type="text"
+                  value={newOrderNotes}
+                  onChange={e => setNewOrderNotes(e.target.value)}
+                  placeholder="e.g. Paid via UPI counter QR code"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsNewOrderModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  id="btn-submit-counter-order"
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-md cursor-pointer"
+                >
+                  Confirm & Place Order
+                </button>
+              </div>
+            </form>
+
           </div>
         </div>
       )}

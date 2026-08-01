@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { UNIVERSAL_COURSES } from '../../data/coursesData';
 import { 
   FileText, 
   CheckCircle2, 
@@ -333,30 +334,19 @@ export const AdmissionsPage: React.FC<AdmissionsPageProps> = ({
                         onChange={(e) => {
                           const selectedClass = e.target.value;
                           setAdmClass(selectedClass);
-                          if (selectedClass === 'Class 10') {
-                            setAdmBatch('Class 10 - Board Specialist');
-                            setAdmTiming('06:00 AM & 04:00 PM');
-                          } else if (selectedClass === 'Class 9') {
-                            setAdmBatch('Class 9 - Foundation Group');
-                            setAdmTiming('07:00 AM & 05:00 PM');
-                          } else if (selectedClass === 'Class 8') {
-                            setAdmBatch('Class 8 - Apex Learning');
-                            setAdmTiming('03:00 PM - 05:00 PM');
-                          } else if (selectedClass === 'Class 7') {
-                            setAdmBatch('Class 7 - Middle School');
-                            setAdmTiming('03:00 PM - 04:30 PM');
-                          } else {
-                            setAdmBatch('Class 6 - Junior Foundation');
-                            setAdmTiming('02:00 PM - 03:30 PM');
+                          const course = UNIVERSAL_COURSES.find(c => c.className === selectedClass);
+                          if (course) {
+                            setAdmBatch(`${course.className} - ${course.badge}`);
+                            setAdmTiming(course.timing);
                           }
                         }}
                         className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 px-3.5 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-amber-500 focus:bg-white dark:focus:bg-slate-800"
                       >
-                        <option value="Class 10">Class 10 (Board Batch)</option>
-                        <option value="Class 9">Class 9 (Board Foundation)</option>
-                        <option value="Class 8">Class 8 (Apex Learning)</option>
-                        <option value="Class 7">Class 7 (Middle School)</option>
-                        <option value="Class 6">Class 6 (Junior Foundation)</option>
+                        {UNIVERSAL_COURSES.map(course => (
+                          <option key={course.id} value={course.className}>
+                            {course.className} ({course.badge}) — {course.monthlyFeeFormatted}/mo
+                          </option>
+                        ))}
                       </select>
                     </div>
 
@@ -481,7 +471,7 @@ export const AdmissionsPage: React.FC<AdmissionsPageProps> = ({
                   <button
                     id="btn-submit-admission-form"
                     type="submit"
-                    className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-500/20 transition-all cursor-pointer flex items-center justify-center gap-2"
+                    className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-500/20 transition-all cursor-pointer flex items-center justify-center gap-2 focus:outline-hidden focus:ring-2 focus:ring-amber-400"
                   >
                     <span>Generate Admission Application ID</span>
                     <ArrowRight size={16} />

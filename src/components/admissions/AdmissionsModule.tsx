@@ -58,11 +58,12 @@ interface AdmissionRecord {
   preferredBatch?: string;
   preferredTiming?: string;
   assignedTeacher?: string;
-  status: 'APPROVED' | 'PENDING' | 'REJECTED';
+  status: 'APPROVED' | 'PENDING' | 'REJECTED' | 'WAITLISTED';
   date?: string;
   admissionDate?: string;
   createdAt?: string;
   monthlyFee?: number;
+  internalNotes?: string;
 }
 
 interface NewAdmissionCredentials {
@@ -448,11 +449,12 @@ Please change your password upon your first login at https://sunshineclasses.net
             id="select-admission-status-filter"
             value={selectedStatus}
             onChange={(e) => { setSelectedStatus(e.target.value); setPage(1); }}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
           >
             <option value="">All Statuses</option>
             <option value="APPROVED">Approved / Enrolled</option>
             <option value="PENDING">Pending Review</option>
+            <option value="WAITLISTED">Waitlisted</option>
             <option value="REJECTED">Rejected</option>
           </select>
 
@@ -542,6 +544,8 @@ Please change your password upon your first login at https://sunshineclasses.net
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             : adm.status === 'PENDING'
                             ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : adm.status === 'WAITLISTED'
+                            ? 'bg-purple-50 text-purple-700 border-purple-200'
                             : 'bg-rose-50 text-rose-700 border-rose-200'
                         }`}>
                           {isApproved && <CheckCircle2 className="w-3 h-3 text-emerald-600" />}

@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: sunshine-classes-erp
+    env: node
+    region: singapore
+    plan: free
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm run start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000

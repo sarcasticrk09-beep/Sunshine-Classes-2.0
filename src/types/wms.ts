@@ -179,6 +179,54 @@ export interface HomepageSection {
   selectedItemIds?: string[];
 }
 
+export type ContentStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+
+export interface ContentRevision<T = any> {
+  id: string;
+  version: number;
+  updatedAt: string;
+  author: string;
+  summary: string;
+  snapshot: T;
+}
+
+export interface ProductCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  image?: string;
+  productCount: number;
+  status: ContentStatus;
+}
+
+export interface Coupon {
+  id: string;
+  code: string;
+  discountType: 'PERCENTAGE' | 'FIXED';
+  value: number;
+  minOrderValue?: number;
+  startDate: string;
+  endDate: string;
+  usageLimit: number;
+  usageCount: number;
+  status: ContentStatus;
+}
+
+export interface EventItem {
+  id: string;
+  title: string;
+  slug: string;
+  date: string;
+  venue: string;
+  description: string;
+  coverImage: string;
+  registrationUrl?: string;
+  status: ContentStatus;
+  seoTitle?: string;
+  metaDescription?: string;
+}
+
 export interface WebsiteSettings {
   siteName: string;
   tagline: string;

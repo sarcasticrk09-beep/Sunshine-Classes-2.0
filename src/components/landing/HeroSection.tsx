@@ -50,7 +50,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigateSection }) =
               <button
                 id="btn-hero-enroll-now"
                 onClick={() => onNavigateSection('admissions')}
-                className="flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs sm:text-sm px-6 py-3.5 shadow-md hover:shadow-amber-500/20 transition-all cursor-pointer min-h-[46px]"
+                className="flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs sm:text-sm px-6 py-3.5 shadow-md hover:shadow-amber-500/20 active:scale-[0.98] transition-all cursor-pointer min-h-[46px] focus:outline-hidden focus:ring-2 focus:ring-amber-400"
               >
                 <GraduationCap size={18} />
                 <span>Enroll Now</span>
@@ -61,7 +61,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigateSection }) =
               <button
                 id="btn-hero-browse-study-material"
                 onClick={() => navigate('/resources')}
-                className="flex items-center justify-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-extrabold text-xs sm:text-sm px-5 py-3.5 transition-all cursor-pointer min-h-[46px] shadow-xs"
+                className="flex items-center justify-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-extrabold text-xs sm:text-sm px-5 py-3.5 active:scale-[0.98] transition-all cursor-pointer min-h-[46px] shadow-xs focus:outline-hidden focus:ring-2 focus:ring-amber-400"
               >
                 <BookOpen size={18} className="text-emerald-500" />
                 <span>Browse Study Material</span>
@@ -71,7 +71,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigateSection }) =
               <button
                 id="btn-hero-visit-sunshine-store"
                 onClick={() => navigate('/books')}
-                className="flex items-center justify-center gap-2 rounded-xl border border-amber-300 dark:border-amber-800/80 bg-amber-50/50 dark:bg-amber-950/30 hover:bg-amber-100/60 dark:hover:bg-amber-900/40 text-amber-900 dark:text-amber-300 font-extrabold text-xs sm:text-sm px-5 py-3.5 transition-all cursor-pointer min-h-[46px] shadow-xs"
+                className="flex items-center justify-center gap-2 rounded-xl border border-amber-300 dark:border-amber-800/80 bg-amber-50/50 dark:bg-amber-950/30 hover:bg-amber-100/60 dark:hover:bg-amber-900/40 text-amber-900 dark:text-amber-300 font-extrabold text-xs sm:text-sm px-5 py-3.5 active:scale-[0.98] transition-all cursor-pointer min-h-[46px] shadow-xs focus:outline-hidden focus:ring-2 focus:ring-amber-400"
               >
                 <ShoppingBag size={18} className="text-amber-500" />
                 <span>Visit Sunshine Store</span>

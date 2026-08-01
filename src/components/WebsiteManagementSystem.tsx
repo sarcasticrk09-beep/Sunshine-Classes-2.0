@@ -66,27 +66,41 @@ import {
 } from '../types/wms';
 import { StudyMaterial, BlogPost, StoreProduct, AuditLog, UserRole } from '../types';
 
+import { SEED_WMS_DATA } from '../data/wmsData';
+
 interface WebsiteManagementSystemProps {
-  wmsData: WMSData;
-  onUpdateWMSData: (updated: WMSData) => void;
+  wmsData?: WMSData;
+  onUpdateWMSData?: (updated: WMSData) => void;
   studyMaterials?: StudyMaterial[];
   blogs?: BlogPost[];
   storeProducts?: StoreProduct[];
   auditLogs?: AuditLog[];
   onAddAuditLog?: (action: string, details: string) => void;
   currentUserRole?: UserRole;
+  initialTab?: 'dashboard' | 'homepage-builder' | 'banners' | 'navigation' | 'footer' | 'announcement-bar' | 'popups' | 'theme' | 'seo' | 'media' | 'contact' | 'social' | 'settings';
 }
 
 export const WebsiteManagementSystem: React.FC<WebsiteManagementSystemProps> = ({
-  wmsData,
-  onUpdateWMSData,
+  wmsData: propWmsData,
+  onUpdateWMSData: propOnUpdateWMSData,
   studyMaterials = [],
   blogs = [],
   storeProducts = [],
   auditLogs = [],
   onAddAuditLog,
-  currentUserRole = 'SUPER_ADMIN'
+  currentUserRole = 'SUPER_ADMIN',
+  initialTab = 'dashboard'
 }) => {
+  const [localWmsData, setLocalWmsData] = useState<WMSData>(propWmsData || SEED_WMS_DATA);
+  const wmsData = propWmsData || localWmsData;
+
+  const onUpdateWMSData = (updated: WMSData) => {
+    setLocalWmsData(updated);
+    if (propOnUpdateWMSData) {
+      propOnUpdateWMSData(updated);
+    }
+  };
+
   // Navigation Tabs inside WMS
   const [activeTab, setActiveTab] = useState<
     | 'dashboard'
@@ -102,7 +116,7 @@ export const WebsiteManagementSystem: React.FC<WebsiteManagementSystemProps> = (
     | 'contact'
     | 'social'
     | 'settings'
-  >('dashboard');
+  >(initialTab);
 
   // Preview device mode
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');

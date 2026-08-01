@@ -41,7 +41,7 @@ export const CoursesSection: React.FC<CoursesSectionProps> = ({
             Classroom Tuitions & Batch Schedules
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            Explore active tuition batches from Class 6 to Class 10 with transparent monthly fees and core subject coverage.
+            Explore active tuition batches from Class 1 to Class 10 with transparent monthly fees and core subject coverage.
           </p>
         </div>
 

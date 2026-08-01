@@ -146,10 +146,16 @@ export default function LandingPage({
   };
 
   const activeSection = getSectionFromPath(location.pathname);
+  const [isCourseNavLoading, setIsCourseNavLoading] = useState(false);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [activeSection]);
+    if (location.pathname.startsWith('/courses')) {
+      setIsCourseNavLoading(true);
+      const timer = setTimeout(() => setIsCourseNavLoading(false), 180);
+      return () => clearTimeout(timer);
+    }
+  }, [location.pathname]);
 
   const setActiveSection = (section: 'home' | 'about' | 'courses' | 'admissions' | 'results' | 'resources' | 'gallery' | 'contact') => {
     if (section === 'home') navigate('/');
@@ -632,6 +638,7 @@ export default function LandingPage({
           if (currentCourse) {
             return (
               <CourseDetailPage
+                isLoading={isCourseNavLoading}
                 course={currentCourse}
                 onNavigateSection={(sec) => {
                   if (sec.startsWith('courses/')) {
@@ -651,6 +658,7 @@ export default function LandingPage({
 
           return (
             <CourseDirectoryPage
+              isLoading={isCourseNavLoading}
               onExploreCourse={(slug) => navigate(`/courses/${slug}`)}
               onSelectClassForAdmission={(className) => {
                 setAdmClass(className);

@@ -43,6 +43,7 @@ import SunshineLogo from './SunshineLogo';
 import { CloudinaryUpload } from './CloudinaryUpload';
 import { getFeeStatusForRecord } from '../lib/feeUtils';
 import { getPaymentProvider } from '../lib/paymentProviders';
+import { generateReceiptPdf, generatePaymentHistoryPdf } from '../lib/pdfGenerator';
 
 interface StudentDashboardProps {
   student: Student;
@@ -1683,7 +1684,24 @@ export default function StudentDashboard({
 
                   {/* Paid Tuition Fee Vouchers & Receipts */}
                   <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <h3 className="font-display font-bold text-base text-slate-800 mb-4">Official Tuition Fee Vouchers & Receipts</h3>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                      <div>
+                        <h3 className="font-display font-bold text-base text-slate-800">Official Tuition Fee Vouchers & Receipts</h3>
+                        <p className="text-xs text-slate-500">Download formatted PDF receipts or your complete payment history statement</p>
+                      </div>
+                      {myReceipts.length > 0 && (
+                        <button
+                          id="btn-download-payment-history-pdf"
+                          onClick={() => {
+                            const doc = generatePaymentHistoryPdf(myReceipts, student);
+                            doc.save(`Payment-History-${student.name.replace(/\s+/g, '_')}.pdf`);
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-brand-blue hover:bg-brand-blue-hover text-white px-3.5 py-2 text-xs font-bold shadow-sm transition-all cursor-pointer w-fit"
+                        >
+                          <Download size={13} /> Download Payment History PDF
+                        </button>
+                      )}
+                    </div>
 
                     <div className="border border-slate-100 rounded-xl bg-white overflow-hidden">
                       <table className="w-full text-left border-collapse block md:table">
@@ -1695,7 +1713,7 @@ export default function StudentDashboard({
                             <th className="p-3 text-center">Payment Method</th>
                             <th className="p-3">Transaction Date</th>
                             <th className="p-3">Reference Txn ID</th>
-                            <th className="p-3 text-center">Receipts</th>
+                            <th className="p-3 text-center">Receipts & Downloads</th>
                           </tr>
                         </thead>
                         <tbody className="block md:table-row-group divide-y divide-slate-100 md:divide-y md:divide-slate-50 text-xs">
@@ -1714,12 +1732,25 @@ export default function StudentDashboard({
                                 <td className="py-1 px-3 font-mono text-[10px] text-slate-400 block md:table-cell md:p-3"><span className="inline-block md:hidden font-bold text-slate-400 w-28">Ref Txn ID:</span>{rec.transactionId || 'N/A'}</td>
                                 <td className="py-1.5 px-3 block md:table-cell md:p-3 text-center">
                                   <span className="inline-block md:hidden font-bold text-slate-400 w-28">Receipts:</span>
-                                  <button
-                                    onClick={() => setSelectedReceipt(rec)}
-                                    className="inline-flex items-center gap-1 rounded bg-slate-100 hover:bg-brand-blue hover:text-white px-2.5 py-1 text-[10px] font-bold text-slate-700 transition-all cursor-pointer"
-                                  >
-                                    <Download size={10} /> View / Print Invoice
-                                  </button>
+                                  <div className="inline-flex items-center gap-1.5">
+                                    <button
+                                      id={`btn-view-receipt-${rec.id}`}
+                                      onClick={() => setSelectedReceipt(rec)}
+                                      className="inline-flex items-center gap-1 rounded bg-slate-100 hover:bg-slate-200 px-2.5 py-1 text-[10px] font-bold text-slate-700 transition-all cursor-pointer"
+                                    >
+                                      <FileText size={10} /> Details
+                                    </button>
+                                    <button
+                                      id={`btn-download-pdf-receipt-${rec.id}`}
+                                      onClick={() => {
+                                        const doc = generateReceiptPdf(rec, student);
+                                        doc.save(`Receipt-${rec.id}.pdf`);
+                                      }}
+                                      className="inline-flex items-center gap-1 rounded bg-brand-blue hover:bg-brand-blue-hover text-white px-2.5 py-1 text-[10px] font-bold shadow-xs transition-all cursor-pointer"
+                                    >
+                                      <Download size={10} /> Download PDF
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             ))
@@ -1743,7 +1774,7 @@ export default function StudentDashboard({
                             <th className="p-3">Method</th>
                             <th className="p-3">Txn Date</th>
                             <th className="p-3">Reference Txn ID</th>
-                            <th className="p-3">Vouchers</th>
+                            <th className="p-3">Vouchers & Downloads</th>
                           </tr>
                         </thead>
                         <tbody className="block md:table-row-group divide-y divide-slate-100 md:divide-y md:divide-slate-50 text-xs">
@@ -1765,12 +1796,37 @@ export default function StudentDashboard({
                                   <td className="py-1 px-3 block md:table-cell md:p-3">
                                     <span className="inline-block md:hidden font-bold text-slate-400 w-28">Vouchers:</span>
                                     {matchingReceipt ? (
-                                      <button
-                                        onClick={() => setSelectedSubReceipt(matchingReceipt)}
-                                        className="inline-flex items-center gap-1 rounded bg-slate-100 hover:bg-brand-blue hover:text-white px-2 py-1 text-[10px] font-bold text-slate-700 transition-all cursor-pointer"
-                                      >
-                                        <Download size={10} /> View Invoice Receipt
-                                      </button>
+                                      <div className="inline-flex items-center gap-1.5">
+                                        <button
+                                          id={`btn-view-sub-receipt-${matchingReceipt.id}`}
+                                          onClick={() => setSelectedSubReceipt(matchingReceipt)}
+                                          className="inline-flex items-center gap-1 rounded bg-slate-100 hover:bg-slate-200 px-2 py-1 text-[10px] font-bold text-slate-700 transition-all cursor-pointer"
+                                        >
+                                          <FileText size={10} /> Details
+                                        </button>
+                                        <button
+                                          id={`btn-download-sub-pdf-${matchingReceipt.id}`}
+                                          onClick={() => {
+                                            const subAdapter: FeeReceipt = {
+                                              id: matchingReceipt.id,
+                                              studentId: matchingReceipt.studentId,
+                                              studentName: matchingReceipt.studentName,
+                                              class: student.class || 'N/A',
+                                              month: matchingReceipt.paymentMonth,
+                                              amountPaid: matchingReceipt.amountPaid,
+                                              paymentMethod: matchingReceipt.paymentMethod as any,
+                                              date: matchingReceipt.paymentDate,
+                                              receivedBy: 'Online Gateway',
+                                              transactionId: matchingReceipt.transactionId
+                                            };
+                                            const doc = generateReceiptPdf(subAdapter, student);
+                                            doc.save(`Subscription-Receipt-${matchingReceipt.id}.pdf`);
+                                          }}
+                                          className="inline-flex items-center gap-1 rounded bg-brand-blue hover:bg-brand-blue-hover text-white px-2 py-1 text-[10px] font-bold transition-all cursor-pointer"
+                                        >
+                                          <Download size={10} /> Download PDF
+                                        </button>
+                                      </div>
                                     ) : (
                                       <span className="text-[10px] text-slate-400">Receipt Pending</span>
                                     )}
@@ -3199,19 +3255,19 @@ export default function StudentDashboard({
               <button
                 id="btn-print-cancel"
                 onClick={() => setSelectedReceipt(null)}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
               >
                 Close
               </button>
               <button
                 id="btn-print-pdf-trigger"
                 onClick={() => {
-                  alert("Voucher file sent to local system printer successfully.");
-                  setSelectedReceipt(null);
+                  const doc = generateReceiptPdf(selectedReceipt, student);
+                  doc.save(`Receipt-${selectedReceipt.id}.pdf`);
                 }}
-                className="rounded-xl bg-brand-blue px-4 py-2 text-xs font-bold text-white shadow hover:bg-brand-blue-hover"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-brand-blue px-4 py-2 text-xs font-bold text-white shadow hover:bg-brand-blue-hover cursor-pointer"
               >
-                Print Voucher PDF
+                <Download size={14} /> Download PDF
               </button>
             </div>
           </div>
@@ -3802,19 +3858,33 @@ export default function StudentDashboard({
             {/* Bottom buttons */}
             <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
               <button
+                id="btn-sub-receipt-cancel"
                 onClick={() => setSelectedSubReceipt(null)}
                 className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
               >
                 Close
               </button>
               <button
+                id="btn-sub-receipt-pdf-download"
                 onClick={() => {
-                  alert("Subscription Voucher file sent to local system printer successfully.");
-                  setSelectedSubReceipt(null);
+                  const subAdapter: FeeReceipt = {
+                    id: selectedSubReceipt.id,
+                    studentId: selectedSubReceipt.studentId,
+                    studentName: selectedSubReceipt.studentName,
+                    class: student.class || 'N/A',
+                    month: selectedSubReceipt.paymentMonth,
+                    amountPaid: selectedSubReceipt.amountPaid,
+                    paymentMethod: selectedSubReceipt.paymentMethod as any,
+                    date: selectedSubReceipt.paymentDate,
+                    receivedBy: 'Online Gateway',
+                    transactionId: selectedSubReceipt.transactionId
+                  };
+                  const doc = generateReceiptPdf(subAdapter, student);
+                  doc.save(`Subscription-Receipt-${selectedSubReceipt.id}.pdf`);
                 }}
-                className="rounded-xl bg-brand-blue px-4 py-2 text-xs font-bold text-white shadow hover:bg-brand-blue-hover cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-brand-blue px-4 py-2 text-xs font-bold text-white shadow hover:bg-brand-blue-hover cursor-pointer"
               >
-                Print Voucher PDF
+                <Download size={14} /> Download PDF
               </button>
             </div>
           </div>

@@ -390,7 +390,7 @@ async function startServer() {
   app.use(express.urlencoded({ extended: true, limit: "10mb" }));
   app.use(cookieParser());
 
-  // Trust proxy for Railway / Cloud Run reverse proxy SSL and IP forwarding
+  // Trust proxy for reverse proxy SSL and IP forwarding (Cloud Run / Render / Vercel / PaaS)
   app.set('trust proxy', 1);
 
   // Global API rate limiting (relaxed in production/dev to prevent 429 blocks)
@@ -3594,7 +3594,7 @@ Sunshine Classes — *Excellence in Education* ☀️`;
   });
 
   // 2. Vite middleware setup for Development & SPA Asset Routing
-  const isProduction = process.env.NODE_ENV === "production" || !!process.env.RAILWAY_ENVIRONMENT;
+  const isProduction = process.env.NODE_ENV === "production" || !!process.env.RENDER || !!process.env.VERCEL || !!process.env.RAILWAY_ENVIRONMENT;
   if (!isProduction) {
     console.log("[Server] Starting in DEVELOPMENT mode (with Vite middleware)...");
     const vite = await createViteServer({
@@ -3711,7 +3711,7 @@ Sunshine Classes — *Excellence in Education* ☀️`;
     console.log(`Sunshine Classes Full-Stack Server running on port ${PORT} in ${isProduction ? 'production' : 'development'} mode`);
   });
 
-  // Dual-port binding backup: bind to both common ports (3000 and 8080) in production to ensure Railway auto-detection works perfectly.
+  // Dual-port binding backup: bind to both common ports (3000 and 8080) in production for health check fail-safe
   if (isProduction) {
     const backupPort = PORT === 3000 ? 8080 : 3000;
     try {

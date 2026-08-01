@@ -27,8 +27,10 @@ import {
 } from 'lucide-react';
 import { UniversalCourse, UNIVERSAL_COURSES } from '../../data/coursesData';
 import { CourseCard } from './CourseCard';
+import { CourseDetailSkeleton } from './CourseSkeletons';
 
 interface CourseDetailPageProps {
+  isLoading?: boolean;
   course: UniversalCourse;
   onNavigateSection: (section: string) => void;
   onSelectClassForAdmission: (className: string) => void;
@@ -36,6 +38,7 @@ interface CourseDetailPageProps {
 }
 
 export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
+  isLoading = false,
   course,
   onNavigateSection,
   onSelectClassForAdmission,
@@ -44,6 +47,10 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
   const [activeTab, setActiveTab] = useState<string>(course.subjectsDetailed[0]?.name || '');
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
   const [syllabusDownloaded, setSyllabusDownloaded] = useState<boolean>(false);
+
+  if (isLoading) {
+    return <CourseDetailSkeleton />;
+  }
 
   const relatedCourses = UNIVERSAL_COURSES.filter(c => c.slug !== course.slug);
 
@@ -130,7 +137,7 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
                 <button
                   id={`btn-hero-enroll-${course.slug}`}
                   onClick={() => onSelectClassForAdmission(course.className)}
-                  className="px-6 py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 transition-all flex items-center gap-2 cursor-pointer"
+                  className="px-6 py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-slate-950 font-black text-sm shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 transition-all flex items-center gap-2 cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-amber-400"
                 >
                   <span>Enroll in {course.className} Batch</span>
                   <ArrowRight size={18} />
@@ -139,7 +146,7 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
                 <button
                   id={`btn-hero-syllabus-${course.slug}`}
                   onClick={handleDownloadSyllabus}
-                  className="px-5 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition-all flex items-center gap-2 cursor-pointer"
+                  className="px-5 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 active:scale-[0.98] text-white font-bold text-xs border border-white/20 transition-all flex items-center gap-2 cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-amber-400"
                 >
                   <Download size={16} className={syllabusDownloaded ? "text-emerald-400" : ""} />
                   <span>{syllabusDownloaded ? "Syllabus Ready!" : "Download Class Syllabus"}</span>

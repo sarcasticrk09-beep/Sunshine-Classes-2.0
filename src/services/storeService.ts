@@ -5,7 +5,9 @@ import {
   StoreSetting, 
   StoreAnalyticsLog,
   StoreProductType,
-  StoreReview
+  StoreReview,
+  StoreOrder,
+  StoreOrderItem
 } from '../types';
 import { db } from '../lib/firebase';
 import { 
@@ -891,4 +893,184 @@ export async function seedStoreToFirestore() {
   } catch (e) {
     console.warn('Failed seeding store to firestore:', e);
   }
+}
+
+// Sample Initial Orders
+export const DEFAULT_STORE_ORDERS: StoreOrder[] = [
+  {
+    id: 'ord-1001',
+    orderNumber: 'ORD-2026-1001',
+    customerName: 'Amit Kumar',
+    customerEmail: 'amit.kumar@gmail.com',
+    customerPhone: '9876543210',
+    studentRollNo: '1002',
+    items: [
+      {
+        productId: 'prod-book-rd-sharma-10',
+        productTitle: 'Class 10 RD Sharma Mathematics (Latest Edition 2026–27)',
+        quantity: 1,
+        unitPrice: 499,
+        totalPrice: 499,
+        featuredImage: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&q=80&w=800'
+      }
+    ],
+    totalAmount: 499,
+    paymentStatus: 'PAID',
+    orderStatus: 'PROCESSING',
+    deliveryAddress: 'House #42, Civil Lines, Kanpur, UP',
+    notes: 'Please handover directly to student during evening batch.',
+    createdAt: '2026-07-28T14:20:00Z',
+    updatedAt: '2026-07-28T14:20:00Z'
+  },
+  {
+    id: 'ord-1002',
+    orderNumber: 'ORD-2026-1002',
+    customerName: 'Sunita Verma',
+    customerEmail: 'sunita.v@gmail.com',
+    customerPhone: '9812345678',
+    studentRollNo: '1015',
+    items: [
+      {
+        productId: 'prod-book-arihant-all-in-one-10',
+        productTitle: 'Class 10 Arihant All In One Science CBSE (2026 Exam)',
+        quantity: 1,
+        unitPrice: 380,
+        totalPrice: 380,
+        featuredImage: 'https://images.unsplash.com/photo-1532012197267-da84d127e765?auto=format&fit=crop&q=80&w=800'
+      }
+    ],
+    totalAmount: 380,
+    paymentStatus: 'PAID',
+    orderStatus: 'SHIPPED',
+    deliveryAddress: 'Flat 302, Green Valley Apartments, Kanpur, UP',
+    notes: 'Express delivery required for upcoming weekly test.',
+    createdAt: '2026-07-29T10:15:00Z',
+    updatedAt: '2026-07-30T11:00:00Z'
+  },
+  {
+    id: 'ord-1003',
+    orderNumber: 'ORD-2026-1003',
+    customerName: 'Rajesh Patel',
+    customerEmail: 'rajesh.patel@yahoo.com',
+    customerPhone: '9988776655',
+    studentRollNo: '1008',
+    items: [
+      {
+        productId: 'prod-book-s-chand-physics-9',
+        productTitle: 'Class 9 Physics Foundation for Olympiad & NTSE by S. Chand',
+        quantity: 1,
+        unitPrice: 320,
+        totalPrice: 320,
+        featuredImage: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80&w=800'
+      }
+    ],
+    totalAmount: 320,
+    paymentStatus: 'PENDING',
+    orderStatus: 'NEW',
+    deliveryAddress: 'Shop No 12, Main Market, Kanpur, UP',
+    notes: 'Cash payment pending at institute reception.',
+    createdAt: '2026-07-31T16:45:00Z',
+    updatedAt: '2026-07-31T16:45:00Z'
+  }
+];
+
+const STORE_ORDERS_KEY = 'sunshine_store_orders_v1';
+
+export function getLocalStoreOrders(): StoreOrder[] {
+  try {
+    const raw = localStorage.getItem(STORE_ORDERS_KEY);
+    if (!raw) {
+      localStorage.setItem(STORE_ORDERS_KEY, JSON.stringify(DEFAULT_STORE_ORDERS));
+      return DEFAULT_STORE_ORDERS;
+    }
+    return JSON.parse(raw);
+  } catch (e) {
+    return DEFAULT_STORE_ORDERS;
+  }
+}
+
+export function saveLocalStoreOrders(orders: StoreOrder[]): void {
+  try {
+    localStorage.setItem(STORE_ORDERS_KEY, JSON.stringify(orders));
+  } catch (e) {
+    console.warn('Failed saving local store orders:', e);
+  }
+}
+
+export function subscribeStoreOrders(onUpdate: (orders: StoreOrder[]) => void) {
+  const local = getLocalStoreOrders();
+  onUpdate(local);
+
+  try {
+    const q = collection(db, 'store_orders');
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        const remoteOrders: StoreOrder[] = snapshot.docs.map(docSnap => ({
+          id: docSnap.id,
+          ...docSnap.data()
+        } as StoreOrder));
+        saveLocalStoreOrders(remoteOrders);
+        onUpdate(remoteOrders);
+      }
+    }, (err) => {
+      console.warn('Firestore store_orders fallback to local storage:', err.message);
+    });
+
+    return unsubscribe;
+  } catch (e) {
+    return () => {};
+  }
+}
+
+export async function createStoreOrder(orderData: Omit<StoreOrder, 'id' | 'createdAt' | 'updatedAt'>): Promise<StoreOrder> {
+  const orders = getLocalStoreOrders();
+  const id = `ord-${Date.now()}`;
+  const now = new Date().toISOString();
+  const newOrder: StoreOrder = {
+    ...orderData,
+    id,
+    createdAt: now,
+    updatedAt: now
+  };
+  const updatedOrders = [newOrder, ...orders];
+  saveLocalStoreOrders(updatedOrders);
+
+  try {
+    await setDoc(doc(db, 'store_orders', id), newOrder);
+  } catch (e) {
+    console.warn('Failed saving store order to firestore:', e);
+  }
+
+  return newOrder;
+}
+
+export async function updateStoreOrderStatus(
+  orderId: string, 
+  orderStatus?: StoreOrder['orderStatus'], 
+  paymentStatus?: StoreOrder['paymentStatus']
+): Promise<StoreOrder[]> {
+  const orders = getLocalStoreOrders();
+  const updated = orders.map(ord => {
+    if (ord.id === orderId) {
+      return {
+        ...ord,
+        ...(orderStatus ? { orderStatus } : {}),
+        ...(paymentStatus ? { paymentStatus } : {}),
+        updatedAt: new Date().toISOString()
+      };
+    }
+    return ord;
+  });
+  saveLocalStoreOrders(updated);
+
+  try {
+    const updates: Partial<StoreOrder> = { updatedAt: new Date().toISOString() };
+    if (orderStatus) updates.orderStatus = orderStatus;
+    if (paymentStatus) updates.paymentStatus = paymentStatus;
+    await updateDoc(doc(db, 'store_orders', orderId), updates);
+  } catch (e) {
+    console.warn('Failed updating store order status in firestore:', e);
+  }
+
+  return updated;
 }

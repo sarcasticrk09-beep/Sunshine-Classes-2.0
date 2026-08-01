@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { UNIVERSAL_COURSES, getCourseBySlug } from '../data/coursesData';
 
 // Type definitions for Analytics events
 interface TrackEventParams {
@@ -79,6 +80,18 @@ export function SEOHead() {
 
   // Route-specific SEO profiles
   const getSEOConfig = (pathname: string) => {
+    if (pathname.startsWith('/courses/class-')) {
+      const slug = pathname.replace('/courses/', '');
+      const course = getCourseBySlug(slug);
+      if (course) {
+        return {
+          title: `${course.metaTitle}`,
+          description: `${course.metaDescription}`,
+          keywords: `${course.className} Coaching Pihani, ${course.className} Tuition, ${course.badge} Pihani, Sunshine Classes`
+        };
+      }
+    }
+
     switch (pathname) {
       case '/about':
         return {
@@ -89,38 +102,8 @@ export function SEOHead() {
       case '/courses':
         return {
           title: "Tuition Directory & Coaching Programs in Pihani | Sunshine Classes",
-          description: "Explore active classroom tuition programs for Class 6 to Class 10 at Sunshine Classes Pihani. Transparent monthly fees, NCERT mapping, weekly tests, and expert faculty.",
-          keywords: "Classes 6-10 Coaching, Math Coaching Pihani, Science Coaching Pihani, Tuition Directory, Board Preparation Pihani, CBSE UP Board Hardoi"
-        };
-      case '/courses/class-6':
-        return {
-          title: "Class 6 Tuition & Junior Foundation Coaching in Pihani | Sunshine Classes",
-          description: "Enroll in Class 6 Junior Foundation program at Sunshine Classes Pihani. ₹600/month fee, patient teachers, small batch size, NCERT Math, Science & Grammar. Call 8707738284.",
-          keywords: "Class 6 Coaching Pihani, Class 6 Tuition, Junior Foundation Pihani, Math Science Grammar Class 6"
-        };
-      case '/courses/class-7':
-        return {
-          title: "Class 7 Tuitions & Middle School Coaching in Pihani | Sunshine Classes",
-          description: "Class 7 coaching classes in Pihani at Sunshine Classes. ₹700/month fee, strong foundational learning in Maths, Science & Grammar. Call 8707738284.",
-          keywords: "Class 7 Tuition Pihani, Middle School Coaching, Math Science English Class 7, Sunshine Classes"
-        };
-      case '/courses/class-8':
-        return {
-          title: "Class 8 Coaching & High School Prep in Pihani | Sunshine Classes",
-          description: "Enroll in Class 8 Apex Learning tuition at Sunshine Classes Pihani. ₹800/month fee, expert teachers for Math, Science & English. Call 8707738284.",
-          keywords: "Class 8 Tuition Pihani, High School Prep Class 8, Apex Learning Pihani, Best Coaching Class 8"
-        };
-      case '/courses/class-9':
-        return {
-          title: "Class 9 Board Foundation & Science/Maths Coaching in Pihani | Sunshine Classes",
-          description: "Join Class 9 Board Foundation program at Sunshine Classes Pihani. ₹1,000/month fee, expert Physics, Chemistry & Math coaching, regular tests. Call 8707738284.",
-          keywords: "Class 9 Coaching Pihani, Class 9 Board Foundation, Physics Chemistry Math Class 9, CBSE UP Board"
-        };
-      case '/courses/class-10':
-        return {
-          title: "CBSE & UP Board Class 10 Specialist Coaching in Pihani | Sunshine Classes",
-          description: "Enroll in Class 10 Board Specialist tuition at Sunshine Classes Pihani. ₹1,200/mo fee, 100% NCERT mastery, solved PYQs, weekly mock tests & top faculty. Call 8707738284.",
-          keywords: "Class 10 Board Coaching Pihani, Class 10 CBSE UP Board Tuition, Board Exam Specialist Pihani, Best High School Coaching"
+          description: "Explore active classroom tuition programs for Class 1 to Class 10 at Sunshine Classes Pihani. Transparent monthly fees (Class 1-4: ₹500/mo, Class 5-8: ₹700/mo, Class 9: ₹1,000/mo, Class 10: ₹1,200/mo), NCERT mapping, weekly tests, and expert faculty.",
+          keywords: "Classes 1-10 Coaching, Math Coaching Pihani, Science Coaching Pihani, Tuition Directory, Board Preparation Pihani, CBSE UP Board Hardoi"
         };
       case '/enroll':
       case '/admissions':

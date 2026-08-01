@@ -64,8 +64,11 @@ import {
   Crown,
   Lock,
   QrCode,
-  ShoppingBag
+  ShoppingBag,
+  Globe,
+  HelpCircle
 } from 'lucide-react';
+import { ContentStudio } from './ContentStudio';
 import { Student, Teacher, User, UserRole, UserAccountStatus, Course, Batch, ClassEntity, ClassTiming, TimingSlotLabel, Topper, StudyMaterial, FounderMember, FeeStatus, FeeReceipt, AuditLog, AppNotification, StudentSubscription, SubscriptionPayment, SubscriptionReceipt, SubscriptionNotification, SubscriptionConfig, Admission, Attendance, Test, StudentMark, Homework, HomeworkSubmission, BlogPost, Testimonial, GalleryItem, Inquiry, TimetableEntry, EmailTemplatesConfig, WhatsAppTemplatesConfig, DepartedStudent, EmailLog, UPIPayment } from '../types';
 import { interpolateTemplate, getFeeForClass } from '../data';
 import { sendWhatsAppMessage, interpolateWhatsAppTemplate } from '../lib/whatsappService';
@@ -246,7 +249,23 @@ export default function AdminDashboard({
   onResendReceiptEmail,
   onUpdateUsers
 } : AdminDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'admissions' | 'students' | 'teachers' | 'batches' | 'announcements' | 'website' | 'audit' | 'settings' | 'fees' | 'diagnostics' | 'whatsapp' | 'sheets' | 'roles' | 'founder-office' | 'cofounder-office' | 'auth-logs' | 'finance-reports' | 'study-material-cms' | 'sunshine-store'>('overview');
+  const [activeTab, setActiveTab] = useState<string>('overview');
+  const [contentSubTab, setContentSubTab] = useState<'homepage' | 'courses' | 'products' | 'faculty' | 'results' | 'resources' | 'testimonials' | 'gallery' | 'faqs' | 'announcements'>('homepage');
+
+  // CMS Content Local States (Testimonials, Gallery, FAQs)
+  const [localTestimonials, setLocalTestimonials] = useState<Testimonial[]>(testimonials || []);
+  const [localGallery, setLocalGallery] = useState<GalleryItem[]>(gallery || []);
+  const [showTestimonialForm, setShowTestimonialForm] = useState(false);
+  const [editingTestimonial, setEditingTestimonial] = useState<Testimonial | null>(null);
+  const [showGalleryForm, setShowGalleryForm] = useState(false);
+  const [editingGalleryItem, setEditingGalleryItem] = useState<GalleryItem | null>(null);
+  const [faqs, setFaqs] = useState<Array<{ id: string; question: string; answer: string; category: string }>>([
+    { id: 'faq-1', question: 'What classes are taught at Sunshine Classes Pihani?', answer: 'We offer specialized offline classroom coaching from Class 1 to Class 10.', category: 'Admissions' },
+    { id: 'faq-2', question: 'What are the monthly fees for each class group?', answer: 'Monthly fees are transparently fixed: Class 1–4 is ₹500/mo, Class 5–8 is ₹700/mo, Class 9 is ₹1,000/mo, and Class 10 is ₹1,200/mo.', category: 'Fees' },
+    { id: 'faq-3', question: 'Do you offer free trial or demo classes?', answer: 'Yes! We offer a 3-day free demo class trial for all prospective students.', category: 'Classes' }
+  ]);
+  const [showFaqForm, setShowFaqForm] = useState(false);
+  const [editingFaq, setEditingFaq] = useState<{ id: string; question: string; answer: string; category: string } | null>(null);
   const [isPurging, setIsPurging] = useState(false);
   const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
   const [dashboardSession, setDashboardSession] = useState('2026-27');
@@ -6073,34 +6092,19 @@ ${data.log}`
         const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
         const isAdmin = currentUser?.role === 'ADMIN';
         const allTabs = [
-          { id: 'overview', label: 'Admin Operations Overview', icon: <Activity size={16} />, category: 'Dashboard' },
-          { id: 'students', label: `Students (${students.length})`, icon: <Users size={16} />, category: 'Students' },
-          
-          { id: 'fees', label: 'Fee Management', icon: <DollarSign size={16} />, category: 'Finance' },
-          { id: 'upi-verification', label: `Fee Payment Verification (${upiPayments.filter(p => p.status === 'PENDING_VERIFICATION').length})`, icon: <CheckSquare size={16} />, category: 'Finance' },
-          { id: 'finance-reports', label: 'Finance Reports', icon: <TrendingUp size={16} className="text-emerald-600 font-bold" />, category: 'Finance' },
-          
-          { id: 'teachers', label: 'Faculty Directory', icon: <BookOpen size={16} />, category: 'Academics' },
-          { id: 'batches', label: 'Classes & Timings', icon: <Calendar size={16} />, category: 'Academics' },
-          { id: 'study-material-cms', label: 'Study Material', icon: <FileText size={16} className="text-amber-500 font-bold" />, category: 'Academics' },
-          { id: 'announcements', label: 'Broadcast Announcements', icon: <Bell size={16} />, category: 'Academics' },
-          
-          { id: 'website', label: 'Website Management', icon: <Sparkles size={16} />, category: 'Website' },
-          { id: 'sunshine-store', label: 'Sunshine Store', icon: <ShoppingBag size={16} className="text-indigo-500 font-bold" />, category: 'Sunshine Store' },
-          
-          { id: 'whatsapp', label: 'WhatsApp Messaging', icon: <MessageSquare size={16} />, category: 'Communications' },
-          { id: 'gmail', label: 'Gmail Communications', icon: <Mail size={16} className="text-blue-500 font-bold" />, category: 'Communications' },
-          
-          { id: 'sheets', label: 'Google Sheets Sync', icon: <FileSpreadsheet size={16} className="text-emerald-600 animate-pulse" />, category: 'Integrations' },
-          
+          { id: 'overview', label: 'Dashboard Overview', icon: <Activity size={16} />, category: 'Core Operations' },
+          { id: 'content', label: 'Content (CMS)', icon: <Sparkles size={16} className="text-amber-500 font-bold" />, category: 'Core Operations' },
+          { id: 'admissions', label: 'Admissions Applications', icon: <UserPlus size={16} className="text-indigo-500 font-bold" />, category: 'Core Operations' },
+          { id: 'students', label: `Student Directory (${students.length})`, icon: <Users size={16} />, category: 'Core Operations' },
+          { id: 'orders', label: `Orders & Payments (${upiPayments.filter(p => p.status === 'PENDING_VERIFICATION').length})`, icon: <ShoppingBag size={16} className="text-emerald-600 font-bold" />, category: 'Core Operations' },
+          { id: 'settings', label: 'System Settings', icon: <Settings size={16} />, category: 'Core Operations' },
+          { id: 'media', label: 'Media Library', icon: <UploadCloud size={16} className="text-blue-500 font-bold" />, category: 'Core Operations' },
+
+          { id: 'fees', label: 'Fee Management', icon: <DollarSign size={16} />, category: 'Finance & Academics' },
+          { id: 'teachers', label: 'Faculty Directory', icon: <BookOpen size={16} />, category: 'Finance & Academics' },
+          { id: 'batches', label: 'Classes & Timings', icon: <Calendar size={16} />, category: 'Finance & Academics' },
           { id: 'founder-office', label: "Founder's Executive Office", icon: <Crown size={16} className="text-amber-500 font-bold" />, category: 'Executive Suite' },
-          { id: 'cofounder-office', label: "Co-Founder's Workspace", icon: <Award size={16} className="text-indigo-500 font-bold" />, category: 'Executive Suite' },
-          
-          { id: 'roles', label: 'Users & Access', icon: <Shield size={16} className="text-indigo-600 font-bold" />, category: 'Administration' },
-          { id: 'auth-logs', label: 'Authentication Logs', icon: <Lock size={16} className="text-amber-600 font-bold" />, category: 'Administration' },
-          { id: 'audit', label: 'Audit & System Logs', icon: <FileText size={16} />, category: 'Administration' },
-          { id: 'diagnostics', label: 'System Diagnostics', icon: <Shield size={16} className="text-emerald-500" />, category: 'Administration' },
-          { id: 'settings', label: 'System Settings & Backup', icon: <Settings size={16} />, category: 'Administration' }
+          { id: 'cofounder-office', label: "Co-Founder's Workspace", icon: <Award size={16} className="text-indigo-500 font-bold" />, category: 'Executive Suite' }
         ] as const;
 
         const tabsList = allTabs.filter(tab => {
@@ -6108,10 +6112,10 @@ ${data.log}`
             return true;
           }
           if (isAdmin) {
-            const allowedAdminTabs = ['overview', 'admissions', 'students', 'fees', 'upi-verification', 'teachers', 'batches', 'study-material-cms', 'sunshine-store', 'announcements', 'cofounder-office', 'auth-logs', 'gmail', 'finance-reports', 'website'];
+            const allowedAdminTabs = ['overview', 'content', 'admissions', 'students', 'orders', 'media', 'settings', 'fees', 'teachers', 'batches', 'cofounder-office'];
             return allowedAdminTabs.includes(tab.id);
           }
-          const allowedAdminTabs = ['overview', 'admissions', 'students', 'fees', 'upi-verification', 'teachers', 'batches', 'study-material-cms', 'sunshine-store', 'announcements', 'gmail', 'finance-reports', 'website'];
+          const allowedAdminTabs = ['overview', 'content', 'admissions', 'students', 'orders', 'media', 'settings', 'fees', 'teachers', 'batches'];
           return allowedAdminTabs.includes(tab.id);
         });
 
@@ -6320,6 +6324,99 @@ ${data.log}`
           {/* TAB: ADMISSIONS */}
           {activeTab === 'admissions' && (
             <AdmissionsModule />
+          )}
+
+          {/* TAB: UNIFIED CONTENT MANAGEMENT HUB (CONTENT STUDIO) */}
+          {(activeTab === 'content' || activeTab === 'website' || activeTab === 'study-material-cms' || activeTab === 'sunshine-store') && (
+            <ContentStudio
+              studyMaterials={studyMaterials}
+              blogs={blogs}
+              testimonials={localTestimonials}
+              onUpdateTestimonials={setLocalTestimonials}
+              gallery={localGallery}
+              onUpdateGallery={setLocalGallery}
+              founders={founders}
+              toppers={toppers}
+              classes={classes}
+              onUpdateClasses={onUpdateClasses}
+              auditLogs={auditLogs}
+              currentUser={currentUser}
+              initialModule={
+                contentSubTab === 'homepage' ? 'homepage' :
+                contentSubTab === 'courses' ? 'courses' :
+                contentSubTab === 'products' ? 'products' :
+                contentSubTab === 'faculty' ? 'faculty' :
+                contentSubTab === 'results' ? 'results' :
+                contentSubTab === 'resources' ? 'resources' :
+                contentSubTab === 'testimonials' ? 'testimonials' :
+                contentSubTab === 'gallery' ? 'gallery' :
+                contentSubTab === 'faqs' ? 'faqs' :
+                contentSubTab === 'announcements' ? 'announcements' : 'homepage'
+              }
+            />
+          )}
+
+          {/* TAB: MEDIA LIBRARY */}
+          {activeTab === 'media' && (
+            <ContentStudio
+              initialModule="media"
+              currentUser={currentUser}
+              auditLogs={auditLogs}
+            />
+          )}
+
+          {/* TAB: ORDERS & PAYMENT VERIFICATIONS */}
+          {activeTab === 'orders' && (
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h3 className="font-display font-black text-base text-slate-800 mb-1">Orders & Fee UPI Payment Verifications</h3>
+                <p className="text-xs text-slate-500 mb-6">Review pending store product orders and UPI tuition fee payment receipts.</p>
+
+                <div className="flex gap-2 mb-6 border-b border-slate-100 pb-3">
+                  <button
+                    onClick={() => setFeeSubTab('upi-verification')}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      feeSubTab === 'upi-verification' ? 'bg-indigo-900 text-white' : 'bg-slate-50 text-slate-600 border border-slate-200'
+                    }`}
+                  >
+                    Fee UPI Verifications ({upiPayments.filter(p => p.status === 'PENDING_VERIFICATION').length})
+                  </button>
+                  <button
+                    onClick={() => setFeeSubTab('payment-history')}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      feeSubTab === 'payment-history' ? 'bg-indigo-900 text-white' : 'bg-slate-50 text-slate-600 border border-slate-200'
+                    }`}
+                  >
+                    Sunshine Store Orders
+                  </button>
+                </div>
+
+                {feeSubTab === 'upi-verification' && (
+                  <div className="space-y-4">
+                    {upiPayments.length === 0 ? (
+                      <p className="text-xs text-slate-500 py-6 text-center">No pending UPI verification payments in queue.</p>
+                    ) : (
+                      <div className="divide-y divide-slate-100">
+                        {upiPayments.map((p) => (
+                          <div key={p.id} className="py-3 flex justify-between items-center text-xs">
+                            <div>
+                              <span className="font-bold text-slate-800">{p.studentName}</span>
+                              <span className="text-slate-400 ml-2">({p.utr})</span>
+                              <p className="text-[10px] text-slate-500">₹{p.amount} • {p.month}</p>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${p.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{p.status}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {feeSubTab === 'payment-history' && (
+                  <SunshineStoreAdmin currentUser={currentUser} />
+                )}
+              </div>
+            </div>
           )}
 
           {/* TAB 1: OVERVIEW */}
@@ -11991,16 +12088,6 @@ ${data.log}`
                 </div>
               </div>
             </div>
-          )}
-
-          {/* TAB: STUDY MATERIAL CMS (CM-001) */}
-          {activeTab === 'study-material-cms' && (
-            <StudyMaterialCMS currentUser={currentUser} />
-          )}
-
-          {/* TAB: SUNSHINE STORE (SS-001) */}
-          {activeTab === 'sunshine-store' && (
-            <SunshineStoreAdmin currentUser={currentUser} />
           )}
 
           {/* TAB 5: AUDIT LOGS */}

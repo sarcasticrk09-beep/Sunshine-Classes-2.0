@@ -4,6 +4,7 @@
  */
 
 import { Student, FeeStatus, FeeReceipt } from '../types';
+import { UNIVERSAL_COURSES } from '../data/coursesData';
 
 // Parse "Month Year" string into a sequential value for comparisons (e.g. "July 2026" -> val: 24319)
 export const parseMonthYear = (monthYearStr: string) => {
@@ -45,12 +46,24 @@ export const getDueDateForMonth = (monthYearStr: string, dueDay: number) => {
 
 // Get default monthly fee based on class name
 export const getDefaultMonthlyFeeForClass = (classStr: string): number => {
-  const normalized = (classStr || '').toLowerCase();
-  if (normalized.includes('10')) return 1200;
-  if (normalized.includes('9')) return 1000;
-  if (normalized.includes('5') || normalized.includes('6') || normalized.includes('7') || normalized.includes('8')) return 700;
-  if (normalized.includes('1') || normalized.includes('2') || normalized.includes('3') || normalized.includes('4')) return 500;
-  return 1200; // fallback
+  const normalized = (classStr || '').trim().toLowerCase();
+  const matched = UNIVERSAL_COURSES.find(c => 
+    c.className.toLowerCase() === normalized ||
+    c.id.toLowerCase() === normalized ||
+    c.slug.toLowerCase() === normalized
+  );
+  if (matched) return matched.monthlyFee;
+
+  // Fallback parsing via regex for class numbers
+  const numMatch = normalized.match(/\b(10|[1-9])\b/);
+  if (numMatch) {
+    const num = parseInt(numMatch[1], 10);
+    if (num >= 1 && num <= 4) return 500;
+    if (num >= 5 && num <= 8) return 700;
+    if (num === 9) return 1000;
+    if (num === 10) return 1200;
+  }
+  return 1200; // fallback default
 };
 
 // Migrate individual student billing configurations

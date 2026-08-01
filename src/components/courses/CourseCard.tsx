@@ -121,7 +121,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
           id={`btn-explore-${course.slug}`}
           type="button"
           onClick={handleCardClick}
-          className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 flex items-center gap-1 transition-colors group-hover:translate-x-1 duration-200 cursor-pointer"
+          className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 flex items-center gap-1.5 transition-all duration-200 group-hover:translate-x-1 cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-amber-400 rounded-lg px-2 py-1"
         >
           <span>Explore Class</span>
           <ArrowRight size={14} />
@@ -131,7 +131,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
           id={`btn-enroll-card-${course.slug}`}
           type="button"
           onClick={handleEnrollClick}
-          className="px-3.5 py-1.5 rounded-xl bg-indigo-950 dark:bg-amber-500 hover:bg-indigo-900 dark:hover:bg-amber-600 text-white dark:text-slate-950 font-bold text-xs shadow-xs hover:shadow-md transition-all cursor-pointer"
+          className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-xs hover:shadow-md transition-all duration-200 active:scale-[0.98] cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-amber-400 shrink-0"
         >
           Enroll Now
         </button>
