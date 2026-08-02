@@ -34,6 +34,7 @@ import {
   SubscriptionConfig,
   TimetableEntry,
   FounderMember,
+  InstituteStrength,
   EmailTemplatesConfig,
   WhatsAppTemplatesConfig,
   BatchBulletinPost,
@@ -73,6 +74,7 @@ import {
   SEED_SUBSCRIPTION_CONFIG,
   SEED_TIMETABLE,
   SEED_FOUNDERS,
+  SEED_INSTITUTE_STRENGTHS,
   SEED_EMAIL_TEMPLATES,
   SEED_WHATSAPP_TEMPLATES,
   SEED_BATCH_BULLETINS,
@@ -116,7 +118,7 @@ import {
 } from './hooks/useCollectionListener';
 import { initializeAndSeedFirestore, forceResetDatabase } from './services/initDbService';
 
-import { LogIn, Shield, Users, BookOpen, UserCheck, Key, LogOut, X, Sun, Moon, Eye, EyeOff, Cloud, CloudOff, RefreshCw, Bell, BellRing, Check, CheckCheck, AlertCircle, Mail, MessageSquare, Crown } from 'lucide-react';
+import { LogIn, Shield, Users, BookOpen, UserCheck, Key, LogOut, X, Sun, Moon, Eye, EyeOff, Cloud, CloudOff, RefreshCw, Bell, BellRing, Check, CheckCheck, AlertCircle, Mail, MessageSquare, Crown, Share2, MessageCircle, Copy } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export function simpleSecureHash(password: string): string {
@@ -270,6 +272,8 @@ export default function App() {
   // State for the stunning brand introduction splash screen/preloader
   const [showSplash, setShowSplash] = useState(true);
   const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copiedShareLink, setCopiedShareLink] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -518,29 +522,54 @@ export default function App() {
   const [submissions, setSubmissions] = useState<HomeworkSubmission[]>(() => getOrSeedLocal('submissions', SEED_HOMEWORK_SUBMISSIONS));
   const [blogs, setBlogs] = useState<BlogPost[]>(() => getOrSeedLocal('blogs', SEED_BLOGS));
   const [testimonials, setTestimonials] = useState<Testimonial[]>(() => getOrSeedLocal('testimonials', SEED_TESTIMONIALS));
-  const [toppers, setToppers] = useState<Topper[]>(() => getOrSeedLocal('toppers', SEED_TOPPERS));
+  const [toppers, setToppers] = useState<Topper[]>(() => {
+    const raw = getOrSeedLocal('toppers', SEED_TOPPERS);
+    if (!raw || raw.length === 0 || raw.some(t => t.name === 'Priya Mishra' || t.id === 'top1')) {
+      localStorage.setItem('sunshine_toppers', JSON.stringify(SEED_TOPPERS));
+      return SEED_TOPPERS;
+    }
+    return raw;
+  });
   const [studyMaterials, setStudyMaterials] = useState<StudyMaterial[]>(() => getOrSeedLocal('study_materials', SEED_STUDY_MATERIALS));
   const [founders, setFounders] = useState<FounderMember[]>(() => {
     const raw = getOrSeedLocal('founders', SEED_FOUNDERS);
     let changed = false;
     const migrated = raw.map(f => {
-      if (f.id === 'fm-shubham' || f.name.includes('Shubham')) {
+      if (f.id === 'fm-priyanshu' || f.name.includes('Priyanshu') || f.id === 'fm-shubham' || f.name.includes('Shubham')) {
         changed = true;
         return {
           ...f,
           id: 'fm-priyanshu',
           name: 'Priyanshu Gupta',
-          avatarInitials: 'PG'
+          title: 'Founder & Academic Director',
+          qualification: 'B.Sc. (Mathematics)',
+          message: 'Sunshine Classes was founded with a vision of making quality education accessible through conceptual learning, disciplined practice, and individual attention. Priyanshu Gupta leads the institute\'s academic direction, mentors students across all subjects, and personally oversees curriculum planning, revision programs, classroom standards, and board examination preparation. His strongest expertise lies in Mathematics and Science, and his focus is to help every student build confidence, analytical thinking, and long-term academic success.',
+          tuitionFocus: 'Mathematics & Science',
+          avatarInitials: 'PG',
+          isPrimary: true,
+          displayOrder: 1,
+          socials: {
+            instagram: 'https://www.instagram.com/sunshineclassespihani/'
+          }
         };
       }
-      if (f.id === 'fm-suresh' || (f.name.includes('Priyanshu') && f.title.includes('Co-Founder'))) {
+      if (f.id === 'fm-rajeev' || f.name.includes('Rajeev') || f.id === 'fm-suresh') {
         changed = true;
         return {
           ...f,
           id: 'fm-rajeev',
           name: 'Rajeev Kr. Verma',
-          title: 'Co-Founder & Senior Science Specialist',
-          avatarInitials: 'RV'
+          title: 'Co-Founder & Operations Lead',
+          qualification: 'B.Tech CSE',
+          message: 'Rajeev Kr. Verma manages the operational, technological, and digital growth initiatives of Sunshine Classes. He leads the development of the institute\'s website, ERP platform, admissions systems, and digital infrastructure while coordinating administrative processes, branding, strategic collaborations, and organizational development. His role is to build efficient systems that enhance the experience for students, parents, and staff while supporting the institute\'s long-term growth.',
+          tuitionFocus: '',
+          avatarInitials: 'RV',
+          isPrimary: false,
+          displayOrder: 2,
+          socials: {
+            linkedin: 'https://www.linkedin.com/in/rajeev-kumar-verma-2110a21b7/',
+            instagram: 'https://www.instagram.com/sarcastic._.rk/'
+          }
         };
       }
       return f;
@@ -550,6 +579,12 @@ export default function App() {
     }
     return migrated;
   });
+  const [instituteStrengths, setInstituteStrengths] = useState<InstituteStrength[]>(() => getOrSeedLocal('institute_strengths', SEED_INSTITUTE_STRENGTHS));
+
+  const handleUpdateInstituteStrengths = (newList: InstituteStrength[]) => {
+    handleHealState('institute_strengths', newList);
+    setInstituteStrengths(newList);
+  };
   const [gallery, setGallery] = useState<GalleryItem[]>(() => getOrSeedLocal('gallery', SEED_GALLERY));
   const [notifications, setNotifications] = useState<AppNotification[]>(() => getOrSeedLocal('notifications', SEED_NOTIFICATIONS));
   const [inquiries, setInquiries] = useState<Inquiry[]>(() => getOrSeedLocal('inquiries', SEED_INQUIRIES));
@@ -1367,6 +1402,14 @@ export default function App() {
       syncState('fee_statuses', migratedFeeStatuses);
     }
 
+    const finalToppers = (!loadedToppers || loadedToppers.length === 0 || loadedToppers.some(t => t.name === 'Priya Mishra' || t.id === 'top1' || t.name === 'Anuj Soni' || t.academicYear === '2025-2026' || (t.name === 'Zaina Siddiqui' && t.academicYear === '2024-2025'))) 
+      ? SEED_TOPPERS 
+      : loadedToppers;
+
+    if (finalToppers !== loadedToppers) {
+      syncState('toppers', SEED_TOPPERS);
+    }
+
     setStudents(migratedStudents);
     setTeachers(loadedTeachers);
     setUsers(migratedLoadedUsers);
@@ -1380,7 +1423,7 @@ export default function App() {
     setSubmissions(loadedSubmissions);
     setBlogs(loadedBlogs);
     setTestimonials(loadedTestimonials);
-    setToppers(loadedToppers);
+    setToppers(finalToppers);
     setStudyMaterials(loadedStudyMaterials);
     setFounders(migratedLoadedFounders);
     setGallery(loadedGallery);
@@ -3320,8 +3363,66 @@ Sunshine Classes`;
   };
 
   // Determine current active student context for dashboard
-  const currentStudentContext = students.find((s) => s.userId === currentUser?.id) || students[0];
+  const realStudent = students.find((s) => s.userId === currentUser?.id);
+  const currentStudentContext: Student = realStudent || (currentUser?.role === 'STUDENT' ? {
+    id: `std-pending-${currentUser.id}`,
+    userId: currentUser.id,
+    rollNo: 'SC-PENDING',
+    name: currentUser.name || 'New Student',
+    class: 'Class 10',
+    fatherName: currentUser.parentName || 'Parent / Guardian',
+    motherName: 'N/A',
+    dob: '2011-01-01',
+    gender: 'Male',
+    address: 'Pihani, Hardoi',
+    mobile: currentUser.phone || '0000000000',
+    whatsapp: currentUser.phone || '0000000000',
+    parentMobile: currentUser.parentMobile || currentUser.phone || '0000000000',
+    email: currentUser.email || '',
+    preferredBatch: 'Class 10 Morning Board Specialist',
+    preferredTiming: '07:00 AM - 09:00 AM',
+    admissionDate: new Date().toISOString().split('T')[0],
+    attendancePercentage: 0,
+    status: 'INACTIVE'
+  } : students[0]);
+
   const currentTeacherContext = teachers.find((t) => t.userId === currentUser?.id) || teachers[0];
+
+  const handleSubmitEnrollmentApplication = async (appData: Omit<Admission, 'id' | 'date'>) => {
+    const id = `SC2026-${String(admissions.length + 1).padStart(3, '0')}`;
+    const newAdm: Admission = {
+      ...appData,
+      id,
+      date: new Date().toISOString().split('T')[0],
+      status: 'PENDING'
+    };
+
+    const updatedAdmissions = [newAdm, ...admissions.filter(a => a.id !== id && a.userId !== appData.userId)];
+    setAdmissions(updatedAdmissions);
+    syncState('admissions', updatedAdmissions);
+
+    try {
+      await fetch('/api/admissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newAdm)
+      });
+    } catch (e) {
+      console.warn("Backend sync fallback:", e);
+    }
+
+    const newNotif: AppNotification = {
+      id: `notif-adm-${Date.now()}`,
+      title: 'New Student Enrollment Application',
+      content: `${newAdm.studentName} applied for ${newAdm.className} (${newAdm.preferredBatch || 'Regular Batch'})`,
+      category: 'ANNOUNCEMENT',
+      targetRole: 'ALL',
+      date: new Date().toISOString().split('T')[0],
+      isRead: false
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+    syncState('notifications', [newNotif, ...notifications]);
+  };
 
   if (cloudLoading) {
     return (
@@ -3369,14 +3470,80 @@ Sunshine Classes`;
     return (
       <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-3 px-4 shadow-sm transition-colors">
         <div className="mx-auto max-w-7xl flex justify-between items-center flex-wrap gap-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button 
               id="header-erp-logo-btn"
               onClick={() => navigate('/')} 
-              className="bg-transparent border-0 cursor-pointer p-0 text-left"
+              className="bg-transparent border-0 cursor-pointer p-0 text-left hover:opacity-90 transition-opacity"
+              title="Sunshine Classes ERP Portal Home"
             >
               <SunshineLogo size={36} showText={true} textSubTitle="Digital ERP Terminal" />
             </button>
+
+            {/* Share Portal Button */}
+            <div className="relative">
+              <button
+                type="button"
+                id="btn-share-portal"
+                onClick={() => setShowShareModal(!showShareModal)}
+                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200 dark:border-slate-700"
+                title="Share Sunshine Classes ERP Portal Link"
+              >
+                <Share2 size={14} className="text-brand-blue" />
+                <span className="hidden sm:inline">Share Portal</span>
+              </button>
+
+              <AnimatePresence>
+                {showShareModal && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={() => setShowShareModal(false)} 
+                    />
+                    <motion.div
+                      id="dropdown-share-portal"
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute left-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-2 z-50"
+                    >
+                      <div className="p-2 border-b border-slate-100 dark:border-slate-700 mb-1">
+                        <p className="text-xs font-extrabold text-slate-800 dark:text-slate-100">Share ERP Portal</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Sunshine Classes Pihani</p>
+                      </div>
+
+                      <a
+                        id="btn-share-whatsapp"
+                        href={`https://api.whatsapp.com/send?text=${encodeURIComponent("Access Sunshine Classes ERP Portal: " + window.location.origin)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setShowShareModal(false)}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-400 rounded-xl transition-colors cursor-pointer"
+                      >
+                        <MessageCircle size={16} className="text-emerald-600 shrink-0" />
+                        <span>Share via WhatsApp</span>
+                      </a>
+
+                      <button
+                        type="button"
+                        id="btn-share-copy"
+                        onClick={() => {
+                          navigator.clipboard.writeText(window.location.origin);
+                          setCopiedShareLink(true);
+                          setTimeout(() => setCopiedShareLink(false), 2500);
+                          setShowShareModal(false);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-brand-blue/10 hover:text-brand-blue rounded-xl transition-colors cursor-pointer"
+                      >
+                        {copiedShareLink ? <Check size={16} className="text-emerald-600 shrink-0" /> : <Copy size={16} className="text-brand-blue shrink-0" />}
+                        <span>{copiedShareLink ? 'Link Copied!' : 'Copy Portal Link'}</span>
+                      </button>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
 
           <div className="flex items-center gap-4">
@@ -3606,6 +3773,7 @@ Sunshine Classes`;
       theme={theme}
       onToggleTheme={toggleTheme}
       founders={founders}
+      strengths={instituteStrengths}
       subConfig={subConfig}
       onAddStudyMaterial={handleAddStudyMaterial}
     />
@@ -3699,12 +3867,15 @@ Sunshine Classes`;
           {/* Public Website Routes */}
           <Route path="/" element={landingPageElement} />
           <Route path="/about" element={landingPageElement} />
+          <Route path="/about/*" element={landingPageElement} />
+          <Route path="/faculty" element={landingPageElement} />
           <Route path="/courses" element={landingPageElement} />
           <Route path="/courses/*" element={landingPageElement} />
           <Route path="/enroll" element={landingPageElement} />
           <Route path="/admissions" element={landingPageElement} />
+          <Route path="/admissions/*" element={landingPageElement} />
           <Route path="/results" element={landingPageElement} />
-          <Route path="/resources" element={landingPageElement} />
+          <Route path="/results/*" element={landingPageElement} />
           <Route path="/gallery" element={landingPageElement} />
           <Route path="/contact" element={landingPageElement} />
 
@@ -3726,14 +3897,16 @@ Sunshine Classes`;
           {/* Receipt Online Verification Public Route */}
           <Route path="/verify/receipt/:receiptNumber" element={<ReceiptVerificationPage />} />
 
-          {/* Public Study Material CMS Portal */}
+          {/* Public Resources & Study Material CMS Portal */}
+          <Route path="/resources" element={<PublicStudyMaterialPage />} />
+          <Route path="/resources/*" element={<PublicStudyMaterialPage />} />
           <Route path="/study-material" element={<PublicStudyMaterialPage />} />
           <Route path="/study-material/*" element={<PublicStudyMaterialPage />} />
 
           {/* Sunshine Store Public Routes */}
           <Route path="/store" element={<PublicStorePage />} />
+          <Route path="/store/*" element={<PublicStorePage />} />
           <Route path="/books" element={<PublicStorePage initialType="Book" />} />
-          <Route path="/resources" element={<PublicStorePage initialType="Resource" />} />
           <Route path="/store/:slug" element={<PublicProductDetailsPage />} />
           <Route path="/books/:slug" element={<PublicProductDetailsPage expectedType="Book" />} />
           <Route path="/book/:slug" element={<PublicProductDetailsPage expectedType="Book" />} />
@@ -3742,6 +3915,8 @@ Sunshine Classes`;
 
           {/* Authentication Pages */}
           <Route path="/login" element={<Login onBackToWebsite={() => navigate('/')} />} />
+          <Route path="/login/student" element={<Login onBackToWebsite={() => navigate('/')} />} />
+          <Route path="/login/admin" element={<Login onBackToWebsite={() => navigate('/')} />} />
           <Route path="/student/login" element={<Login onBackToWebsite={() => navigate('/')} />} />
           <Route path="/admin/login" element={<Login onBackToWebsite={() => navigate('/')} />} />
 
@@ -3785,6 +3960,10 @@ Sunshine Classes`;
                       onAddBatchBulletinPost={handleAddBatchBulletinPost}
                       onDeleteBatchBulletinPost={handleDeleteBatchBulletinPost}
                       onMarkBulletinAsRead={handleMarkBulletinAsRead}
+                      admissions={admissions}
+                      onSubmitApplication={handleSubmitEnrollmentApplication}
+                      classes={classes}
+                      batches={batches}
                     />
                   ) : (
                     <div className="p-8 text-center text-xs text-slate-500 font-bold">Loading Student Context Profile...</div>

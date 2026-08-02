@@ -487,6 +487,106 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const registerStudentUser = async (details: {
+    name: string;
+    phone: string;
+    parentName: string;
+    parentMobile: string;
+    email?: string;
+    password: string;
+  }): Promise<User> => {
+    const cleanPhone = details.phone.trim();
+    const cleanName = details.name.trim();
+    const cleanParentName = details.parentName.trim();
+    const cleanParentMobile = details.parentMobile.trim();
+    const cleanEmail = (details.email || '').trim() || `${cleanPhone}@student.sunshineclasses.net`;
+    const cleanPassword = details.password.trim();
+
+    if (!cleanName || !cleanPhone || !cleanParentName || !cleanParentMobile || !cleanPassword) {
+      throw new Error("Please fill in all required fields (Name, Mobile, Parent Name, Parent Mobile, Password).");
+    }
+
+    if (cleanPhone.length < 10) {
+      throw new Error("Please enter a valid 10-digit mobile number.");
+    }
+
+    const userId = `u-std-${Date.now()}`;
+    const newUser: User = {
+      id: userId,
+      uid: userId,
+      username: cleanPhone,
+      name: cleanName,
+      email: cleanEmail,
+      phone: cleanPhone,
+      parentName: cleanParentName,
+      parentMobile: cleanParentMobile,
+      role: 'STUDENT',
+      password: cleanPassword,
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString()
+    };
+
+    if (isSupabaseConfigured) {
+      try {
+        const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+          email: cleanEmail,
+          password: cleanPassword,
+          options: {
+            data: {
+              name: cleanName,
+              phone: cleanPhone,
+              role: 'STUDENT'
+            }
+          }
+        });
+        if (signUpErr) console.warn("Supabase auth signUp notice:", signUpErr.message);
+        
+        await supabase.from('users').insert({
+          id: signUpData?.user?.id || userId,
+          username: cleanPhone,
+          name: cleanName,
+          email: cleanEmail,
+          phone: cleanPhone,
+          parent_name: cleanParentName,
+          parent_mobile: cleanParentMobile,
+          role: 'STUDENT',
+          status: 'ACTIVE'
+        });
+      } catch (err) {
+        console.warn("Supabase registration fallback:", err);
+      }
+    } else {
+      try {
+        const userDocRef = doc(db, 'users', userId);
+        await setDoc(userDocRef, {
+          id: userId,
+          username: cleanPhone,
+          name: cleanName,
+          email: cleanEmail,
+          phone: cleanPhone,
+          parentName: cleanParentName,
+          parentMobile: cleanParentMobile,
+          role: 'STUDENT',
+          status: 'ACTIVE',
+          createdAt: new Date().toISOString()
+        }, { merge: true });
+      } catch (err) {
+        console.warn("Firestore registration fallback:", err);
+      }
+    }
+
+    setCurrentUser(newUser);
+    setRole('STUDENT');
+
+    const sessionObj = { user: newUser, role: 'STUDENT' };
+    sessionStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
+    localStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
+
+    await writeAuditLog(userId, cleanPhone, 'STUDENT_REGISTER', `New student user ${cleanName} (${cleanPhone}) registered account.`);
+
+    return newUser;
+  };
+
   return (
     <AuthContext.Provider value={{
       currentUser,
@@ -494,6 +594,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       loading,
       googleLoading,
       login,
+      registerStudentUser,
       googleLogin,
       logout,
       changePassword,

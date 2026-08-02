@@ -7,6 +7,14 @@ export interface AuthContextType {
   googleLoading: boolean;
   role: UserRole | null;
   login: (emailOrUsername: string, password: string, remember: boolean) => Promise<{ success: boolean; mustChangePassword?: boolean }>;
+  registerStudentUser?: (details: {
+    name: string;
+    phone: string;
+    parentName: string;
+    parentMobile: string;
+    email?: string;
+    password: string;
+  }) => Promise<User>;
   logout: () => Promise<void>;
   googleLogin: () => Promise<boolean>;
   changePassword: (currentPassword: string, newPassword: string, confirmPassword?: string) => Promise<void>;

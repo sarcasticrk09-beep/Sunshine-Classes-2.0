@@ -1,7 +1,82 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { StoreProduct, StoreCategory, StoreProductType } from '../types';
 import { ProductCard } from '../components/ProductCard';
+import { SEOHead } from '../components/SEOHead';
+
+const getStoreRouteMeta = (pathname: string) => {
+  const p = pathname.toLowerCase();
+  if (p.includes('/store/books') || p === '/books') {
+    return {
+      title: 'NCERT & Reference Textbooks',
+      subtitle: 'Official NCERT textbooks, board reference books, and author study guides for Class 6 to 10.',
+      breadcrumbLabel: 'Books',
+      productType: 'Book' as StoreProductType,
+      categorySlugMatch: 'book',
+      seoTitle: 'NCERT & Reference Textbooks | Sunshine Store Pihani',
+      seoDesc: 'Order NCERT textbooks and reference study books for Sunshine Classes students.'
+    };
+  }
+  if (p.includes('/store/study-material')) {
+    return {
+      title: 'Printed Study Material & Note Kits',
+      subtitle: 'Spiral-bound physical study notes, formula books, and comprehensive subject kits.',
+      breadcrumbLabel: 'Printed Study Material',
+      productType: 'Resource' as StoreProductType,
+      categorySlugMatch: 'study',
+      seoTitle: 'Printed Study Notes & Kits | Sunshine Store Pihani',
+      seoDesc: 'Buy physical spiral-bound study notes and revision kits for Class 6-10.'
+    };
+  }
+  if (p.includes('/store/practice-papers')) {
+    return {
+      title: 'Printed Practice Papers & Mock Exams',
+      subtitle: 'Printed question paper sets, answer booklets, and sample exam test series.',
+      breadcrumbLabel: 'Practice Papers',
+      categorySlugMatch: 'paper',
+      seoTitle: 'Printed Mock Exam Sets & Test Series | Sunshine Store Pihani',
+      seoDesc: 'Order printed mock exam test series and sample question packages.'
+    };
+  }
+  if (p.includes('/store/notebooks')) {
+    return {
+      title: 'Spiral Notebooks & Practice Registers',
+      subtitle: 'High-quality 200+ page spiral notebooks, graph books, and daily practice registers.',
+      breadcrumbLabel: 'Notebooks & Registers',
+      categorySlugMatch: 'notebook',
+      seoTitle: 'Student Notebooks & Registers | Sunshine Store Pihani',
+      seoDesc: 'Buy durable spiral notebooks, registers, and graph practice pads.'
+    };
+  }
+  if (p.includes('/store/stationery')) {
+    return {
+      title: 'Stationery & Geometry Instruments',
+      subtitle: 'Gel pens, highlighters, mathematical geometry boxes, compasses, and drafting tools.',
+      breadcrumbLabel: 'Stationery',
+      categorySlugMatch: 'stationery',
+      seoTitle: 'Stationery & Geometry Kits | Sunshine Store Pihani',
+      seoDesc: 'Order stationery sets, geometry boxes, and exam writing pens.'
+    };
+  }
+  if (p.includes('/store/essentials')) {
+    return {
+      title: 'Student Desk Essentials & Timers',
+      subtitle: 'Study lamps, LED countdown timers, desk organizers, and ergonomic study accessories.',
+      breadcrumbLabel: 'Student Essentials',
+      categorySlugMatch: 'essential',
+      seoTitle: 'Student Desk Accessories & Study Lamps | Sunshine Store Pihani',
+      seoDesc: 'Buy study lamps, timer clocks, and student desk accessories.'
+    };
+  }
+  return {
+    title: 'Sunshine Store Catalog',
+    subtitle: 'Browse all recommended textbooks, printed study kits, stationery, and student essentials.',
+    breadcrumbLabel: 'All Products',
+    categorySlugMatch: 'ALL',
+    seoTitle: 'Sunshine Store | Books, Study Kits & Student Essentials',
+    seoDesc: 'Official Sunshine Classes store for textbooks, study notes, stationery, and practice books.'
+  };
+};
 import { 
   subscribeStoreProducts, 
   getLocalStoreCategories, 
@@ -36,6 +111,9 @@ interface PublicStorePageProps {
 
 export const PublicStorePage: React.FC<PublicStorePageProps> = ({ initialType }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const storeRouteMeta = useMemo(() => getStoreRouteMeta(location.pathname), [location.pathname]);
 
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [categories, setCategories] = useState<StoreCategory[]>([]);
@@ -94,8 +172,19 @@ export const PublicStorePage: React.FC<PublicStorePageProps> = ({ initialType })
   // Dynamic Filtering Logic
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
-      // Type filter if explicitly passed (e.g. /books vs /resources view)
-      if (initialType && p.type !== initialType) return false;
+      // Type filter if explicitly passed or configured in route meta
+      const requiredType = initialType || storeRouteMeta.productType;
+      if (requiredType && p.type !== requiredType) return false;
+
+      // Category slug matching from route meta
+      if (storeRouteMeta.categorySlugMatch && storeRouteMeta.categorySlugMatch !== 'ALL') {
+        const catMatch = storeRouteMeta.categorySlugMatch;
+        const matchesCategory = (p.categoryName || '').toLowerCase().includes(catMatch) || 
+                                (p.categoryId || '').toLowerCase().includes(catMatch) ||
+                                (p.title || '').toLowerCase().includes(catMatch) ||
+                                (p.tags || []).some(t => t.toLowerCase().includes(catMatch));
+        if (!matchesCategory) return false;
+      }
 
       // Search Query Match (Title, Subject, Publisher, Brand, Class, Keywords/Tags)
       if (searchQuery.trim()) {
@@ -203,15 +292,20 @@ export const PublicStorePage: React.FC<PublicStorePageProps> = ({ initialType })
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 py-8 px-4 sm:px-6 lg:px-8">
+      <SEOHead title={storeRouteMeta.seoTitle} description={storeRouteMeta.seoDesc} />
       <div className="max-w-7xl mx-auto space-y-8 sm:space-y-10">
         
         {/* Breadcrumb Navigation */}
         <nav className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
           <button onClick={() => navigate('/')} className="hover:text-amber-600 transition-colors cursor-pointer">Home</button>
           <ChevronRight size={14} />
-          <span className="text-slate-900 dark:text-white font-bold flex items-center gap-1.5">
+          <button onClick={() => navigate('/store')} className="hover:text-amber-600 transition-colors cursor-pointer flex items-center gap-1.5">
             <ShoppingBag size={14} className="text-amber-500" />
             <span>Sunshine Store</span>
+          </button>
+          <ChevronRight size={14} />
+          <span className="text-slate-900 dark:text-white font-bold">
+            {storeRouteMeta.breadcrumbLabel}
           </span>
         </nav>
 
@@ -226,14 +320,14 @@ export const PublicStorePage: React.FC<PublicStorePageProps> = ({ initialType })
             </div>
 
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-black font-display tracking-tight text-white leading-tight">
-              🛒 Sunshine Store
+              🛒 {storeRouteMeta.title}
             </h1>
             <p className="text-amber-400 font-bold text-base sm:text-lg font-display">
               "Everything a Student Needs, All in One Place."
             </p>
 
             <p className="text-slate-300 text-xs sm:text-sm leading-relaxed max-w-2xl">
-              Curated NCERT textbooks, board exam question banks, pocket formula booklets, geometry kits, and study desk essentials recommended by Sunshine Classes faculty.
+              {storeRouteMeta.subtitle}
             </p>
 
             <div className="flex flex-wrap items-center gap-3 pt-2 text-xs font-semibold text-slate-300">

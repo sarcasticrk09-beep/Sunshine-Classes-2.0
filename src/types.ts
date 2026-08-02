@@ -26,6 +26,8 @@ export interface User {
   mustChangePassword?: boolean;
   avatarUrl?: string;
   phone?: string;
+  parentName?: string;
+  parentMobile?: string;
   active?: boolean;
   status?: UserAccountStatus;
   isLocked?: boolean;
@@ -102,25 +104,43 @@ export interface Teacher {
 
 export interface Admission {
   id: string; // Generated Admission ID (e.g. SC-2026-001)
+  userId?: string;
   studentName: string;
   fatherName: string;
-  motherName: string;
+  motherName?: string;
   dob: string;
   gender: string;
   className: string;
   previousSchool?: string;
   mobile: string;
-  whatsapp: string;
+  whatsapp?: string;
   parentMobile: string;
-  email: string;
+  email?: string;
   address: string;
+  houseFlat?: string;
+  areaLocality?: string;
+  city?: string;
+  district?: string;
+  state?: string;
+  pincode?: string;
+  board?: string;
+  preferredStartMonth?: string;
+  paymentPlan?: 'Monthly' | 'Quarterly' | 'Yearly';
   aadhar?: string;
   photoUrl?: string;
   documentUrl?: string;
+  birthCertUrl?: string;
+  schoolIdUrl?: string;
+  marksheetUrl?: string;
   preferredBatch: string;
   preferredTiming: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  monthlyFee?: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'NEED_MORE_INFO';
+  rejectionReason?: string;
+  requestedChanges?: string;
+  adminNotes?: string;
   date: string;
+  updatedAt?: string;
 }
 
 export interface Course {
@@ -470,21 +490,50 @@ export interface Testimonial {
 export interface Topper {
   id: string;
   name: string;
-  score: string;
-  rank: string;
-  desc: string;
-  img: string;
+  photoUrl?: string;
+  img?: string; // Backward compatibility alias
+  percentage: string; // e.g. "98.4%"
+  score?: string; // Backward compatibility alias
+  studentClass: string; // e.g. "Class 10", "Class 12", "Class 8"
+  class?: string; // Backward compatibility alias
+  academicYear: string; // e.g. "2025-2026", "2024-2025"
+  year?: string; // Backward compatibility alias
+  board?: string; // e.g. "CBSE", "ICSE", "UP Board", "BSEB"
+  achievementCaption?: string; // Optional academic highlight e.g., "100/100 in Mathematics"
+  desc?: string; // Backward compatibility alias
+  displayOrder?: number;
+  isFeatured?: boolean;
+  status?: 'PUBLISHED' | 'DRAFT';
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface FounderMember {
   id: string;
   name: string;
   title: string;
-  qualification: string;
+  qualification?: string;
   message: string;
-  tuitionFocus: string;
-  avatarInitials: string;
+  tuitionFocus?: string;
+  avatarInitials?: string;
   photoUrl?: string;
+  isPrimary?: boolean;
+  displayOrder?: number;
+  status?: 'PUBLISHED' | 'DRAFT';
+  socials?: {
+    linkedin?: string;
+    instagram?: string;
+    twitter?: string;
+  };
+}
+
+export interface InstituteStrength {
+  id: string;
+  title: string;
+  description: string;
+  iconName: string;
+  badge?: string;
+  displayOrder?: number;
 }
 
 export type StudyMaterialType = 

@@ -22,7 +22,6 @@ import {
   Phone, 
   MessageSquare,
   School,
-  Download,
   Star
 } from 'lucide-react';
 import { UniversalCourse, UNIVERSAL_COURSES } from '../../data/coursesData';
@@ -46,18 +45,12 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<string>(course.subjectsDetailed[0]?.name || '');
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
-  const [syllabusDownloaded, setSyllabusDownloaded] = useState<boolean>(false);
 
   if (isLoading) {
     return <CourseDetailSkeleton />;
   }
 
   const relatedCourses = UNIVERSAL_COURSES.filter(c => c.slug !== course.slug);
-
-  const handleDownloadSyllabus = () => {
-    setSyllabusDownloaded(true);
-    setTimeout(() => setSyllabusDownloaded(false), 3000);
-  };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-16">
@@ -141,15 +134,6 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
                 >
                   <span>Enroll in {course.className} Batch</span>
                   <ArrowRight size={18} />
-                </button>
-
-                <button
-                  id={`btn-hero-syllabus-${course.slug}`}
-                  onClick={handleDownloadSyllabus}
-                  className="px-5 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 active:scale-[0.98] text-white font-bold text-xs border border-white/20 transition-all flex items-center gap-2 cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-amber-400"
-                >
-                  <Download size={16} className={syllabusDownloaded ? "text-emerald-400" : ""} />
-                  <span>{syllabusDownloaded ? "Syllabus Ready!" : "Download Class Syllabus"}</span>
                 </button>
               </div>
 

@@ -323,6 +323,25 @@ export default function AdmissionsModule() {
     }
   };
 
+  const handleRequestClarification = async (adm: AdmissionRecord, note: string) => {
+    try {
+      const updated = { ...adm, status: 'NEED_MORE_INFO', adminNotes: note };
+      const res = await fetch(`/api/admissions/${adm.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(updated)
+      });
+      if (res.ok) {
+        fetchAdmissions();
+      } else {
+        setAdmissions(prev => prev.map(a => a.id === adm.id ? (updated as any) : a));
+      }
+    } catch (err) {
+      setAdmissions(prev => prev.map(a => a.id === adm.id ? ({ ...a, status: 'NEED_MORE_INFO', adminNotes: note } as any) : a));
+    }
+  };
+
   // Approve Pending Admission
   const [approvingId, setApprovingId] = useState<string | null>(null);
 
@@ -544,18 +563,20 @@ Please change your password upon your first login at https://sunshineclasses.net
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             : adm.status === 'PENDING'
                             ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : adm.status === 'NEED_MORE_INFO'
+                            ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
                             : adm.status === 'WAITLISTED'
                             ? 'bg-purple-50 text-purple-700 border-purple-200'
                             : 'bg-rose-50 text-rose-700 border-rose-200'
                         }`}>
                           {isApproved && <CheckCircle2 className="w-3 h-3 text-emerald-600" />}
-                          {adm.status}
+                          {adm.status === 'NEED_MORE_INFO' ? 'NEED INFO' : adm.status}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {/* Approve Pending */}
-                          {canEdit && adm.status === 'PENDING' && (
+                          {canEdit && (adm.status === 'PENDING' || adm.status === 'NEED_MORE_INFO') && (
                             <button
                               id={`btn-approve-admission-${adm.id}`}
                               disabled={approvingId === adm.id}
@@ -565,6 +586,24 @@ Please change your password upon your first login at https://sunshineclasses.net
                             >
                               <CheckCircle2 className="w-3.5 h-3.5" />
                               {approvingId === adm.id ? 'Enrolling...' : 'Approve'}
+                            </button>
+                          )}
+
+                          {/* Request Info Button */}
+                          {canEdit && adm.status === 'PENDING' && (
+                            <button
+                              id={`btn-request-info-${adm.id}`}
+                              onClick={() => {
+                                const note = prompt("Enter note or details required from applicant:", "Please verify parent mobile and residential address.");
+                                if (note) {
+                                  handleRequestClarification(adm, note);
+                                }
+                              }}
+                              title="Request Clarification / More Info"
+                              className="px-2 py-1 text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-all cursor-pointer flex items-center gap-1"
+                            >
+                              <AlertCircle className="w-3.5 h-3.5" />
+                              <span>Need Info</span>
                             </button>
                           )}
 

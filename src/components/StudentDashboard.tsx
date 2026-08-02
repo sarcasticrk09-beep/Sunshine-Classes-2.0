@@ -15,6 +15,7 @@ import {
   Bell,
   User,
   CheckCircle,
+  CheckCircle2,
   Clock,
   ChevronRight,
   ChevronDown,
@@ -22,6 +23,8 @@ import {
   Award,
   QrCode,
   AlertTriangle,
+  AlertCircle,
+  GraduationCap,
   Wifi,
   WifiOff,
   Sparkles,
@@ -38,12 +41,13 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { simpleSecureHash } from '../auth/AuthProvider';
-import { Student, Attendance, FeeStatus, FeeReceipt, Test, StudentMark, Homework, HomeworkSubmission, AppNotification, StudentSubscription, SubscriptionPayment, SubscriptionReceipt, SubscriptionNotification, SubscriptionConfig, TimetableEntry, StudyMaterial, BatchBulletinPost, UPIPayment } from '../types';
+import { Student, Attendance, FeeStatus, FeeReceipt, Test, StudentMark, Homework, HomeworkSubmission, AppNotification, StudentSubscription, SubscriptionPayment, SubscriptionReceipt, SubscriptionNotification, SubscriptionConfig, TimetableEntry, StudyMaterial, BatchBulletinPost, UPIPayment, Admission, ClassEntity, Batch } from '../types';
 import SunshineLogo from './SunshineLogo';
 import { CloudinaryUpload } from './CloudinaryUpload';
 import { getFeeStatusForRecord } from '../lib/feeUtils';
 import { getPaymentProvider } from '../lib/paymentProviders';
 import { generateReceiptPdf, generatePaymentHistoryPdf } from '../lib/pdfGenerator';
+import { EnrollmentWizard } from './admissions/EnrollmentWizard';
 
 interface StudentDashboardProps {
   student: Student;
@@ -73,6 +77,10 @@ interface StudentDashboardProps {
   onAddBatchBulletinPost: (batchId: string, batchName: string, content: string) => void;
   onDeleteBatchBulletinPost: (postId: string) => void;
   onMarkBulletinAsRead: (postId: string, studentId: string, studentName: string) => void;
+  admissions?: Admission[];
+  onSubmitApplication?: (data: Omit<Admission, 'id' | 'date'>) => Promise<void>;
+  classes?: ClassEntity[];
+  batches?: Batch[];
 }
 
 export default function StudentDashboard({
@@ -102,9 +110,15 @@ export default function StudentDashboard({
   batchBulletins,
   onAddBatchBulletinPost,
   onDeleteBatchBulletinPost,
-  onMarkBulletinAsRead
+  onMarkBulletinAsRead,
+  admissions = [],
+  onSubmitApplication,
+  classes = [],
+  batches = []
 }: StudentDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'attendance' | 'fees' | 'performance' | 'homework' | 'study-material' | 'timetable' | 'notifications' | 'profile' | 'bulletin'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'applications' | 'attendance' | 'fees' | 'performance' | 'homework' | 'study-material' | 'timetable' | 'notifications' | 'profile' | 'bulletin'>('overview');
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [editingApplication, setEditingApplication] = useState<Admission | null>(null);
   const [isTabDropdownOpen, setIsTabDropdownOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<FeeReceipt | null>(null);
   const [selectedHomework, setSelectedHomework] = useState<Homework | null>(null);
@@ -785,7 +799,8 @@ export default function StudentDashboard({
             ).length;
 
             const tabsList = [
-              { id: 'overview', label: 'Dashboard Overview', icon: <FileText size={16} /> },
+              { id: 'overview', label: 'Dashboard Overview', icon: <GraduationCap size={16} /> },
+              { id: 'applications', label: 'Admission Status & Applications', icon: <FileText size={16} /> },
               { id: 'profile', label: 'My Student Profile', icon: <User size={16} /> },
               { id: 'attendance', label: `Attendance Log (${calculatedAttendancePct}%)`, icon: <Calendar size={16} /> },
               { id: 'fees', label: 'Tuition Fees & Receipts', icon: <CreditCard size={16} /> },
@@ -995,6 +1010,194 @@ export default function StudentDashboard({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25, ease: 'easeOut' }}
             >
+              {/* TAB: ADMISSION APPLICATIONS & WORKFLOW */}
+              {activeTab === 'applications' && (
+                <div className="space-y-6">
+                  {isWizardOpen ? (
+                    <EnrollmentWizard
+                      currentUser={currentUser}
+                      existingApplication={editingApplication}
+                      classes={classes}
+                      batches={batches}
+                      onSubmitApplication={async (data) => {
+                        if (onSubmitApplication) {
+                          await onSubmitApplication(data);
+                        }
+                        setIsWizardOpen(false);
+                        setEditingApplication(null);
+                      }}
+                      onCancel={() => {
+                        setIsWizardOpen(false);
+                        setEditingApplication(null);
+                      }}
+                      onSuccessNavigate={() => {
+                        setIsWizardOpen(false);
+                        setEditingApplication(null);
+                      }}
+                    />
+                  ) : (
+                    <div className="space-y-6">
+                      {/* Section Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                        <div>
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-blue/10 text-brand-blue rounded-full text-[10px] font-bold uppercase tracking-wider mb-2">
+                            <Sparkles size={12} />
+                            <span>ERP Enrollment Hub</span>
+                          </div>
+                          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Admission Applications & Status</h2>
+                          <p className="text-xs text-slate-500 font-medium mt-1">
+                            Track application progress, submit new course enrollments, or update requested information.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          id="btn-start-new-wizard"
+                          onClick={() => {
+                            setEditingApplication(null);
+                            setIsWizardOpen(true);
+                          }}
+                          className="px-5 py-3 bg-brand-blue hover:bg-brand-blue-hover text-white rounded-2xl font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer self-start sm:self-auto shrink-0"
+                        >
+                          <Sparkles size={16} />
+                          <span>+ Apply for New Course</span>
+                        </button>
+                      </div>
+
+                      {/* Applications List */}
+                      {(() => {
+                        const myApps = admissions.filter(
+                          a => a.userId === currentUser?.id || 
+                               a.mobile === currentUser?.phone || 
+                               a.mobile === student.mobile ||
+                               (a.studentName && currentUser?.name && a.studentName.toLowerCase() === currentUser.name.toLowerCase())
+                        );
+
+                        if (myApps.length === 0) {
+                          return (
+                            <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-8 text-center space-y-4">
+                              <div className="w-16 h-16 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center mx-auto">
+                                <FileText size={32} />
+                              </div>
+                              <div>
+                                <h3 className="text-lg font-extrabold text-slate-800">No Admission Applications Found</h3>
+                                <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 leading-relaxed">
+                                  You haven't submitted an online enrollment request yet. Click below to launch the step-by-step Enrollment Wizard.
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                id="btn-launch-enrollment-wizard-empty"
+                                onClick={() => {
+                                  setEditingApplication(null);
+                                  setIsWizardOpen(true);
+                                }}
+                                className="px-6 py-3 bg-brand-blue text-white rounded-xl font-extrabold text-xs shadow-md hover:bg-brand-blue-hover transition-all cursor-pointer inline-flex items-center gap-2"
+                              >
+                                <span>Start Enrollment Wizard Now →</span>
+                              </button>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="space-y-4">
+                            {myApps.map((app) => (
+                              <div key={app.id} className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm space-y-5">
+                                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">{app.id}</span>
+                                      <h3 className="text-base font-extrabold text-slate-800">{app.className} ({app.board || 'CBSE'})</h3>
+                                    </div>
+                                    <p className="text-xs text-slate-500 font-medium mt-1">
+                                      Applied on: <strong>{app.date}</strong> • Batch: <strong>{app.preferredBatch || 'Regular'}</strong>
+                                    </p>
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                    {app.status === 'PENDING' && (
+                                      <span className="px-3 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-xs font-extrabold flex items-center gap-1.5">
+                                        <Clock size={14} className="animate-spin text-amber-600" />
+                                        <span>Under Admin Review</span>
+                                      </span>
+                                    )}
+                                    {app.status === 'APPROVED' && (
+                                      <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-extrabold flex items-center gap-1.5">
+                                        <CheckCircle2 size={14} className="text-emerald-600" />
+                                        <span>Approved & ERP Active</span>
+                                      </span>
+                                    )}
+                                    {app.status === 'NEED_MORE_INFO' && (
+                                      <span className="px-3 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full text-xs font-extrabold flex items-center gap-1.5">
+                                        <AlertCircle size={14} className="text-indigo-600" />
+                                        <span>Action Required</span>
+                                      </span>
+                                    )}
+                                    {app.status === 'REJECTED' && (
+                                      <span className="px-3 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-full text-xs font-extrabold flex items-center gap-1.5">
+                                        <AlertTriangle size={14} className="text-rose-600" />
+                                        <span>Application Rejected</span>
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Progress Lifecycle Stepper */}
+                                <div className="grid grid-cols-4 gap-2 pt-1">
+                                  <div className="text-center">
+                                    <div className="h-2 rounded-full bg-emerald-500 mb-1"></div>
+                                    <span className="text-[10px] font-bold text-emerald-700 block">1. Registered</span>
+                                  </div>
+                                  <div className="text-center">
+                                    <div className="h-2 rounded-full bg-emerald-500 mb-1"></div>
+                                    <span className="text-[10px] font-bold text-emerald-700 block">2. Application Submitted</span>
+                                  </div>
+                                  <div className="text-center">
+                                    <div className={`h-2 rounded-full mb-1 ${app.status === 'APPROVED' ? 'bg-emerald-500' : app.status === 'REJECTED' ? 'bg-rose-500' : 'bg-amber-400 animate-pulse'}`}></div>
+                                    <span className={`text-[10px] font-bold block ${app.status === 'APPROVED' ? 'text-emerald-700' : app.status === 'REJECTED' ? 'text-rose-700' : 'text-amber-700'}`}>
+                                      3. Admin Verification
+                                    </span>
+                                  </div>
+                                  <div className="text-center">
+                                    <div className={`h-2 rounded-full mb-1 ${app.status === 'APPROVED' ? 'bg-emerald-500' : 'bg-slate-200'}`}></div>
+                                    <span className={`text-[10px] font-bold block ${app.status === 'APPROVED' ? 'text-emerald-700' : 'text-slate-400'}`}>
+                                      4. ERP & Fees Ready
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Action Required Alert Box */}
+                                {app.status === 'NEED_MORE_INFO' && (
+                                  <div className="p-4 bg-indigo-50/80 border border-indigo-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                                    <div>
+                                      <strong className="text-indigo-950 font-bold block mb-0.5">💬 Admin Request / Clarification Needed:</strong>
+                                      <p className="text-indigo-800 font-medium">
+                                        {app.adminNotes || "Please verify your parent mobile number and residential address details before resubmitting."}
+                                      </p>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      id={`btn-edit-application-${app.id}`}
+                                      onClick={() => {
+                                        setEditingApplication(app);
+                                        setIsWizardOpen(true);
+                                      }}
+                                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-extrabold text-xs shadow-xs transition-all shrink-0 cursor-pointer"
+                                    >
+                                      Edit & Resubmit →
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* TAB 1: OVERVIEW */}
               {activeTab === 'overview' && (
                 <div className="space-y-6">

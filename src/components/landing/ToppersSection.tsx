@@ -1,22 +1,7 @@
 import React from 'react';
-import { 
-  Trophy, 
-  Award, 
-  ArrowRight, 
-  Sparkles,
-  Medal,
-  Star
-} from 'lucide-react';
-
-interface Topper {
-  id?: string;
-  name: string;
-  score: string;
-  rank: string;
-  desc?: string;
-  img?: string;
-  year?: string;
-}
+import { Trophy, ArrowRight, GraduationCap } from 'lucide-react';
+import { Topper } from '../../types';
+import { TopperCard } from '../merit/TopperCard';
 
 interface ToppersSectionProps {
   toppers?: Topper[];
@@ -29,35 +14,47 @@ export const ToppersSection: React.FC<ToppersSectionProps> = ({
 }) => {
   const defaultToppers: Topper[] = [
     { 
-      id: 'top1', 
-      name: 'Priya Mishra', 
-      score: '98.4%', 
-      rank: 'State Merit Rank 4', 
-      desc: 'Class 10 Board Topper with perfect score in Mathematics & Science numericals.',
-      img: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=80',
-      year: '2025'
+      id: 'top-sheet-1', 
+      name: 'Alaukik Mani Bajpai', 
+      percentage: '91.60%', 
+      studentClass: 'Class 10',
+      academicYear: '2024',
+      board: 'CBSE',
+      achievementCaption: 'Subjects: Maths, Science, Social Science, Hindi, English',
+      isFeatured: true,
+      status: 'PUBLISHED'
     },
     { 
-      id: 'top2', 
-      name: 'Anuj Soni', 
-      score: '96.2%', 
-      rank: 'Hardoi District Rank 1', 
-      desc: 'Flawless performance in Class 10 Board Physics & Chemistry theory papers.',
-      img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80',
-      year: '2025'
+      id: 'top-sheet-2', 
+      name: 'Uday Gupta', 
+      percentage: '90.80%', 
+      studentClass: 'Class 10',
+      academicYear: '2026',
+      board: 'CBSE',
+      achievementCaption: 'Subjects: English, Hindi, Maths Standard, Social Science, Science, Information Technology',
+      isFeatured: true,
+      status: 'PUBLISHED'
     },
     { 
-      id: 'top3', 
-      name: 'Aditi Shukla', 
-      score: '95.0%', 
-      rank: 'Pihani Zone Rank 1', 
-      desc: 'Outstanding scores in Mathematics proofs and English grammatical assessments.',
-      img: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&auto=format&fit=crop&q=80',
-      year: '2025'
+      id: 'top-sheet-rajeev', 
+      name: 'Rajeev Kumar Verma', 
+      percentage: '90.20%', 
+      studentClass: 'Class 10',
+      academicYear: '2022',
+      board: 'CBSE',
+      achievementCaption: 'Subjects: Social Science, Science, Maths, Hindi, English',
+      isFeatured: true,
+      status: 'PUBLISHED'
     }
   ];
 
-  const itemsToDisplay = (toppers && toppers.length > 0 ? toppers : defaultToppers).slice(0, 3);
+  // Filter published & featured toppers if available
+  const listToFilter = (toppers && toppers.length > 0 && !toppers.some(t => t.name === 'Priya Mishra' || t.id === 'top1')) 
+    ? toppers 
+    : defaultToppers;
+  const publishedToppers = listToFilter.filter(t => t.status !== 'DRAFT');
+  const featuredToppers = publishedToppers.filter(t => t.isFeatured !== false);
+  const itemsToDisplay = (featuredToppers.length > 0 ? featuredToppers : publishedToppers).slice(0, 3);
 
   return (
     <section id="results-preview" className="py-10 sm:py-16 bg-slate-50/80 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800/60">
@@ -67,66 +64,24 @@ export const ToppersSection: React.FC<ToppersSectionProps> = ({
         <div className="text-center max-w-2xl mx-auto space-y-2">
           <span className="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1.5">
             <Trophy size={14} />
-            <span>Board Exam Toppers</span>
+            <span>Academic Merit Honor Roll</span>
           </span>
           <h2 className="font-display text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
-            Our Proud Class 10 Merit List
+            High Academic Scorers & Board Achievers
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            Celebrating top district ranks and historic score records achieved by students trained at Sunshine Classes.
+            Celebrating academic performance, mastery of concepts, and board exam percentage records achieved at Sunshine Classes.
           </p>
         </div>
 
-        {/* Max 3 Topper Cards Grid */}
-        <div className="grid gap-6 sm:grid-cols-3 max-w-5xl mx-auto">
+        {/* Toppers Cards Grid */}
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
           {itemsToDisplay.map((top, idx) => (
-            <div
-              key={top.id || idx}
-              className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xs hover:border-amber-400 transition-all text-center space-y-4 flex flex-col justify-between group"
-            >
-              <div className="space-y-3">
-                {/* Photo with Badge */}
-                <div className="relative mx-auto h-20 w-20 rounded-full border-4 border-amber-300 dark:border-amber-500/60 overflow-hidden shadow-sm group-hover:scale-105 transition-transform">
-                  <img 
-                    src={top.img || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80'} 
-                    alt={top.name}
-                    width={80}
-                    height={80}
-                    loading="lazy" 
-                    decoding="async" 
-                    className="h-full w-full object-cover" 
-                  />
-                  <div className="absolute bottom-0 inset-x-0 bg-amber-500 text-white text-[8px] font-black uppercase py-0.5">
-                    {top.year || '2025'}
-                  </div>
-                </div>
-
-                {/* Rank & Name */}
-                <div>
-                  <span className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 tracking-wider block">
-                    {top.rank}
-                  </span>
-                  <h3 className="font-display font-black text-base text-slate-900 dark:text-white mt-0.5">
-                    {top.name}
-                  </h3>
-                  <span className="text-2xl font-black text-blue-600 dark:text-blue-400 block mt-1">
-                    {top.score}
-                  </span>
-                </div>
-
-                {top.desc && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-snug font-medium line-clamp-2">
-                    {top.desc}
-                  </p>
-                )}
-              </div>
-
-              {/* Achievement Badge */}
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                <Medal size={12} className="text-amber-500" />
-                <span>NCERT Concept Master</span>
-              </div>
-            </div>
+            <TopperCard
+              key={top.id || `home-topper-${idx}`}
+              topper={top}
+              idPrefix="home-featured-topper"
+            />
           ))}
         </div>
 
@@ -146,3 +101,4 @@ export const ToppersSection: React.FC<ToppersSectionProps> = ({
     </section>
   );
 };
+

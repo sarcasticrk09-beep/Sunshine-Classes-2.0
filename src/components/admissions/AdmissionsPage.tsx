@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import { SEOHead } from '../SEOHead';
 import { UNIVERSAL_COURSES } from '../../data/coursesData';
 import { 
   FileText, 
@@ -97,7 +99,48 @@ export const AdmissionsPage: React.FC<AdmissionsPageProps> = ({
   onNavigateSection,
   resetForm
 }) => {
+  const location = useLocation();
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
+
+  const getAdmissionsSeo = () => {
+    const p = location.pathname.toLowerCase();
+    if (p.includes('/process')) {
+      return {
+        title: 'Step-by-Step Admission Process | Sunshine Classes Pihani',
+        desc: 'Learn about the 3-step admission process for Class 6 to 10 at Sunshine Classes Pihani.'
+      };
+    }
+    if (p.includes('/apply')) {
+      return {
+        title: 'Online Admission Application Form | Sunshine Classes Pihani',
+        desc: 'Apply online in under 2 minutes for Academic Session 2026-27 at Sunshine Classes Pihani.'
+      };
+    }
+    if (p.includes('/fees')) {
+      return {
+        title: 'Fee Structure & Payment Policies | Sunshine Classes Pihani',
+        desc: 'View affordable monthly fee details, payment schedules, and policies for Class 6-10 tuition.'
+      };
+    }
+    if (p.includes('/scholarships')) {
+      return {
+        title: 'Scholarships & Merit Concessions | Sunshine Classes Pihani',
+        desc: 'Explore merit-based fee concessions and scholarship opportunities at Sunshine Classes Pihani.'
+      };
+    }
+    if (p.includes('/faq')) {
+      return {
+        title: 'Admissions Frequently Asked Questions | Sunshine Classes Pihani',
+        desc: 'Get answers to common parent questions about admissions, batch timings, and diagnostic tests.'
+      };
+    }
+    return {
+      title: 'Admissions Hub | Sunshine Classes Pihani',
+      desc: 'Enroll your child at Sunshine Classes Pihani. Admissions open for Class 6 to 10 tuition batches.'
+    };
+  };
+
+  const seo = getAdmissionsSeo();
 
   const admissionSteps = [
     { num: '01', title: 'Submit Online Application', desc: 'Fill student & parent profile in under 2 minutes.' },
@@ -129,6 +172,7 @@ export const AdmissionsPage: React.FC<AdmissionsPageProps> = ({
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-16">
+      <SEOHead title={seo.title} description={seo.desc} />
       
       {/* 1. ADMISSIONS HERO HEADER */}
       <section className="bg-gradient-to-b from-indigo-950 via-slate-900 to-slate-900 text-white pt-24 pb-16 border-b border-indigo-900/50">

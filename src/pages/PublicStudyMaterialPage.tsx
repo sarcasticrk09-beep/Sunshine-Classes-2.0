@@ -44,7 +44,80 @@ import {
   Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { SEOHead } from '../components/SEOHead';
+
+const getRouteMeta = (pathname: string) => {
+  const p = pathname.toLowerCase();
+  if (p.includes('/chapter-notes') || p.includes('/notes')) {
+    return {
+      title: 'NCERT Chapter Notes & Summaries',
+      subtitle: 'In-depth, chapter-by-chapter revision guides and key concept breakdowns for Math, Science & Grammar.',
+      breadcrumbLabel: 'Chapter Notes',
+      categoryPreset: 'NOTES',
+      seoTitle: 'NCERT Chapter Notes & Summaries | Sunshine Classes Pihani',
+      seoDesc: 'Download NCERT chapter notes and concise revision summaries prepared by expert faculty at Sunshine Classes.'
+    };
+  }
+  if (p.includes('/pyqs') || p.includes('/board-papers') || p.includes('/previous-year')) {
+    return {
+      title: 'Previous Year Papers (PYQs) & Board Archives',
+      subtitle: '10-year solved CBSE & UP Board question papers with marking schemes and step-by-step solutions.',
+      breadcrumbLabel: 'PYQs & Board Papers',
+      categoryPreset: 'PYQ',
+      seoTitle: 'Board Exam PYQs & Solved Question Papers | Sunshine Classes Pihani',
+      seoDesc: '10-year solved CBSE & UP Board examination papers for Class 9 and 10 students.'
+    };
+  }
+  if (p.includes('/formula-sheets') || p.includes('/formula')) {
+    return {
+      title: 'Formula Cheat-Sheets & Math Quick Tricks',
+      subtitle: 'Instant revision formula sheets for Mathematics, Physics equations, Chemistry reactions, and shortcuts.',
+      breadcrumbLabel: 'Formula Sheets',
+      categoryPreset: 'FORMULA_SHEET',
+      seoTitle: 'Math & Physics Formula Sheets | Sunshine Classes Pihani',
+      seoDesc: 'Download printable Math and Physics formula cheat sheets for Class 9 and 10 revision.'
+    };
+  }
+  if (p.includes('/worksheets') || p.includes('/homework')) {
+    return {
+      title: 'Practice Worksheets & Problem Sets',
+      subtitle: 'Topic-wise practice problem sets and classroom worksheets mapped to NCERT exercises.',
+      breadcrumbLabel: 'Worksheets',
+      categoryPreset: 'WORKSHEET',
+      seoTitle: 'Classroom & Homework Practice Worksheets | Sunshine Classes Pihani',
+      seoDesc: 'Structured Math and Science practice worksheets and problem sets for Class 6 to 10.'
+    };
+  }
+  if (p.includes('/practice-papers') || p.includes('/sample-papers') || p.includes('/mock-tests')) {
+    return {
+      title: 'Mock Practice Papers & Model Exam Kits',
+      subtitle: 'Full-length model question papers and sample test packages formatted as per the latest exam pattern.',
+      breadcrumbLabel: 'Practice Papers',
+      categoryPreset: 'SAMPLE_PAPER',
+      seoTitle: 'Board Mock Practice Papers & Sample Exams | Sunshine Classes Pihani',
+      seoDesc: 'Practice full-length mock exams and sample question papers for Class 10 board preparation.'
+    };
+  }
+  if (p.includes('/study-material')) {
+    return {
+      title: 'Comprehensive Study Material Library',
+      subtitle: 'Printed notes, complete course kits, and downloadable PDF modules across all tuition subjects.',
+      breadcrumbLabel: 'Study Material',
+      categoryPreset: 'ALL',
+      seoTitle: 'Comprehensive Study Material Library | Sunshine Classes Pihani',
+      seoDesc: 'Access complete PDF study materials and course packages for Sunshine Classes students.'
+    };
+  }
+  return {
+    title: 'Study Material & Learning Resource Portal',
+    subtitle: 'Discover, preview, and download chapter revision notes, formula cheat-sheets, worksheets, NCERT solutions, and 10-year board paper archives.',
+    breadcrumbLabel: 'All Resources',
+    categoryPreset: 'ALL',
+    seoTitle: 'Study Resources & Download Center | Sunshine Classes Pihani',
+    seoDesc: 'Download NCERT study notes, PYQs, formula sheets, and worksheets from Sunshine Classes.'
+  };
+};
 
 interface PublicStudyMaterialPageProps {
   currentUser?: User | null;
@@ -101,7 +174,10 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
   onOpenLoginModal
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const catalogRef = useRef<HTMLDivElement>(null);
+
+  const routeMeta = useMemo(() => getRouteMeta(location.pathname), [location.pathname]);
 
   const [materials, setMaterials] = useState<StudyMaterial[]>(cmsMaterials || []);
   const [loading, setLoading] = useState(true);
@@ -110,10 +186,15 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClass, setSelectedClass] = useState('ALL');
   const [selectedSubject, setSelectedSubject] = useState('ALL');
-  const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [selectedCategory, setSelectedCategory] = useState(routeMeta.categoryPreset);
   const [selectedAccess, setSelectedAccess] = useState('ALL');
   const [sortBy, setSortBy] = useState<'NEWEST' | 'POPULAR' | 'TITLE'>('NEWEST');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+  // Sync category when path changes
+  useEffect(() => {
+    setSelectedCategory(routeMeta.categoryPreset);
+  }, [routeMeta.categoryPreset]);
 
   // Modal States
   const [selectedMaterial, setSelectedMaterial] = useState<StudyMaterial | null>(null);
@@ -344,6 +425,7 @@ Contact: +91 9988776655 | Pihani, Hardoi (U.P.)`;
 
   return (
     <div id="study-material-portal-page" className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans pb-20">
+      <SEOHead title={routeMeta.seoTitle} description={routeMeta.seoDesc} />
       
       {/* TOAST NOTIFICATION */}
       <AnimatePresence>
@@ -381,7 +463,17 @@ Contact: +91 9988776655 | Pihani, Hardoi (U.P.)`;
                 <ArrowLeft size={14} /> Back to Home
               </button>
               <ChevronRight size={12} className="text-slate-600" />
-              <span className="text-amber-400 font-bold">Study Material Portal</span>
+              <button
+                onClick={() => {
+                  if (onNavigateSection) onNavigateSection('resources');
+                  else navigate('/resources');
+                }}
+                className="hover:text-amber-400 font-bold transition-colors"
+              >
+                Resources
+              </button>
+              <ChevronRight size={12} className="text-slate-600" />
+              <span className="text-amber-400 font-bold">{routeMeta.breadcrumbLabel}</span>
               {selectedClass !== 'ALL' && (
                 <>
                   <ChevronRight size={12} className="text-slate-600" />
@@ -420,10 +512,10 @@ Contact: +91 9988776655 | Pihani, Hardoi (U.P.)`;
                 <span>Learning Resource Hub</span>
               </div>
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight">
-                Study Material <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-200">Portal</span>
+                {routeMeta.title}
               </h1>
               <p className="text-slate-300 text-xs sm:text-sm max-w-2xl leading-relaxed">
-                Discover, preview, and download chapter revision notes, formula cheat-sheets, worksheets, NCERT solutions, and 10-year board paper archives updated directly from Sunshine Classes ERP CMS.
+                {routeMeta.subtitle}
               </p>
 
               {/* Stats Bar */}

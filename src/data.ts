@@ -22,6 +22,7 @@ import {
   Testimonial,
   Topper,
   FounderMember,
+  InstituteStrength,
   StudyMaterial,
   GalleryItem,
   AppNotification,
@@ -832,7 +833,118 @@ export const SEED_TIMETABLE: TimetableEntry[] = [
 ];
 
 export const SEED_TOPPERS: Topper[] = [
-  { id: 'top1', name: 'Ayush Singh', score: '98.4%', rank: 'State Topper Rank 4 (Alumni)', desc: 'Outstanding logical step marks in Math & Physics numerical sheets.', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=60' }
+  {
+    id: 'top-sheet-1',
+    name: 'Alaukik Mani Bajpai',
+    percentage: '91.60%',
+    score: '91.60%',
+    studentClass: 'Class 10',
+    class: 'Class 10',
+    academicYear: '2024',
+    year: '2024',
+    board: 'CBSE',
+    achievementCaption: 'Subjects: Maths, Science, Social Science, Hindi, English',
+    desc: 'Subjects: Maths, Science, Social Science, Hindi, English',
+    displayOrder: 1,
+    isFeatured: true,
+    status: 'PUBLISHED'
+  },
+  {
+    id: 'top-sheet-2',
+    name: 'Uday Gupta',
+    percentage: '90.80%',
+    score: '90.80%',
+    studentClass: 'Class 10',
+    class: 'Class 10',
+    academicYear: '2026',
+    year: '2026',
+    board: 'CBSE',
+    achievementCaption: 'Subjects: English, Hindi, Maths Standard, Social Science, Science, Information Technology',
+    desc: 'Subjects: English, Hindi, Maths Standard, Social Science, Science, Information Technology',
+    displayOrder: 2,
+    isFeatured: true,
+    status: 'PUBLISHED'
+  },
+  {
+    id: 'top-sheet-rajeev',
+    name: 'Rajeev Kumar Verma',
+    percentage: '90.20%',
+    score: '90.20%',
+    studentClass: 'Class 10',
+    class: 'Class 10',
+    academicYear: '2022',
+    year: '2022',
+    board: 'CBSE',
+    achievementCaption: 'Subjects: Social Science, Science, Maths, Hindi, English',
+    desc: 'Subjects: Social Science, Science, Maths, Hindi, English',
+    displayOrder: 3,
+    isFeatured: true,
+    status: 'PUBLISHED'
+  },
+  {
+    id: 'top-sheet-3',
+    name: 'Ayushi Raj',
+    percentage: '87.00%',
+    score: '87.00%',
+    studentClass: 'Class 10',
+    class: 'Class 10',
+    academicYear: '2025',
+    year: '2025',
+    board: 'CBSE',
+    achievementCaption: 'Outstanding Performance in Board Examinations',
+    desc: 'Outstanding Performance in Board Examinations',
+    displayOrder: 4,
+    isFeatured: true,
+    status: 'PUBLISHED'
+  },
+  {
+    id: 'top-sheet-4',
+    name: 'Zaina Siddiqui',
+    percentage: '86.80%',
+    score: '86.80%',
+    studentClass: 'Class 10',
+    class: 'Class 10',
+    academicYear: '2025',
+    year: '2025',
+    board: 'CBSE',
+    achievementCaption: 'Subjects: Hindi, English, Maths, Science, Social Science',
+    desc: 'Subjects: Hindi, English, Maths, Science, Social Science',
+    displayOrder: 5,
+    isFeatured: true,
+    status: 'PUBLISHED'
+  },
+  {
+    id: 'top-sheet-5',
+    name: 'Harshita Mishra',
+    percentage: '86.00%',
+    score: '86.00%',
+    studentClass: 'Class 10',
+    class: 'Class 10',
+    academicYear: '2026',
+    year: '2026',
+    board: 'CBSE',
+    achievementCaption: 'Subjects: Information Technology, Science, Mathematics',
+    desc: 'Subjects: Information Technology, Science, Mathematics',
+    displayOrder: 6,
+    isFeatured: true,
+    status: 'PUBLISHED'
+  },
+  {
+    id: 'top-sheet-6',
+    name: 'Kaushlendra Raj',
+    percentage: '81.80%',
+    score: '81.80%',
+    studentClass: 'Class 10',
+    class: 'Class 10',
+    academicYear: '2025',
+    year: '2025',
+    board: 'CBSE',
+    achievementCaption: 'Academic Merit Distinction Score',
+    desc: 'Academic Merit Distinction Score',
+    displayOrder: 7,
+    isFeatured: true,
+    status: 'PUBLISHED'
+  }
 ];
 
 export const SEED_STUDY_MATERIALS: StudyMaterial[] = [
@@ -1190,20 +1302,92 @@ export const SEED_FOUNDERS: FounderMember[] = [
   {
     id: 'fm-priyanshu',
     name: 'Priyanshu Gupta',
-    title: 'Founder Director & Lead Mathematics Faculty',
-    qualification: 'M.Sc. Mathematics, B.Ed. | UGC NET Qualified',
-    message: 'At Sunshine Classes, we believe that education is not merely about cramming question banks. It is about kindling curiosity. When a student visualizes the reflection rays or understands why a quadratic solution represents a graphical curve, they don\'t just score marks — they become innovators. Our doors are always open to parents who wish to participate actively in their child\'s daily progress.',
-    tuitionFocus: 'Board Mathematics',
-    avatarInitials: 'PG'
+    title: 'Founder & Academic Director',
+    qualification: 'B.Sc. (Mathematics)',
+    message: 'Sunshine Classes was founded with a vision of making quality education accessible through conceptual learning, disciplined practice, and individual attention. Priyanshu Gupta leads the institute\'s academic direction, mentors students across all subjects, and personally oversees curriculum planning, revision programs, classroom standards, and board examination preparation. His strongest expertise lies in Mathematics and Science, and his focus is to help every student build confidence, analytical thinking, and long-term academic success.',
+    tuitionFocus: 'Mathematics & Science',
+    avatarInitials: 'PG',
+    isPrimary: true,
+    displayOrder: 1,
+    status: 'PUBLISHED',
+    socials: {
+      instagram: 'https://www.instagram.com/sunshineclassespihani/'
+    }
   },
   {
     id: 'fm-rajeev',
     name: 'Rajeev Kr. Verma',
-    title: 'Co-Founder & Senior Science Specialist',
-    qualification: 'B.Sc. Physics & Chemistry, B.Ed. | 12+ Years Exp',
-    message: 'True science begins with observation. By teaching our board aspirants to dissect and visualize physical models and chemical reactions, we dismantle exam fear and instill everlasting analytical reasoning. Every student has immense potential; we simply provide the lens of extreme clarity.',
-    tuitionFocus: 'Board Physics & Chemistry',
-    avatarInitials: 'RV'
+    title: 'Co-Founder & Operations Lead',
+    qualification: 'B.Tech CSE',
+    message: 'Rajeev Kr. Verma manages the operational, technological, and digital growth initiatives of Sunshine Classes. He leads the development of the institute\'s website, ERP platform, admissions systems, and digital infrastructure while coordinating administrative processes, branding, strategic collaborations, and organizational development. His role is to build efficient systems that enhance the experience for students, parents, and staff while supporting the institute\'s long-term growth.',
+    tuitionFocus: '',
+    avatarInitials: 'RV',
+    isPrimary: false,
+    displayOrder: 2,
+    status: 'PUBLISHED',
+    socials: {
+      linkedin: 'https://www.linkedin.com/in/rajeev-kumar-verma-2110a21b7/',
+      instagram: 'https://www.instagram.com/sarcastic._.rk/'
+    }
+  }
+];
+
+export const SEED_INSTITUTE_STRENGTHS: InstituteStrength[] = [
+  {
+    id: 'str-1',
+    title: 'Experienced Teachers',
+    description: 'Subject specialists with 10+ years of dedicated teaching expertise focused on concept clarity and student success.',
+    iconName: 'GraduationCap',
+    badge: 'Expert Faculty',
+    displayOrder: 1
+  },
+  {
+    id: 'str-2',
+    title: 'NCERT-Based Curriculum',
+    description: 'Strictly aligned with NCERT guidelines and board exam patterns for bulletproof preparation.',
+    iconName: 'BookOpen',
+    badge: '100% Board Aligned',
+    displayOrder: 2
+  },
+  {
+    id: 'str-3',
+    title: 'Weekly Assessments',
+    description: 'Chapter-wise test series and mock exams with detailed answer key reviews and score tracking.',
+    iconName: 'ClipboardCheck',
+    badge: 'Continuous Testing',
+    displayOrder: 3
+  },
+  {
+    id: 'str-4',
+    title: 'Doubt Solving Sessions',
+    description: 'Dedicated daily doubt clinics to ensure zero backlog and instant resolution for tricky questions.',
+    iconName: 'HelpCircle',
+    badge: '1-on-1 Guidance',
+    displayOrder: 4
+  },
+  {
+    id: 'str-5',
+    title: 'Parent Progress Updates',
+    description: 'Transparent monthly performance reports, digital attendance logs, and regular parent-teacher meetups.',
+    iconName: 'TrendingUp',
+    badge: 'Real-Time Reports',
+    displayOrder: 5
+  },
+  {
+    id: 'str-6',
+    title: 'Personalized Attention',
+    description: 'Small batch sizes (max 25 students) allowing personal mentorship for every learner.',
+    iconName: 'UserCheck',
+    badge: 'Small Batches',
+    displayOrder: 6
+  },
+  {
+    id: 'str-7',
+    title: 'Affordable Fees',
+    description: 'High-quality coaching made accessible with reasonable, transparent monthly fee structures.',
+    iconName: 'Wallet',
+    badge: 'Value Education',
+    displayOrder: 7
   }
 ];
 

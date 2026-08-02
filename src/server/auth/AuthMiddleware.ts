@@ -3,6 +3,12 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
 export interface AuthenticatedRequest extends Request {
+  body: any;
+  query: any;
+  params: any;
+  headers: any;
+  cookies: any;
+  ip: any;
   user?: {
     uid: string;
     id: string;

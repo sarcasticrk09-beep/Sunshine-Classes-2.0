@@ -227,21 +227,23 @@ export const Footer: React.FC<FooterProps> = ({ setActiveSection }) => {
                 </button>
               </li>
               <li className="pt-2 border-t border-slate-800">
-                <button onClick={() => handleRouteClick('/login')} className="hover:text-amber-400 font-bold transition-colors cursor-pointer text-left flex items-center gap-1">
-                  <LogIn size={13} className="text-blue-400" />
-                  <span>Student Portal Login</span>
+                <button
+                  id="btn-footer-student-portal"
+                  onClick={() => handleRouteClick('/login/student')}
+                  className="hover:text-amber-400 font-bold transition-colors cursor-pointer text-left flex items-center gap-1.5"
+                >
+                  <LogIn size={13} className="text-brand-blue" />
+                  <span>Student Portal</span>
                 </button>
               </li>
               <li>
-                <button onClick={() => handleRouteClick('/login')} className="hover:text-amber-400 font-bold transition-colors cursor-pointer text-left flex items-center gap-1">
+                <button
+                  id="btn-footer-admin-portal"
+                  onClick={() => handleRouteClick('/login/admin')}
+                  className="hover:text-amber-400 font-bold transition-colors cursor-pointer text-left flex items-center gap-1.5"
+                >
                   <LogIn size={13} className="text-amber-400" />
-                  <span>Teacher Portal Login</span>
-                </button>
-              </li>
-              <li>
-                <button onClick={() => handleRouteClick('/login')} className="hover:text-amber-400 font-bold transition-colors cursor-pointer text-left flex items-center gap-1">
-                  <LogIn size={13} className="text-emerald-400" />
-                  <span>Admin Portal Login</span>
+                  <span>Administration Portal</span>
                 </button>
               </li>
             </ul>

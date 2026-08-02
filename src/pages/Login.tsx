@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth/useAuth';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Shield, RefreshCw, AlertCircle, Key } from 'lucide-react';
+import { Eye, EyeOff, Shield, RefreshCw, AlertCircle, Key, UserCheck, Lock, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import SunshineLogo from '../components/SunshineLogo';
 
@@ -10,10 +10,15 @@ interface LoginProps {
 }
 
 export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
-  const { login, googleLogin, googleLoading, currentUser, changePassword } = useAuth();
+  const { login, registerStudentUser, googleLogin, googleLoading, currentUser, changePassword } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  
+
+  const isStudentPortal = location.pathname.includes('/student');
+  const isAdminPortal = location.pathname.includes('/admin');
+
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [rememberMe, setRememberMe] = useState<boolean>(true);
@@ -21,6 +26,16 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [googleLoginStep, setGoogleLoginStep] = useState<string>('');
+
+  // Registration Form State (Phase 1)
+  const [regName, setRegName] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regParentName, setRegParentName] = useState('');
+  const [regParentMobile, setRegParentMobile] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [regLoading, setRegLoading] = useState(false);
 
   // States for forced password change (firstLogin === true)
   const [newPassword, setNewPassword] = useState<string>('');
@@ -30,6 +45,52 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
   const [passChanging, setPassChanging] = useState<boolean>(false);
   const [passError, setPassError] = useState<string | null>(null);
 
+  // Secure Role-Based Redirection Engine
+  const redirectToRoleDashboard = (userRole: string) => {
+    const role = (userRole || '').toUpperCase();
+    if (role === 'STUDENT') {
+      navigate('/student/dashboard');
+    } else if (role === 'TEACHER') {
+      navigate('/teacher/dashboard');
+    } else if (role === 'RECEPTIONIST' || role === 'RECEPTION') {
+      navigate('/receptionist/dashboard');
+    } else {
+      // ADMIN, SUPER_ADMIN, ACCOUNTANT, COUNSELLOR
+      navigate('/admin/dashboard');
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser && !(currentUser as any).firstLogin) {
+      redirectToRoleDashboard(currentUser.role);
+    }
+  }, [currentUser, navigate]);
+
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (regLoading) return;
+    setError(null);
+    setRegLoading(true);
+    try {
+      if (!registerStudentUser) {
+        throw new Error("Registration system unavailable.");
+      }
+      await registerStudentUser({
+        name: regName,
+        phone: regPhone,
+        parentName: regParentName,
+        parentMobile: regParentMobile,
+        email: regEmail,
+        password: regPassword
+      });
+      navigate('/student/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Registration failed. Please try again.');
+    } finally {
+      setRegLoading(false);
+    }
+  };
+
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
@@ -37,6 +98,11 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
     setLoading(true);
     try {
       await login(email.trim(), password, rememberMe);
+      const activeSession = JSON.parse(sessionStorage.getItem('sunshine_active_session') || localStorage.getItem('sunshine_active_session') || '{}');
+      const activeRole = activeSession?.user?.role || currentUser?.role;
+      if (activeRole) {
+        redirectToRoleDashboard(activeRole);
+      }
     } catch (err: any) {
       setError(err.message || 'Authentication failed. Please verify credentials.');
     } finally {
@@ -118,6 +184,24 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
         <div className="w-full max-w-md bg-white rounded-3xl border border-slate-100 shadow-xl p-8 relative overflow-hidden">
           <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-amber-500 to-brand-orange"></div>
           
+          {/* Close / Return to Home Button */}
+          <button
+            id="btn-close-force-pass"
+            type="button"
+            onClick={() => {
+              if (onBackToWebsite) {
+                onBackToWebsite();
+              } else {
+                navigate('/');
+              }
+            }}
+            className="absolute top-4 right-4 z-20 h-8 w-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-all cursor-pointer shadow-xs border border-slate-200/80"
+            title="Return to Home Page"
+            aria-label="Close and return to home page"
+          >
+            <X size={18} />
+          </button>
+
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
               <Key className="h-12 w-12 text-amber-500 animate-bounce" />
@@ -210,16 +294,72 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
       <div className="w-full max-w-md bg-white rounded-3xl border border-slate-100 shadow-xl p-8 relative overflow-hidden">
         <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-amber-400 to-brand-orange"></div>
         
+        {/* Close / Return to Home Button */}
+        <button
+          id="btn-close-login"
+          type="button"
+          onClick={() => {
+            if (onBackToWebsite) {
+              onBackToWebsite();
+            } else {
+              navigate('/');
+            }
+          }}
+          className="absolute top-4 right-4 z-20 h-8 w-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-all cursor-pointer shadow-xs border border-slate-200/80"
+          title="Return to Home Page"
+          aria-label="Close and return to home page"
+        >
+          <X size={18} />
+        </button>
+
         {/* Header */}
-        <div className="flex flex-col items-center text-center mb-8">
+        <div className="flex flex-col items-center text-center mb-6">
           <SunshineLogo size={42} showText={false} />
           <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight mt-3">
-            {location.pathname === '/student/login' ? 'Student Portal' : location.pathname === '/admin/login' ? 'Admin Portal' : 'Sunshine Classes'}
+            {authMode === 'register' 
+              ? 'Create Student Account' 
+              : isStudentPortal 
+              ? 'Student Portal' 
+              : isAdminPortal 
+              ? 'Administration Portal' 
+              : 'Sunshine ERP Portal'}
           </h2>
           <p className="text-xs text-slate-400 font-extrabold uppercase tracking-widest mt-0.5">
-            {location.pathname === '/student/login' ? 'Student ERP Login' : location.pathname === '/admin/login' ? 'Admin ERP Login' : 'Excellence in Education'}
+            {authMode === 'register' 
+              ? 'Register in under 1 minute' 
+              : isStudentPortal 
+              ? 'Student & Parent Access Terminal' 
+              : isAdminPortal 
+              ? 'Internal Staff Access Terminal' 
+              : 'Secure ERP Access'}
           </p>
         </div>
+
+        {/* Mode Switcher Tabs */}
+        {!isAdminPortal && (
+          <div className="flex p-1 bg-slate-100 rounded-2xl mb-6">
+            <button
+              id="tab-mode-login"
+              type="button"
+              onClick={() => { setAuthMode('login'); setError(null); }}
+              className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                authMode === 'login' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              id="tab-mode-register"
+              type="button"
+              onClick={() => { setAuthMode('register'); setError(null); }}
+              className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                authMode === 'register' ? 'bg-brand-blue text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              New Student Register
+            </button>
+          </div>
+        )}
 
         {error && (
           <div id="login-error-alert" className="mb-5 p-3.5 rounded-2xl bg-rose-50 border border-rose-100 flex items-start justify-between gap-2.5 text-xs text-rose-600 font-semibold leading-relaxed animate-in fade-in slide-in-from-top-1 duration-200">
@@ -239,15 +379,124 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
           </div>
         )}
 
-        {/* First-time login credential helper */}
-        <div id="first-time-login-tip" className="mb-5 p-3.5 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-start gap-2.5 text-xs text-indigo-950 font-medium leading-relaxed">
-          <Key size={16} className="text-indigo-600 shrink-0 mt-0.5" />
-          <div>
-            <strong className="font-bold text-indigo-950 block mb-0.5">🔑 First-Time Logging In?</strong>
-            Your default passcode is your username followed by <code className="bg-indigo-100 px-1 py-0.5 rounded font-mono text-[10px] font-bold">123</code> (e.g., if username is <code className="bg-indigo-100 px-1 py-0.5 rounded font-mono text-[10px] font-bold">student</code>, password is <code className="bg-indigo-100 px-1 py-0.5 rounded font-mono text-[10px] font-bold">student123</code>). You will configure your own secure custom passcode after entering this first time!
-          </div>
-        </div>
+        {authMode === 'register' ? (
+          /* PHASE 1 REGISTRATION FORM */
+          <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
+            <div>
+              <label className="mb-1 block text-xs font-bold text-slate-700">Full Name *</label>
+              <input
+                id="reg-full-name"
+                type="text"
+                required
+                disabled={regLoading}
+                placeholder="e.g. Rahul Verma"
+                value={regName}
+                onChange={(e) => setRegName(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-blue/10 transition-all font-semibold"
+              />
+            </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-bold text-slate-700">Student Mobile *</label>
+                <input
+                  id="reg-phone"
+                  type="tel"
+                  required
+                  maxLength={10}
+                  disabled={regLoading}
+                  placeholder="10-digit number"
+                  value={regPhone}
+                  onChange={(e) => setRegPhone(e.target.value.replace(/\D/g, ''))}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white transition-all font-semibold"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-bold text-slate-700">Parent Mobile *</label>
+                <input
+                  id="reg-parent-mobile"
+                  type="tel"
+                  required
+                  maxLength={10}
+                  disabled={regLoading}
+                  placeholder="10-digit number"
+                  value={regParentMobile}
+                  onChange={(e) => setRegParentMobile(e.target.value.replace(/\D/g, ''))}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white transition-all font-semibold"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-bold text-slate-700">Parent / Guardian Name *</label>
+              <input
+                id="reg-parent-name"
+                type="text"
+                required
+                disabled={regLoading}
+                placeholder="e.g. Ramesh Chandra Verma"
+                value={regParentName}
+                onChange={(e) => setRegParentName(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white transition-all font-semibold"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-bold text-slate-700">Email Address (Optional)</label>
+              <input
+                id="reg-email"
+                type="email"
+                disabled={regLoading}
+                placeholder="student@example.com"
+                value={regEmail}
+                onChange={(e) => setRegEmail(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white transition-all font-semibold"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-bold text-slate-700">Password *</label>
+              <div className="relative">
+                <input
+                  id="reg-password"
+                  type={showRegPassword ? "text" : "password"}
+                  required
+                  minLength={6}
+                  disabled={regLoading}
+                  placeholder="Create strong password (min 6 chars)"
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-3.5 pr-10 py-2.5 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white transition-all font-semibold"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowRegPassword(!showRegPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                >
+                  {showRegPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              id="btn-submit-registration"
+              type="submit"
+              disabled={regLoading}
+              className="w-full rounded-xl bg-brand-blue hover:bg-brand-blue-hover text-white py-3 text-xs font-extrabold shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 mt-2"
+            >
+              {regLoading ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin text-white" />
+                  <span>Creating Account...</span>
+                </>
+              ) : (
+                <span>Create Account & Continue →</span>
+              )}
+            </button>
+          </form>
+        ) : (
+          /* LOGIN FORM */
+          <>
         <form onSubmit={handlePasswordLogin} className="space-y-4">
           <div>
             <label className="mb-1 block text-xs font-bold text-slate-700">Email Address or Username</label>
@@ -411,72 +660,8 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
             <span>{googleLoginStep}</span>
           </div>
         )}
-
-        {/* Quick Developer Access / Login Help */}
-        <div className="mt-6 pt-5 border-t border-slate-100" id="dev-quick-login-container">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-              ⚡ Quick Developer Access
-            </span>
-            <span className="text-[9px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
-              Dev Stage Helper
-            </span>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-2" id="dev-quick-login-grid">
-            <button
-              type="button"
-              id="quick-login-superadmin"
-              onClick={() => handleQuickLogin('superadmin', 'Sunshine@123')}
-              disabled={loading}
-              className="p-2 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-xl text-left transition-all cursor-pointer disabled:opacity-50 flex flex-col justify-between group"
-            >
-              <div className="text-[10px] font-bold text-slate-700 group-hover:text-indigo-900 uppercase">Super Admin</div>
-              <div className="text-[9px] text-slate-400 font-mono mt-0.5">@superadmin</div>
-            </button>
-            <button
-              type="button"
-              id="quick-login-admin"
-              onClick={() => handleQuickLogin('admin', 'Admin@123')}
-              disabled={loading}
-              className="p-2 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-xl text-left transition-all cursor-pointer disabled:opacity-50 flex flex-col justify-between group"
-            >
-              <div className="text-[10px] font-bold text-slate-700 group-hover:text-rose-900 uppercase">Admin</div>
-              <div className="text-[9px] text-slate-400 font-mono mt-0.5">@admin</div>
-            </button>
-            <button
-              type="button"
-              id="quick-login-teacher"
-              onClick={() => handleQuickLogin('teacher', 'Teacher@123')}
-              disabled={loading}
-              className="p-2 bg-slate-50 hover:bg-violet-50 border border-slate-200 hover:border-violet-200 rounded-xl text-left transition-all cursor-pointer disabled:opacity-50 flex flex-col justify-between group"
-            >
-              <div className="text-[10px] font-bold text-slate-700 group-hover:text-violet-900 uppercase">Teacher</div>
-              <div className="text-[9px] text-slate-400 font-mono mt-0.5">@teacher</div>
-            </button>
-            <button
-              type="button"
-              id="quick-login-reception"
-              onClick={() => handleQuickLogin('reception', 'Reception@123')}
-              disabled={loading}
-              className="p-2 bg-slate-50 hover:bg-amber-50 border border-slate-200 hover:border-amber-200 rounded-xl text-left transition-all cursor-pointer disabled:opacity-50 flex flex-col justify-between group"
-            >
-              <div className="text-[10px] font-bold text-slate-700 group-hover:text-amber-900 uppercase">Receptionist</div>
-              <div className="text-[9px] text-slate-400 font-mono mt-0.5">@reception</div>
-            </button>
-            <button
-              type="button"
-              id="quick-login-student"
-              onClick={() => handleQuickLogin('student', 'Student@123')}
-              disabled={loading}
-              className="col-span-2 p-2 bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 rounded-xl text-left transition-all cursor-pointer disabled:opacity-50 flex flex-col justify-between group"
-            >
-              <div className="text-[10px] font-bold text-slate-700 group-hover:text-emerald-900 uppercase">Student</div>
-              <div className="text-[9px] text-slate-400 font-mono mt-0.5">@student (Rahul Verma)</div>
-            </button>
-          </div>
-        </div>
-
+      </>
+    )}
       </div>
     </div>
   );

@@ -37,7 +37,8 @@ import {
   Menu
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Course, BlogPost, Testimonial, Topper, StudyMaterial, GalleryItem, Admission, Student, FounderMember, SubscriptionConfig } from '../types';
+import { Course, BlogPost, Testimonial, Topper, StudyMaterial, GalleryItem, Admission, Student, FounderMember, InstituteStrength, SubscriptionConfig } from '../types';
+import { LeadershipSection } from './landing/LeadershipSection';
 import SunshineLogo from './SunshineLogo';
 import { CloudinaryUpload } from './CloudinaryUpload';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -53,7 +54,11 @@ import { CoursesSection } from './landing/CoursesSection';
 import { StudyMaterialShowcase } from './landing/StudyMaterialShowcase';
 import { SunshineStoreShowcase } from './landing/SunshineStoreShowcase';
 import { ToppersSection } from './landing/ToppersSection';
+import { TopperCard } from './merit/TopperCard';
+import { ResultsPage } from './landing/ResultsPage';
 import { FacultySection } from './landing/FacultySection';
+import { WhyChooseUsSection } from './landing/WhyChooseUsSection';
+import { FacultyPage } from './landing/FacultyPage';
 import { TestimonialsSection } from './landing/TestimonialsSection';
 import { FAQSection } from './landing/FAQSection';
 import { ContactSection } from './landing/ContactSection';
@@ -106,6 +111,7 @@ interface LandingPageProps {
   admissions?: Admission[];
   students?: Student[];
   founders?: FounderMember[];
+  strengths?: InstituteStrength[];
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
   subConfig: SubscriptionConfig;
@@ -125,6 +131,7 @@ export default function LandingPage({
   admissions = [],
   students = [],
   founders = [],
+  strengths = [],
   theme,
   onToggleTheme,
   subConfig,
@@ -135,13 +142,15 @@ export default function LandingPage({
   const { currentUser } = useAuth();
 
   const getSectionFromPath = (pathname: string) => {
-    if (pathname === '/about') return 'about';
-    if (pathname === '/courses' || pathname.startsWith('/courses/')) return 'courses';
-    if (pathname === '/enroll' || pathname === '/admissions') return 'admissions';
-    if (pathname === '/results') return 'results';
-    if (pathname === '/resources') return 'resources';
-    if (pathname === '/gallery') return 'gallery';
-    if (pathname === '/contact') return 'contact';
+    const p = pathname.toLowerCase();
+    if (p === '/about' || p.startsWith('/about/')) return 'about';
+    if (p === '/faculty') return 'faculty';
+    if (p === '/courses' || p.startsWith('/courses/')) return 'courses';
+    if (p === '/enroll' || p === '/admissions' || p.startsWith('/admissions/')) return 'admissions';
+    if (p === '/results' || p.startsWith('/results/')) return 'results';
+    if (p === '/resources' || p.startsWith('/resources/')) return 'resources';
+    if (p === '/gallery') return 'gallery';
+    if (p === '/contact') return 'contact';
     return 'home';
   };
 
@@ -157,7 +166,7 @@ export default function LandingPage({
     }
   }, [location.pathname]);
 
-  const setActiveSection = (section: 'home' | 'about' | 'courses' | 'admissions' | 'results' | 'resources' | 'gallery' | 'contact') => {
+  const setActiveSection = (section: 'home' | 'about' | 'faculty' | 'courses' | 'admissions' | 'results' | 'resources' | 'gallery' | 'contact') => {
     if (section === 'home') navigate('/');
     else if (section === 'admissions') navigate('/enroll');
     else navigate(`/${section}`);
@@ -429,14 +438,6 @@ export default function LandingPage({
     { title: 'Bi-Weekly Assessment Logs', desc: 'Highly structure mock exam series mirroring authentic UP/CBSE board templates.', icon: FileText }
   ];
 
-  // Static Achievements Timeline
-  const timeline = [
-    { year: '2016', title: 'Sunshine Founded', desc: 'Started in Pihani with just 15 board students to deliver excellent, conceptual mathematics tuition.' },
-    { year: '2019', title: 'District Merit Holder', desc: 'Our Class 10 pre-board topper secured Ranked 4th in Hardoi District Board list.' },
-    { year: '2022', title: 'Smart Class Installed', desc: 'Integrated state-of-the-art interactive digital visual boards mapping complete NCERT curriculum.' },
-    { year: '2025', title: '98% Board Results', desc: 'Celebrated historic 98% first-division passing marks among our entire Class 10 batches.' }
-  ];
-
   return (
     <div id="landing-container" className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans transition-colors">
       {/* Modern Grouped Navigation Bar */}
@@ -495,7 +496,7 @@ export default function LandingPage({
               onNavigateResults={() => setActiveSection('results' as any)}
             />
 
-            <FacultySection />
+            <WhyChooseUsSection strengths={strengths} />
 
             <TestimonialsSection
               testimonials={testimonials}
@@ -508,6 +509,18 @@ export default function LandingPage({
               onNavigateSection={(sec) => setActiveSection(sec as any)}
             />
           </div>
+        )}
+
+        {/* DEDICATED FACULTY & MENTORS PAGE */}
+        {activeSection === 'faculty' && (
+          <FacultyPage
+            founders={founders}
+            onNavigateSection={(sec) => setActiveSection(sec as any)}
+            onSelectClassForAdmission={(cls) => {
+              setAdmClass(cls);
+              navigate('/enroll');
+            }}
+          />
         )}
 
         {/* VIEW 2: ABOUT US */}
@@ -563,69 +576,12 @@ export default function LandingPage({
               </div>
             </div>
 
-            {/* FOUNDERS & KEY FACULTY DESK */}
-            <div className="space-y-8">
-              <div className="text-center max-w-xl mx-auto">
-                <span className="text-xs font-black uppercase text-brand-orange tracking-widest block mb-1">Our Leadership</span>
-                <h3 className="font-display text-2xl font-black text-slate-800 dark:text-white">Founder & Core Faculty Desk</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">The experienced, highly qualified minds shaping academic successes year after year.</p>
-              </div>
-
-              <div className="grid gap-8 md:grid-cols-2">
-                {founders.map((fm) => (
-                  <div key={fm.id} className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-md flex flex-col justify-between relative overflow-hidden">
-                    <div className="absolute top-0 right-0 h-16 w-16 bg-brand-blue/10 dark:bg-brand-blue/5 rounded-bl-3xl flex items-center justify-center text-brand-blue dark:text-indigo-400 text-lg font-black">
-                      “
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4">
-                        {fm.photoUrl ? (
-                          <img src={fm.photoUrl} alt={fm.name} width={64} height={64} loading="lazy" decoding="async" className="h-16 w-16 shrink-0 rounded-2xl object-cover shadow-inner border border-slate-250 dark:border-slate-850" />
-                        ) : (
-                          <div className="h-16 w-16 shrink-0 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center shadow-inner border border-slate-200 dark:border-slate-700">
-                            <Users size={28} />
-                          </div>
-                        )}
-                        <div>
-                          <h4 className="font-display font-black text-base text-slate-800 dark:text-white">{fm.name}</h4>
-                          <span className="text-[10px] text-brand-orange uppercase font-extrabold tracking-wider block">{fm.title}</span>
-                          <div className="flex items-center gap-1.5 mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                            <GraduationCap size={12} className="text-slate-400" />
-                            <span>{fm.qualification}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <p className="text-xs text-slate-600 dark:text-slate-300 italic leading-relaxed pt-2">
-                        "{fm.message}"
-                      </p>
-                    </div>
-
-                    <div className="mt-6 pt-4 border-t border-slate-150 dark:border-slate-800 flex justify-between items-center text-xs">
-                      <span className="text-slate-400 uppercase font-black text-[9px] tracking-wider">Tuition Focus: {fm.tuitionFocus}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Timeline Achievements */}
-            <div className="space-y-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-sm">
-              <h3 className="font-display font-black text-base text-slate-800 dark:text-white text-center uppercase tracking-wide">
-                Our Journey of Academic Excellence
-              </h3>
-
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                {timeline.map((item, idx) => (
-                  <div key={idx} className="relative border-l border-slate-200 dark:border-slate-800 pl-4 space-y-1">
-                    <span className="font-display text-xl font-black text-brand-orange block">{item.year}</span>
-                    <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">{item.title}</h4>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">{item.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* LEADERSHIP TEAM SECTION */}
+            <LeadershipSection
+              founders={founders}
+              showExploreButton={true}
+              onExploreFaculty={() => setActiveSection('faculty')}
+            />
           </div>
         )}
 
@@ -720,91 +676,17 @@ export default function LandingPage({
           />
         )}
 
-        {/* VIEW 5: RESULTS & BOARD TOPPERS */}
+        {/* VIEW 5: UNIFIED RESULTS & ACADEMIC HONOR ROLL PAGE */}
         {activeSection === 'results' && (
-          <div className="mx-auto max-w-7xl px-4 py-12 space-y-10">
-            <div className="text-center max-w-xl mx-auto space-y-2">
-              <span className="text-xs font-black uppercase text-amber-600 dark:text-amber-400 tracking-widest block">
-                Hall of Fame
-              </span>
-              <h3 className="font-display text-3xl font-black text-slate-900 dark:text-white">
-                Class 10 State & District Board Merit List
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                Consistent top score ratios secured by students of Sunshine Classes across consecutive Board Exam years.
-              </p>
-            </div>
-
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {(toppers && toppers.length > 0 ? toppers : [
-                { id: 'top1', name: 'Priya Mishra', score: '98.4%', rank: 'State Merit Rank 4', desc: 'Outstanding logical step marks in Math & Physics numerical sheets.', img: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=80', year: '2025' },
-                { id: 'top2', name: 'Anuj Soni', score: '96.2%', rank: 'Hardoi District Rank 1', desc: 'Outstanding chemical reactions balancing with flawless grammar papers.', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80', year: '2025' },
-                { id: 'top3', name: 'Aditi Shukla', score: '95.0%', rank: 'Pihani Zone Rank 1', desc: 'Perfect scoring in Social Studies maps and English grammar assessments.', img: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&auto=format&fit=crop&q=80', year: '2025' },
-                { id: 'top4', name: 'Vikas Kumar', score: '94.8%', rank: 'District Rank 5', desc: 'High scores in Advanced Science numericals and CBSE level algebra.', img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&auto=format&fit=crop&q=80', year: '2024' },
-                { id: 'top5', name: 'Riya Gupta', score: '93.6%', rank: 'Pihani Rank 2', desc: 'Specialized commendation in Biology diagrams and Hindi literature.', img: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&auto=format&fit=crop&q=80', year: '2024' },
-                { id: 'top6', name: 'Amit Singh', score: '92.5%', rank: 'School Rank 1', desc: 'Highest attendance record and top marks in Mock Board Test Series.', img: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=200&auto=format&fit=crop&q=80', year: '2024' }
-              ]).map((top, idx) => (
-                <div 
-                  key={top.id || idx} 
-                  className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xs hover:border-amber-400 transition-all text-center space-y-4 flex flex-col justify-between"
-                >
-                  <div className="space-y-3">
-                    <div className="relative mx-auto h-20 w-20 rounded-full border-4 border-amber-300 dark:border-amber-500/60 overflow-hidden shadow-sm">
-                      <img 
-                        src={top.img || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80'} 
-                        alt={top.name} 
-                        width={80} 
-                        height={80} 
-                        loading="lazy" 
-                        decoding="async" 
-                        className="h-full w-full object-cover" 
-                      />
-                      <div className="absolute bottom-0 inset-x-0 bg-amber-500 text-slate-950 font-black text-[9px] uppercase py-0.5">
-                        {top.year || '2025'}
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 tracking-wider block">
-                        {top.rank}
-                      </span>
-                      <h4 className="font-display font-black text-base text-slate-900 dark:text-white mt-0.5">
-                        {top.name}
-                      </h4>
-                      <span className="text-2xl font-black text-amber-600 dark:text-amber-400 block mt-1">
-                        {top.score}
-                      </span>
-                    </div>
-                    {top.desc && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-snug font-medium">
-                        {top.desc}
-                      </p>
-                    )}
-                  </div>
-                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Verified Sunshine Roll File
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="p-6 rounded-3xl bg-indigo-950 text-white flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-              <div>
-                <h4 className="font-display font-bold text-base text-white">Targeting 90%+ in Class 10 Boards 2027?</h4>
-                <p className="text-xs text-slate-300 mt-0.5">Join Sunshine Classes Board Specialist batch today with personalized doubt clearing.</p>
-              </div>
-              <button
-                id="btn-results-enroll-cta"
-                type="button"
-                onClick={() => {
-                  setAdmClass('Class 10');
-                  navigate('/enroll');
-                }}
-                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs cursor-pointer shrink-0"
-              >
-                Enroll for Class 10
-              </button>
-            </div>
-          </div>
+          <ResultsPage
+            toppers={toppers}
+            testimonials={testimonials}
+            onEnrollClick={(cls) => {
+              if (cls) setAdmClass(cls);
+              navigate('/enroll');
+            }}
+            onSubmitReview={onAddReview}
+          />
         )}
 
         {/* VIEW: STUDY NOTES & RESOURCES HUB (Sprint 3 Study Material Portal) */}
@@ -1098,19 +980,6 @@ export default function LandingPage({
           <Instagram size={14} />
         </a>
       </div>
-
-      {/* Dedicated Floating WhatsApp Hotline Button (Bottom Right) */}
-      <a
-        id="btn-dedicated-whatsapp-hotline"
-        href="https://wa.me/919161586254?text=Hello!%20I%20want%20to%20inquire%20about%20Sunshine%20Classes%20tuitions."
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-16 xl:bottom-6 right-4 sm:right-6 z-50 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-2xl transition-all duration-300 hover:scale-110 hover:bg-emerald-600 focus:outline-none focus:ring-4 focus:ring-emerald-300 group cursor-pointer"
-        title="Chat on WhatsApp (Hotline)"
-      >
-        <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping group-hover:opacity-100"></span>
-        <WhatsAppIcon className="relative z-10 w-6 h-6 sm:w-7 sm:h-7" />
-      </a>
 
       {/* Modular Redesigned Footer */}
       <Footer setActiveSection={setActiveSection} />

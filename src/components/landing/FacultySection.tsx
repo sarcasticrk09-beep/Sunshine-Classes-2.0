@@ -12,11 +12,11 @@ export const FacultySection: React.FC = () => {
   const facultyMembers = [
     {
       name: 'Priyanshu Sir',
-      role: 'Founder & Head of Academics',
-      qualification: 'M.Sc. Mathematics, B.Ed.',
+      role: 'Founder & Academic Director',
+      qualification: 'B.Sc. (Mathematics)',
       experience: '10+ Years Teaching Experience',
-      subjects: ['Mathematics (Class 9 & 10)', 'Physics & Chemistry'],
-      highlight: 'Specialist in NCERT step-marking and Board exam strategy.'
+      subjects: ['Mathematics (Class 9 & 10)', 'Science & Concept Building'],
+      highlight: 'Specialist in conceptual clarity, NCERT step-marking, and Board exam strategy.'
     },
     {
       name: 'Neha Sharma',

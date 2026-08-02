@@ -56,6 +56,11 @@ export interface UniversalCourse {
   faqs: CourseFAQ[];
   metaTitle: string;
   metaDescription: string;
+  // CMS Fields
+  isFeatured?: boolean;
+  academicLevel?: 'primary' | 'middle' | 'board';
+  displayOrder?: number;
+  status?: 'PUBLISHED' | 'DRAFT';
 }
 
 export const OFFICIAL_FEE_STRUCTURE = {

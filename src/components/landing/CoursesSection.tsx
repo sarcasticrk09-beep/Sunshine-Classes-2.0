@@ -4,17 +4,19 @@
  */
 
 import React from 'react';
-import { School, ArrowRight } from 'lucide-react';
-import { UNIVERSAL_COURSES } from '../../data/coursesData';
+import { School, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react';
+import { UNIVERSAL_COURSES, UniversalCourse } from '../../data/coursesData';
 import { CourseCard } from '../courses/CourseCard';
 
 interface CoursesSectionProps {
+  courses?: UniversalCourse[];
   onSelectClassForAdmission: (className: string) => void;
   onNavigateSection?: (section: string) => void;
   onExploreCourse?: (slug: string) => void;
 }
 
 export const CoursesSection: React.FC<CoursesSectionProps> = ({ 
+  courses = UNIVERSAL_COURSES,
   onSelectClassForAdmission,
   onNavigateSection,
   onExploreCourse 
@@ -27,27 +29,38 @@ export const CoursesSection: React.FC<CoursesSectionProps> = ({
     }
   };
 
+  // Select 3-4 administrator-featured programs for homepage conversion
+  const featuredPrograms = courses
+    .filter(c => c.status !== 'DRAFT')
+    .filter(c => {
+      if (c.isFeatured !== undefined) return c.isFeatured;
+      // Default fallback: Class 10, Class 9, Class 8, Class 5
+      return c.classNumber === 10 || c.classNumber === 9 || c.classNumber === 8 || c.classNumber === 5;
+    })
+    .sort((a, b) => (b.classNumber - a.classNumber))
+    .slice(0, 4);
+
   return (
-    <section id="courses-preview" className="py-10 sm:py-16 bg-white dark:bg-slate-900 border-b border-slate-200/60 dark:border-slate-800/60">
+    <section id="courses-preview" className="py-12 sm:py-16 bg-white dark:bg-slate-900 border-b border-slate-200/60 dark:border-slate-800/60">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8 sm:space-y-12">
         
         {/* Section Header */}
-        <div className="text-center max-w-2xl mx-auto space-y-2">
-          <span className="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1.5">
-            <School size={14} />
-            <span>Classroom Programs</span>
+        <div className="text-center max-w-2xl mx-auto space-y-2.5">
+          <span className="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
+            <Sparkles size={13} className="text-amber-500" />
+            <span>Featured Programs</span>
           </span>
-          <h2 className="font-display text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
-            Classroom Tuitions & Batch Schedules
+          <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+            Flagship Classroom Programs
           </h2>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            Explore active tuition batches from Class 1 to Class 10 with transparent monthly fees and core subject coverage.
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
+            Discover our most popular tuition batches designed for conceptual clarity, board exam mastery, and individual student care.
           </p>
         </div>
 
-        {/* 5 Cards Grid */}
-        <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          {UNIVERSAL_COURSES.map((course) => (
+        {/* Concise Featured 3-4 Cards Grid */}
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {featuredPrograms.map((course) => (
             <CourseCard
               key={course.id}
               course={course}
@@ -58,16 +71,29 @@ export const CoursesSection: React.FC<CoursesSectionProps> = ({
           ))}
         </div>
 
-        {/* View All Courses CTA */}
-        <div className="text-center pt-2">
+        {/* High-Conversion CTA Banner Linking to Full Directory */}
+        <div className="rounded-3xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-indigo-950/5 p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
+          <div className="space-y-2 text-center md:text-left">
+            <div className="inline-flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-400">
+              <CheckCircle2 size={15} className="text-amber-500" />
+              <span>Complete Class 1 to 10 Academic Coverage</span>
+            </div>
+            <h3 className="font-display font-black text-xl sm:text-2xl text-slate-900 dark:text-white">
+              Looking for Primary Wing (Class 1-4) or Middle School Batches?
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-xl font-medium">
+              We offer dedicated tuition batches for all classes with transparent monthly fees starting from ₹500/month.
+            </p>
+          </div>
+
           <button
             id="btn-homepage-view-all-courses"
             type="button"
-            onClick={() => onNavigateSection ? onNavigateSection('courses') : onSelectClassForAdmission('Class 10')}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-extrabold text-xs px-6 py-3 shadow-xs transition-all cursor-pointer min-h-[44px]"
+            onClick={() => onNavigateSection ? onNavigateSection('courses') : handleExplore('class-10')}
+            className="inline-flex items-center justify-center gap-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-slate-950 font-black text-xs sm:text-sm px-7 py-3.5 shadow-md transition-all cursor-pointer min-h-[48px] shrink-0 border border-amber-400"
           >
-            <span>View All Courses & Full Fee Directory</span>
-            <ArrowRight size={15} className="text-amber-500" />
+            <span>View All Courses & Fee Directory</span>
+            <ArrowRight size={16} />
           </button>
         </div>
 

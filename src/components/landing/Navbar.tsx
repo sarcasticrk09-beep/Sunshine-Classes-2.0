@@ -15,7 +15,11 @@ import {
   UserCheck,
   Shield,
   Layers,
-  HelpCircle
+  HelpCircle,
+  Share2,
+  MessageCircle,
+  Check,
+  Copy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import SunshineLogo from '../SunshineLogo';
@@ -37,9 +41,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSupportForm
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [expandedMobileCategory, setExpandedMobileCategory] = useState<string | null>(null);
-  const [isScrolled, setIsScrolled] = useState(false);
+  const [showNavShare, setShowNavShare] = useState(false);
+  const [copiedNavShareLink, setCopiedNavShareLink] = useState(false);
   const navigate = useNavigate();
 
   // Scroll detection for compact sticky header behavior
@@ -76,53 +82,59 @@ export const Navbar: React.FC<NavbarProps> = ({
     { label: 'Class 8 Apex Learning', desc: 'High School Foundation Prep', action: () => handleRouteClick('/courses/class-8') },
     { label: 'Class 9 Board Foundation', desc: 'Physics, Chem & Math Focus', action: () => handleRouteClick('/courses/class-9') },
     { label: 'Class 10 Board Specialist', desc: 'High Scoring Board Exam Batch', action: () => handleRouteClick('/courses/class-10') },
-    { label: 'All Courses Directory', desc: 'Explore all 5 tuition programs', action: () => handleRouteClick('/courses') }
+    { label: 'All Courses Directory', desc: 'Explore all tuition programs', action: () => handleRouteClick('/courses') }
   ];
 
   const admissionsDropdown = [
-    { label: 'Admission Process', desc: 'Step-by-step registration guide', action: () => handleNavClick('admissions') },
-    { label: 'Online Admission Form', desc: 'Apply digitally in 2 minutes', action: () => handleNavClick('admissions') },
-    { label: 'Fee Structure', desc: 'Affordable monthly fee details', action: () => handleNavClick('courses') },
-    { label: 'Admissions FAQ', desc: 'Common parent queries answered', action: () => handleNavClick('admissions') }
+    { label: 'Admissions Hub', desc: 'Overview & registration status', action: () => handleRouteClick('/admissions') },
+    { label: 'Admission Process', desc: 'Step-by-step registration guide', action: () => handleRouteClick('/admissions/process') },
+    { label: 'Online Admission Form', desc: 'Apply digitally in 2 minutes', action: () => handleRouteClick('/admissions/apply') },
+    { label: 'Fee Structure & Policies', desc: 'Affordable monthly fee details', action: () => handleRouteClick('/admissions/fees') },
+    { label: 'Scholarships & Concessions', desc: 'Merit-based fee reductions', action: () => handleRouteClick('/admissions/scholarships') },
+    { label: 'Admissions FAQ', desc: 'Common parent queries answered', action: () => handleRouteClick('/admissions/faq') }
   ];
 
   const resourcesDropdown = [
-    { label: 'Study Material', desc: 'Comprehensive PDF notes', action: () => handleRouteClick('/resources') },
-    { label: 'Chapter Notes', desc: 'Detailed NCERT summaries', action: () => handleRouteClick('/resources') },
-    { label: 'PYQs & Board Papers', desc: 'Last 10 year solved papers', action: () => handleRouteClick('/resources') },
-    { label: 'Formula Sheets', desc: 'Math & Physics quick revision', action: () => handleRouteClick('/resources') },
-    { label: 'Worksheets', desc: 'Practice problem sets', action: () => handleRouteClick('/resources') },
-    { label: 'Practice Papers', desc: 'Mock tests & sample papers', action: () => handleRouteClick('/resources') }
+    { label: 'All Study Resources', desc: 'Browse complete academic library', action: () => handleRouteClick('/resources') },
+    { label: 'Study Material', desc: 'Comprehensive PDF notes & kits', action: () => handleRouteClick('/resources/study-material') },
+    { label: 'Chapter Notes', desc: 'Detailed NCERT chapter summaries', action: () => handleRouteClick('/resources/chapter-notes') },
+    { label: 'PYQs & Board Papers', desc: 'Last 10 year solved board papers', action: () => handleRouteClick('/resources/pyqs') },
+    { label: 'Formula Sheets', desc: 'Math & Science formula quick revision', action: () => handleRouteClick('/resources/formula-sheets') },
+    { label: 'Worksheets', desc: 'Classroom & homework worksheets', action: () => handleRouteClick('/resources/worksheets') },
+    { label: 'Practice Papers', desc: 'Mock tests & sample question papers', action: () => handleRouteClick('/resources/practice-papers') }
   ];
 
   const storeDropdown = [
     { label: '🛒 Sunshine Store Home', desc: 'All Books & Student Essentials', action: () => handleRouteClick('/store') },
-    { label: 'Books', desc: 'NCERT & reference textbooks', action: () => handleRouteClick('/store') },
-    { label: 'Study Material', desc: 'Printed notes & study kits', action: () => handleRouteClick('/store') },
-    { label: 'Practice Papers', desc: 'Printed mock exam packages', action: () => handleRouteClick('/store') },
-    { label: 'Notebooks & Registers', desc: 'Spiral notebooks & practice sheets', action: () => handleRouteClick('/store') },
-    { label: 'Stationery & Geometry', desc: 'Pens, highlighters & geometry kits', action: () => handleRouteClick('/store') },
-    { label: 'Student Essentials', desc: 'Study lamps, timers & desk accessories', action: () => handleRouteClick('/store') }
-  ];
-
-  const resultsDropdown = [
-    { label: 'Board Toppers', desc: 'Class 10 merit list holders', action: () => handleNavClick('results') },
-    { label: 'Success Stories', desc: 'Student testimonials & journeys', action: () => handleNavClick('results') },
-    { label: 'Academic Achievements', desc: 'District rankings & honours', action: () => handleNavClick('results') }
+    { label: 'Books', desc: 'NCERT & reference textbooks', action: () => handleRouteClick('/store/books') },
+    { label: 'Printed Study Material', desc: 'Printed notes & study kits', action: () => handleRouteClick('/store/study-material') },
+    { label: 'Practice Papers', desc: 'Printed mock exam packages', action: () => handleRouteClick('/store/practice-papers') },
+    { label: 'Notebooks & Registers', desc: 'Spiral notebooks & practice sheets', action: () => handleRouteClick('/store/notebooks') },
+    { label: 'Stationery & Geometry', desc: 'Pens, highlighters & geometry kits', action: () => handleRouteClick('/store/stationery') },
+    { label: 'Student Essentials', desc: 'Study lamps, timers & desk accessories', action: () => handleRouteClick('/store/essentials') }
   ];
 
   const aboutDropdown = [
-    { label: 'About Sunshine Classes', desc: 'Our legacy of educational excellence', action: () => handleNavClick('about') },
-    { label: 'Our Mission & Vision', desc: 'Empowering students in Pihani', action: () => handleNavClick('about') },
-    { label: 'Faculty & Mentors', desc: 'Experienced teaching staff', action: () => handleNavClick('about') },
-    { label: 'Campus Infrastructure', desc: 'Safe & disciplined classroom setup', action: () => handleNavClick('about') },
-    { label: 'Frequently Asked Questions', desc: 'General queries & answers', action: () => handleNavClick('about') }
+    { label: 'About Sunshine Classes', desc: 'Our legacy of educational excellence', action: () => handleRouteClick('/about') },
+    { label: 'Our Mission & Vision', desc: 'Empowering students in Pihani', action: () => handleRouteClick('/about/mission') },
+    { label: 'Faculty & Mentors', desc: 'Experienced teaching staff', action: () => handleRouteClick('/faculty') },
+    { label: 'Campus Infrastructure', desc: 'Safe & disciplined classroom setup', action: () => handleRouteClick('/about/infrastructure') },
+    { label: 'Frequently Asked Questions', desc: 'General queries & answers', action: () => handleRouteClick('/about/faq') }
   ];
 
   const loginDropdown = [
-    { label: 'Student Login', desc: 'Access homework, tests & fees', icon: <UserCheck size={16} className="text-blue-500" />, action: () => handleRouteClick('/login') },
-    { label: 'Teacher Login', desc: 'Manage marks, attendance & notes', icon: <GraduationCap size={16} className="text-amber-500" />, action: () => handleRouteClick('/login') },
-    { label: 'Admin Login', desc: 'System control & reports', icon: <Shield size={16} className="text-emerald-500" />, action: () => handleRouteClick('/login') }
+    { 
+      label: 'Student Portal', 
+      desc: 'Student & Parent access for homework, tests & fees', 
+      icon: <UserCheck size={16} className="text-brand-blue" />, 
+      action: () => handleRouteClick('/login/student') 
+    },
+    { 
+      label: 'Administration Portal', 
+      desc: 'Staff portal for Teachers, Admin, Reception & Accountants', 
+      icon: <Shield size={16} className="text-slate-800 dark:text-slate-200" />, 
+      action: () => handleRouteClick('/login/admin') 
+    }
   ];
 
   return (
@@ -320,48 +332,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             </AnimatePresence>
           </div>
 
-          {/* Results Dropdown */}
-          <div 
-            className="relative"
-            onMouseEnter={() => setActiveDropdown('results')}
-            onMouseLeave={() => setActiveDropdown(null)}
+          {/* Results Direct Nav */}
+          <button
+            id="btn-nav-results"
+            onClick={() => handleNavClick('results')}
+            className={`px-3 py-2 rounded-xl transition-all cursor-pointer ${
+              activeSection === 'results'
+                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-black'
+                : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+            }`}
           >
-            <button
-              id="btn-nav-results"
-              onClick={() => handleNavClick('results')}
-              className={`px-3 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1 ${
-                activeSection === 'results'
-                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-black'
-                  : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-              }`}
-            >
-              <span>Results</span>
-              <ChevronDown size={13} className={`transition-transform duration-200 ${activeDropdown === 'results' ? 'rotate-180' : ''}`} />
-            </button>
-
-            <AnimatePresence>
-              {activeDropdown === 'results' && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute top-full left-0 mt-1 w-60 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 shadow-xl z-50 space-y-0.5"
-                >
-                  {resultsDropdown.map((item, idx) => (
-                    <button
-                      key={idx}
-                      onClick={item.action}
-                      className="w-full p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left transition-colors cursor-pointer block"
-                    >
-                      <div className="font-bold text-xs text-slate-800 dark:text-white">{item.label}</div>
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400">{item.desc}</div>
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+            Results
+          </button>
 
           {/* About Dropdown */}
           <div 
@@ -434,6 +416,71 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             {theme === 'dark' ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} className="text-slate-700" />}
           </button>
+
+          {/* Share Portal Button */}
+          <div className="relative hidden sm:block">
+            <button
+              id="btn-nav-share-portal"
+              type="button"
+              onClick={() => setShowNavShare(!showNavShare)}
+              className="p-2.5 sm:px-3 sm:py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer min-h-[44px] flex items-center gap-1.5 text-xs font-bold"
+              title="Share Sunshine Classes Portal"
+            >
+              <Share2 size={16} className="text-brand-blue" />
+              <span className="hidden md:inline">Share</span>
+            </button>
+
+            <AnimatePresence>
+              {showNavShare && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setShowNavShare(false)} 
+                  />
+                  <motion.div
+                    id="dropdown-nav-share-portal"
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-2 z-50"
+                  >
+                    <div className="p-2 border-b border-slate-100 dark:border-slate-800 mb-1">
+                      <p className="text-xs font-extrabold text-slate-800 dark:text-slate-100">Share ERP Portal</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Sunshine Classes Pihani</p>
+                    </div>
+
+                    <a
+                      id="btn-nav-share-whatsapp"
+                      href={`https://api.whatsapp.com/send?text=${encodeURIComponent("Join Sunshine Classes ERP Portal: " + window.location.origin)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setShowNavShare(false)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-400 rounded-xl transition-colors cursor-pointer"
+                    >
+                      <MessageCircle size={16} className="text-emerald-600 shrink-0" />
+                      <span>Share via WhatsApp</span>
+                    </a>
+
+                    <button
+                      type="button"
+                      id="btn-nav-share-copy"
+                      onClick={() => {
+                        navigator.clipboard.writeText(window.location.origin);
+                        setCopiedNavShareLink(true);
+                        setTimeout(() => setCopiedNavShareLink(false), 2500);
+                        setShowNavShare(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-brand-blue/10 hover:text-brand-blue rounded-xl transition-colors cursor-pointer"
+                    >
+                      {copiedNavShareLink ? <Check size={16} className="text-emerald-600 shrink-0" /> : <Copy size={16} className="text-brand-blue shrink-0" />}
+                      <span>{copiedNavShareLink ? 'Link Copied!' : 'Copy Portal Link'}</span>
+                    </button>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* Login Dropdown (Replaces ERP technical label) */}
           <div 
@@ -620,29 +667,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 )}
               </div>
 
-              {/* Results Accordion */}
-              <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                <button
-                  onClick={() => setExpandedMobileCategory(expandedMobileCategory === 'results' ? null : 'results')}
-                  className="w-full text-left py-2.5 px-3 bg-slate-50 dark:bg-slate-800/60 font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center justify-between"
-                >
-                  <span>🏆 Results</span>
-                  <ChevronDown size={14} className={`transition-transform duration-200 ${expandedMobileCategory === 'results' ? 'rotate-180' : ''}`} />
-                </button>
-                {expandedMobileCategory === 'results' && (
-                  <div className="p-2 bg-white dark:bg-slate-900 space-y-1 border-t border-slate-100 dark:border-slate-800">
-                    {resultsDropdown.map((res, idx) => (
-                      <button
-                        key={idx}
-                        onClick={res.action}
-                        className="w-full text-left p-2 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 block"
-                      >
-                        {res.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {/* Results Direct Link */}
+              <button
+                id="mobile-nav-results"
+                onClick={() => handleNavClick('results')}
+                className={`w-full text-left py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-between ${
+                  activeSection === 'results'
+                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-black'
+                    : 'bg-slate-50 dark:bg-slate-800/60 text-slate-800 dark:text-slate-200'
+                }`}
+              >
+                <span>🏆 Academic Results & Merit List</span>
+              </button>
 
               {/* About Link */}
               <button
@@ -674,12 +710,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
 
                 <button
-                  id="mobile-btn-login"
-                  onClick={() => handleRouteClick('/login')}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-800 dark:bg-slate-700 text-white font-bold text-xs shadow-md min-h-[44px]"
+                  id="mobile-btn-student-login"
+                  onClick={() => handleRouteClick('/login/student')}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-brand-blue text-white font-bold text-xs shadow-md min-h-[44px] cursor-pointer"
                 >
-                  <LogIn size={16} />
-                  <span>Student & Teacher Login</span>
+                  <UserCheck size={16} />
+                  <span>Student Portal</span>
+                </button>
+
+                <button
+                  id="mobile-btn-admin-login"
+                  onClick={() => handleRouteClick('/login/admin')}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-800 dark:bg-slate-700 text-white font-bold text-xs shadow-md min-h-[44px] cursor-pointer"
+                >
+                  <Shield size={16} />
+                  <span>Administration Portal</span>
                 </button>
 
                 {onOpenSupportForm && (
