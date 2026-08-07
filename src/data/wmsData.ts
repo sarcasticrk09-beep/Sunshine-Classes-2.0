@@ -245,10 +245,10 @@ export const SEED_WMS_DATA: WMSData = {
 
   footerConfig: {
     logoUrl: 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?auto=format&fit=crop&q=80&w=200',
-    address: 'Near Town Hall, Main Market Road, Pihani, Hardoi, Uttar Pradesh - 241406',
-    phone: '+91 9999900000 / +91 9999900001',
+    address: 'Mohalla Mishrana, Opp. Subhash Park, Pihani, Hardoi, Uttar Pradesh - 241406',
+    phone: '+91 8707738284 / +91 9140411354',
     email: 'sunshineclassespihani@gmail.com',
-    whatsapp: '+91 9999900000',
+    whatsapp: '+91 8707738284',
     officeHours: 'Mon - Sat: 07:00 AM - 07:00 PM | Sun: Closed',
     copyrightText: '© 2026 Sunshine Classes Pihani. All rights reserved. Built with pride for excellence in education.',
     quickLinks: [
@@ -375,11 +375,11 @@ export const SEED_WMS_DATA: WMSData = {
   ],
 
   contactConfig: {
-    address: 'Near Town Hall, Main Market Road, Pihani, Hardoi, Uttar Pradesh - 241406',
-    phoneNumbers: ['+91 9999900000', '+91 9999900001'],
+    address: 'Mohalla Mishrana, Opp. Subhash Park, Pihani, Hardoi, Uttar Pradesh - 241406',
+    phoneNumbers: ['+91 8707738284', '+91 9140411354'],
     emails: ['sunshineclassespihani@gmail.com', 'info@sunshineclasses.edu.in'],
-    whatsappNumber: '+91 9999900000',
-    googleMapsEmbed: 'https://maps.google.com/maps?q=Pihani+Hardoi&t=&z=13&ie=UTF8&iwloc=&output=embed',
+    whatsappNumber: '+91 8707738284',
+    googleMapsEmbed: 'https://maps.google.com/maps?q=Mohalla+Mishrana+Pihani+Hardoi&t=&z=14&ie=UTF8&iwloc=&output=embed',
     officeHours: 'Mon - Sat: 07:00 AM - 07:00 PM | Sun: Closed'
   },
 

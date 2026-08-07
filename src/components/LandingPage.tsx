@@ -936,15 +936,15 @@ export default function LandingPage({
         )}
       </main>
 
-      {/* Floating Action Bars */}
-      <div className="fixed bottom-16 xl:bottom-6 left-4 sm:left-6 z-40 flex items-center gap-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-1.5 rounded-full shadow-xl border border-slate-200/60 dark:border-slate-800/60">
+      {/* Floating Quick Action Contacts */}
+      <div className="fixed bottom-16 xl:bottom-6 left-3 sm:left-6 z-30 flex items-center gap-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-1 sm:p-1.5 rounded-full shadow-lg border border-slate-200/80 dark:border-slate-800/80">
         <a
           id="btn-sticky-call"
           href="tel:8707738284"
-          className="flex h-9 items-center gap-1.5 rounded-full bg-amber-500 text-white px-3.5 hover:bg-amber-600 text-xs font-bold transition-all shadow-sm cursor-pointer"
+          className="flex h-8 sm:h-9 items-center gap-1 rounded-full bg-amber-500 text-white px-2.5 sm:px-3.5 hover:bg-amber-600 text-[11px] sm:text-xs font-bold transition-all shadow-xs cursor-pointer"
           title="Call Admission Desk"
         >
-          <Phone size={12} /> <span className="hidden sm:inline">Call Office</span>
+          <Phone size={12} /> <span className="inline">Call</span>
         </a>
         
         <a
@@ -952,7 +952,7 @@ export default function LandingPage({
           href="https://wa.me/919161586254?text=Hello!%20I%20am%20interested%20in%20Sunshine%20Classes."
           target="_blank"
           rel="noopener noreferrer"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500 hover:bg-emerald-600 text-white transition-all shadow-sm cursor-pointer"
+          className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-emerald-500 hover:bg-emerald-600 text-white transition-all shadow-xs cursor-pointer"
           title="Chat on WhatsApp"
         >
           <WhatsAppIcon size={14} />
@@ -963,7 +963,7 @@ export default function LandingPage({
           href="https://facebook.com/sunshineclassespihani"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-sm cursor-pointer"
+          className="hidden sm:flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-xs cursor-pointer"
           title="Visit Facebook Page"
         >
           <Facebook size={14} />
@@ -974,7 +974,7 @@ export default function LandingPage({
           href="https://instagram.com/sunshineclassespihani"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 hover:opacity-90 text-white transition-all shadow-sm cursor-pointer"
+          className="hidden sm:flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 hover:opacity-90 text-white transition-all shadow-xs cursor-pointer"
           title="Follow on Instagram"
         >
           <Instagram size={14} />

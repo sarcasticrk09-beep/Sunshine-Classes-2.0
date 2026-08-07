@@ -222,14 +222,14 @@ export const GmailHub: React.FC<GmailHubProps> = ({
   const applyTemplate = (type: string) => {
     setTemplateType(type);
     if (type === 'FEE_REMINDER') {
-      setSubject('Fee Payment Reminder — Sunshine Classes Varanasi');
+      setSubject('Fee Payment Reminder — Sunshine Classes Pihani');
       setMessageBody(
         `This is a gentle reminder regarding the pending fee payment for the current billing cycle. Kindly ensure the payment is completed by the due date to maintain uninterrupted learning access.\n\nYou can pay online via UPI, Credit/Debit card, or at the reception branch.`
       );
     } else if (type === 'ADMISSION_CONFIRM') {
       setSubject('Admission Confirmation & Welcome — Sunshine Classes');
       setMessageBody(
-        `We are thrilled to welcome you to Sunshine Classes Varanasi! Your admission process has been successfully verified.\n\nPlease find your batch schedule and student login credentials attached in the student portal.`
+        `We are thrilled to welcome you to Sunshine Classes Pihani! Your admission process has been successfully verified.\n\nPlease find your batch schedule and student login credentials attached in the student portal.`
       );
     } else if (type === 'MARKS_REPORT') {
       setSubject('Weekly Test Assessment Report & Performance Marks');

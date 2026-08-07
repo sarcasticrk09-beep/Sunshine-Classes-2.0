@@ -23,20 +23,16 @@ export const QuickAccessHub: React.FC<QuickAccessHubProps> = ({ onNavigateSectio
       id: 'admissions',
       title: 'Admissions',
       subtitle: 'Classes 1 to 10',
-      description: 'Online application & batch seat reservation',
-      icon: <GraduationCap size={22} className="text-amber-500" />,
-      badge: 'Open 2026-27',
-      badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+      description: 'Online application & seat reservation',
+      icon: <GraduationCap size={20} className="text-amber-500" />,
       action: () => onNavigateSection('admissions')
     },
     {
       id: 'courses',
       title: 'Courses',
       subtitle: 'Classroom Batches',
-      description: 'Schedules, tuition fees & subject coverage',
-      icon: <School size={22} className="text-blue-500" />,
-      badge: 'Max 25 / Batch',
-      badgeColor: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+      description: 'Schedules, tuition fees & subjects',
+      icon: <School size={20} className="text-blue-500" />,
       action: () => onNavigateSection('courses')
     },
     {
@@ -44,9 +40,7 @@ export const QuickAccessHub: React.FC<QuickAccessHubProps> = ({ onNavigateSectio
       title: 'Study Material',
       subtitle: 'Free Digital Notes',
       description: 'NCERT formula sheets, worksheets & PYQs',
-      icon: <BookOpen size={22} className="text-emerald-500" />,
-      badge: 'Free PDFs',
-      badgeColor: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+      icon: <BookOpen size={20} className="text-emerald-500" />,
       action: () => navigate('/resources')
     },
     {
@@ -54,9 +48,7 @@ export const QuickAccessHub: React.FC<QuickAccessHubProps> = ({ onNavigateSectio
       title: 'Sunshine Store',
       subtitle: 'Book Depot & Kits',
       description: 'Textbooks, sample papers & stationery',
-      icon: <ShoppingBag size={22} className="text-rose-500" />,
-      badge: 'Campus Depot',
-      badgeColor: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
+      icon: <ShoppingBag size={20} className="text-rose-500" />,
       action: () => navigate('/books')
     },
     {
@@ -64,34 +56,30 @@ export const QuickAccessHub: React.FC<QuickAccessHubProps> = ({ onNavigateSectio
       title: 'Board Results',
       subtitle: 'Merit Toppers',
       description: 'Class 10 state & district rank holders',
-      icon: <Award size={22} className="text-purple-500" />,
-      badge: '98.4% Top Marks',
-      badgeColor: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+      icon: <Award size={20} className="text-purple-500" />,
       action: () => onNavigateSection('results')
     },
     {
       id: 'contact',
-      title: 'Contact',
-      subtitle: 'Pihani Helpdesk',
-      description: 'Location map, office hours & WhatsApp',
-      icon: <PhoneCall size={22} className="text-indigo-500" />,
-      badge: 'Instant Desk',
-      badgeColor: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20',
+      title: 'Contact Desk',
+      subtitle: 'Pihani Location',
+      description: 'Map, office hours & instant WhatsApp',
+      icon: <PhoneCall size={20} className="text-indigo-500" />,
       action: () => onNavigateSection('contact')
     }
   ];
 
   return (
-    <section className="py-12 bg-white dark:bg-slate-900 border-b border-slate-200/60 dark:border-slate-800/60">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
+    <section className="py-8 sm:py-12 bg-white dark:bg-slate-900 border-b border-slate-200/60 dark:border-slate-800/60">
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
         
         {/* Section Header */}
-        <div className="text-center max-w-2xl mx-auto space-y-2">
-          <span className="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1.5">
-            <Sparkles size={14} />
+        <div className="text-center max-w-2xl mx-auto space-y-1.5 sm:space-y-2">
+          <span className="text-[11px] sm:text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1.5">
+            <Sparkles size={13} />
             <span>Fast Navigation Hub</span>
           </span>
-          <h2 className="font-display text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
+          <h2 className="font-display text-xl sm:text-3xl font-black text-slate-900 dark:text-white">
             Quick Access Hub
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
@@ -100,32 +88,32 @@ export const QuickAccessHub: React.FC<QuickAccessHubProps> = ({ onNavigateSectio
         </div>
 
         {/* 6 Hub Cards Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-4">
           {hubCards.map((card) => (
             <button
               key={card.id}
               id={`hub-card-${card.id}`}
               onClick={card.action}
-              className="group rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 p-4 text-left flex flex-col justify-between hover:border-amber-500 dark:hover:border-amber-400 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 shadow-xs hover:shadow-md cursor-pointer min-h-[160px]"
+              className="group rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 p-3 sm:p-4 text-left flex flex-col justify-between hover:border-amber-500 dark:hover:border-amber-400 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 shadow-xs hover:shadow-md cursor-pointer min-h-[145px] sm:min-h-[160px]"
             >
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 
-                {/* Top Row: Icon + Badge */}
+                {/* Top Row: Icon */}
                 <div className="flex items-center justify-between">
-                  <div className="h-10 w-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                  <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform shrink-0">
                     {card.icon}
                   </div>
                 </div>
 
                 {/* Title & Subtitle */}
                 <div>
-                  <h3 className="font-display font-black text-sm text-slate-900 dark:text-white group-hover:text-amber-500 transition-colors">
+                  <h3 className="font-display font-black text-xs sm:text-sm text-slate-900 dark:text-white group-hover:text-amber-500 transition-colors leading-tight">
                     {card.title}
                   </h3>
-                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block">
+                  <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 block mt-0.5">
                     {card.subtitle}
                   </span>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-tight line-clamp-2">
+                  <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-tight line-clamp-2">
                     {card.description}
                   </p>
                 </div>
@@ -133,9 +121,9 @@ export const QuickAccessHub: React.FC<QuickAccessHubProps> = ({ onNavigateSectio
               </div>
 
               {/* Bottom Action Hint */}
-              <div className="pt-2 flex items-center justify-between border-t border-slate-200/40 dark:border-slate-800 text-[10px] font-extrabold text-amber-600 dark:text-amber-400">
+              <div className="pt-1.5 flex items-center justify-between border-t border-slate-200/40 dark:border-slate-800 text-[10px] font-extrabold text-amber-600 dark:text-amber-400">
                 <span>Explore</span>
-                <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
+                <ArrowRight size={11} className="group-hover:translate-x-1 transition-transform" />
               </div>
 
             </button>

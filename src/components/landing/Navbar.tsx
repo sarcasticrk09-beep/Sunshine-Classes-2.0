@@ -138,14 +138,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   return (
-    <header className={`sticky top-0 z-40 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md transition-all duration-300 ${isScrolled ? 'shadow-md h-16' : 'h-18 sm:h-20'}`}>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between gap-3">
+    <header className={`sticky top-0 z-40 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md transition-all duration-300 ${isScrolled ? 'shadow-md h-16' : 'h-16 sm:h-20'}`}>
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 h-full flex items-center justify-between gap-2 sm:gap-3">
         
         {/* Brand Logo & Name */}
         <button
           id="nav-logo-btn"
           onClick={() => handleNavClick('home')}
-          className="flex items-center gap-2 cursor-pointer text-left focus:outline-none shrink-0"
+          className="flex items-center gap-1.5 sm:gap-2 cursor-pointer text-left focus:outline-none shrink-0 max-w-[170px] xs:max-w-none overflow-hidden"
           title="Sunshine Classes Home"
         >
           <SunshineLogo size="sm" showText={true} textSubTitle="Pihani, Hardoi" />
@@ -529,20 +529,21 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             id="btn-nav-enroll-now"
             onClick={() => handleNavClick('admissions')}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-md transition-all cursor-pointer shrink-0 min-h-[44px]"
+            className="flex items-center gap-1 sm:gap-1.5 px-2.5 xs:px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-md transition-all cursor-pointer shrink-0 min-h-[40px] sm:min-h-[44px]"
           >
-            <GraduationCap size={16} />
-            <span>Enroll Now</span>
+            <GraduationCap size={15} className="shrink-0" />
+            <span className="hidden xs:inline">Enroll Now</span>
+            <span className="xs:hidden">Enroll</span>
           </button>
 
-          {/* Mobile Drawer Toggle Toggle */}
+          {/* Mobile Drawer Toggle */}
           <button
             id="btn-nav-mobile-toggle"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="xl:hidden p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="xl:hidden p-2 sm:p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer min-h-[40px] min-w-[40px] sm:min-h-[44px] sm:min-w-[44px] flex items-center justify-center shrink-0"
             aria-label="Toggle mobile navigation menu"
           >
-            {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
       </div>

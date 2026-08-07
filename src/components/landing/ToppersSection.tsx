@@ -57,16 +57,16 @@ export const ToppersSection: React.FC<ToppersSectionProps> = ({
   const itemsToDisplay = (featuredToppers.length > 0 ? featuredToppers : publishedToppers).slice(0, 3);
 
   return (
-    <section id="results-preview" className="py-10 sm:py-16 bg-slate-50/80 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800/60">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8 sm:space-y-12">
+    <section id="results-preview" className="py-8 sm:py-16 bg-slate-50/80 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800/60">
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 space-y-6 sm:space-y-12">
         
         {/* Section Header */}
-        <div className="text-center max-w-2xl mx-auto space-y-2">
-          <span className="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1.5">
+        <div className="text-center max-w-2xl mx-auto space-y-1.5 sm:space-y-2">
+          <span className="text-[11px] sm:text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1.5">
             <Trophy size={14} />
             <span>Academic Merit Honor Roll</span>
           </span>
-          <h2 className="font-display text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
+          <h2 className="font-display text-xl sm:text-3xl font-black text-slate-900 dark:text-white">
             High Academic Scorers & Board Achievers
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
@@ -75,7 +75,7 @@ export const ToppersSection: React.FC<ToppersSectionProps> = ({
         </div>
 
         {/* Toppers Cards Grid */}
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
+        <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
           {itemsToDisplay.map((top, idx) => (
             <TopperCard
               key={top.id || `home-topper-${idx}`}
@@ -86,11 +86,11 @@ export const ToppersSection: React.FC<ToppersSectionProps> = ({
         </div>
 
         {/* View All Results CTA */}
-        <div className="text-center pt-2">
+        <div className="text-center pt-1 sm:pt-2">
           <button
             id="btn-homepage-view-full-merit-list"
             onClick={() => onNavigateResults ? onNavigateResults() : (window.location.href = '#results')}
-            className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs px-6 py-3 shadow-md transition-all cursor-pointer min-h-[44px]"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs px-5 sm:px-6 py-3 shadow-md transition-all cursor-pointer min-h-[44px] w-full sm:w-auto"
           >
             <span>View Full Merit List & Historic Results</span>
             <ArrowRight size={15} />

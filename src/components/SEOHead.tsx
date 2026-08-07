@@ -232,7 +232,7 @@ export function SEOHead() {
       "foundingDate": "2018",
       "address": {
         "@type": "PostalAddress",
-        "streetAddress": "Near Gandhi Park",
+        "streetAddress": "Mohalla Mishrana, Opp. Subhash Park",
         "addressLocality": "Pihani",
         "addressRegion": "Hardoi, Uttar Pradesh",
         "postalCode": "241406",
@@ -261,7 +261,7 @@ export function SEOHead() {
       "priceRange": "₹₹",
       "address": {
         "@type": "PostalAddress",
-        "streetAddress": "Near Gandhi Park",
+        "streetAddress": "Mohalla Mishrana, Opp. Subhash Park",
         "addressLocality": "Pihani",
         "addressRegion": "Hardoi, Uttar Pradesh",
         "postalCode": "241406",

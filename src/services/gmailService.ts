@@ -297,7 +297,7 @@ export function buildERPEmailHtml({
   <body>
     <div class="container">
       <div class="header">
-        <h1>Sunshine Classes Varanasi</h1>
+        <h1>Sunshine Classes Pihani</h1>
         <p>Official ERP Communication</p>
       </div>
       <div class="content">
@@ -309,8 +309,8 @@ export function buildERPEmailHtml({
         ${callToActionUrl ? `<div style="text-align: center;"><a href="${callToActionUrl}" class="btn" target="_blank">${callToActionText || 'Open Student Portal'}</a></div>` : ''}
       </div>
       <div class="footer">
-        <p style="margin: 0 0 4px 0;"><strong>Sunshine Classes Varanasi</strong> — CBSE Excellence Institute</p>
-        <p style="margin: 0;">Address: Near Lanka Crossing, Varanasi, UP, India | Phone: +91 98765 43210</p>
+        <p style="margin: 0 0 4px 0;"><strong>Sunshine Classes Pihani</strong> — CBSE Excellence Institute</p>
+        <p style="margin: 0;">Address: Main Market, Pihani, Hardoi, UP, India | Phone: +91 8707738284</p>
       </div>
     </div>
   </body>
