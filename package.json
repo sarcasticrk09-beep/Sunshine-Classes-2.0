@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "npm install && vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs && rm -rf build && cp -r dist build",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
@@ -27,8 +27,6 @@
     "esbuild": "^0.25.0",
     "express": "^4.21.2",
     "express-rate-limit": "^8.6.0",
-    "firebase": "^12.15.0",
-    "firebase-admin": "^14.1.0",
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "jspdf": "^4.2.1",

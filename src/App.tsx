@@ -104,9 +104,13 @@ import PublicStudyMaterialPage from './pages/PublicStudyMaterialPage';
 import { PublicStorePage } from './pages/PublicStorePage';
 import { PublicProductDetailsPage } from './pages/PublicProductDetailsPage';
 import { SEOHead, trackAdmissionSubmit } from './components/SEOHead';
+import { NotFoundPage } from './components/NotFoundPage';
+import { PrivacyPolicyPage } from './components/legal/PrivacyPolicyPage';
+import { TermsConditionsPage } from './components/legal/TermsConditionsPage';
+import { CookieConsentBanner } from './components/CookieConsentBanner';
 
 import { db, getCachedIdToken } from './lib/firebase';
-import { doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
+import { SyncService } from './services/SyncService';
 import { interpolateWhatsAppTemplate, sendWhatsAppMessage } from './lib/whatsappService';
 import {
   useStudentsListener,
@@ -648,16 +652,15 @@ export default function App() {
             if (Array.isArray(d)) {
               const writePromises = d.map((item: any) => {
                 const docId = String(item.id || item.userId || item.studentId || item.teacherId || item.rollNo || item.admissionNo || Date.now());
-                return setDoc(doc(db, k, docId), item, { merge: true });
+                return SyncService.set(k, docId, item);
               });
               await Promise.race([
                 Promise.all(writePromises),
                 new Promise((_, reject) => setTimeout(() => reject(new Error('Cloud sync timeout')), 15000))
               ]);
             } else {
-              const docRef = doc(db, k, 'main');
               await Promise.race([
-                setDoc(docRef, d, { merge: true }),
+                SyncService.set(k, 'main', d as any),
                 new Promise((_, reject) => setTimeout(() => reject(new Error('Cloud sync timeout')), 15000))
               ]);
             }
@@ -669,7 +672,7 @@ export default function App() {
               const delay = Math.min(1000 * Math.pow(2, attempt), 10000); // Exponential backoff: 2s, 4s, 8s
               await new Promise(r => setTimeout(r, delay));
             } else {
-              console.warn(`[Cloud Firestore] Debounced write failed for key "${k}":`, e);
+              console.warn(`[Cloud Database] Debounced write failed for key "${k}":`, e);
               if (!navigator.onLine) {
                 setCloudOnline(false);
               }
@@ -817,51 +820,48 @@ export default function App() {
         const loadOrSeedCloud = async <T,>(key: string, seed: T): Promise<T> => {
           try {
             if (Array.isArray(seed)) {
-              const snap = await Promise.race([
-                getDocs(collection(db, key)),
-                new Promise<never>((_, reject) => 
-                  setTimeout(() => reject(new Error('Firestore getDocs timeout')), 15000)
+              const list = await Promise.race([
+                SyncService.list(key),
+                new Promise<any[]>((_, reject) => 
+                  setTimeout(() => reject(new Error('SyncService list timeout')), 15000)
                 )
               ]);
 
-              if (!snap.empty) {
-                const data = snap.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as T;
-                localStorage.setItem(`sunshine_${key}`, JSON.stringify(data));
-                return data;
+              if (list && list.length > 0) {
+                localStorage.setItem(`sunshine_${key}`, JSON.stringify(list));
+                return list as unknown as T;
               } else {
                 const seedArray = seed as unknown as any[];
                 Promise.all(seedArray.map(item => {
                   const docId = String(item.id || item.userId || item.studentId || item.teacherId || item.rollNo || item.admissionNo || Date.now());
-                  return setDoc(doc(db, key, docId), item, { merge: true });
+                  return SyncService.set(key, docId, item);
                 })).catch(err => {
-                  console.warn(`[Cloud Firestore] Background seed failed for collection "${key}":`, err);
+                  console.warn(`[Cloud Database] Background seed failed for collection "${key}":`, err);
                 });
                 localStorage.setItem(`sunshine_${key}`, JSON.stringify(seed));
                 return seed;
               }
             } else {
-              const docRef = doc(db, key, 'main');
-              const snap = await Promise.race([
-                getDoc(docRef),
-                new Promise<never>((_, reject) => 
-                  setTimeout(() => reject(new Error('Firestore getDoc timeout')), 15000)
+              const data = await Promise.race([
+                SyncService.get(key, 'main'),
+                new Promise<any>((_, reject) => 
+                  setTimeout(() => reject(new Error('SyncService get timeout')), 15000)
                 )
               ]);
 
-              if (snap.exists()) {
-                const data = snap.data() as T;
+              if (data) {
                 localStorage.setItem(`sunshine_${key}`, JSON.stringify(data));
-                return data;
+                return data as T;
               } else {
-                setDoc(docRef, seed as any, { merge: true }).catch(err => {
-                  console.warn(`[Cloud Firestore] Background seed failed for doc "${key}":`, err);
+                SyncService.set(key, 'main', seed as any).catch(err => {
+                  console.warn(`[Cloud Database] Background seed failed for doc "${key}":`, err);
                 });
                 localStorage.setItem(`sunshine_${key}`, JSON.stringify(seed));
                 return seed;
               }
             }
           } catch (error) {
-            console.warn(`[Cloud Firestore] Offline or failed to load key "${key}", using LocalStorage:`, error);
+            console.warn(`[Cloud Database] Offline or failed to load key "${key}", using LocalStorage:`, error);
             const stored = localStorage.getItem(`sunshine_${key}`);
             if (stored) {
               try { return JSON.parse(stored); } catch (e) { console.error(e); }
@@ -4130,13 +4130,23 @@ Sunshine Classes`;
             }
           />
 
-          {/* Catch-all Routing */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* Legal Documents Direct Pages */}
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsConditionsPage />} />
+          <Route path="/terms-and-conditions" element={<TermsConditionsPage />} />
+
+          {/* Explicit 404 and Catch-all Routing */}
+          <Route path="/404" element={<NotFoundPage onNavigateToHome={() => navigate('/')} />} />
+          <Route path="*" element={<NotFoundPage onNavigateToHome={() => navigate('/')} />} />
         </Routes>
       </div>
 
       {/* Floating Chatbot */}
       <ChatBot />
+
+      {/* Cookie Consent Banner */}
+      <CookieConsentBanner />
 
       {/* AUTHENTICATION LOGIN DIALOG MODAL */}
       <AnimatePresence>

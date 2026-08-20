@@ -32,8 +32,7 @@ import {
   updateStoreOrderStatus,
   createStoreOrder
 } from '../services/storeService';
-import { db } from '../lib/firebase';
-import { setDoc, doc, deleteDoc } from 'firebase/firestore';
+import { SyncService } from '../services/SyncService';
 import { 
   ShoppingBag, 
   BookOpen, 
@@ -366,7 +365,7 @@ export const SunshineStoreAdmin: React.FC = () => {
       setProducts(merged);
       for (const p of newProducts) {
         try {
-          await setDoc(doc(db, 'store_products', p.id), p, { merge: true });
+          await SyncService.set('store_products', p.id, p);
         } catch (e) {}
       }
     }
@@ -539,9 +538,9 @@ export const SunshineStoreAdmin: React.FC = () => {
     setProducts(updatedList);
 
     try {
-      await setDoc(doc(db, 'store_products', prodId), completeProduct, { merge: true });
+      await SyncService.set('store_products', prodId, completeProduct);
     } catch (e) {
-      console.warn('Firestore update store_products failed:', e);
+      console.warn('SyncService update store_products failed:', e);
     }
 
     setIsProductModalOpen(false);
@@ -555,9 +554,9 @@ export const SunshineStoreAdmin: React.FC = () => {
     setProducts(updatedList);
 
     try {
-      await deleteDoc(doc(db, 'store_products', id));
+      await SyncService.delete('store_products', id);
     } catch (e) {
-      console.warn('Delete from firestore failed:', e);
+      console.warn('Delete via SyncService failed:', e);
     }
   };
 
@@ -585,7 +584,7 @@ export const SunshineStoreAdmin: React.FC = () => {
     setCategories(updated);
 
     try {
-      await setDoc(doc(db, 'store_categories', catId), completeCategory, { merge: true });
+      await SyncService.set('store_categories', catId, completeCategory);
     } catch (e) {}
 
     setIsCategoryModalOpen(false);
@@ -616,7 +615,7 @@ export const SunshineStoreAdmin: React.FC = () => {
     setBrands(updated);
 
     try {
-      await setDoc(doc(db, 'store_brands', brandId), completeBrand, { merge: true });
+      await SyncService.set('store_brands', brandId, completeBrand);
     } catch (e) {}
 
     setIsBrandModalOpen(false);
@@ -628,7 +627,7 @@ export const SunshineStoreAdmin: React.FC = () => {
     e.preventDefault();
     saveLocalStoreSettings(settings);
     try {
-      await setDoc(doc(db, 'store_settings', 'main'), settings, { merge: true });
+      await SyncService.set('store_settings', 'main', settings);
       showToast('Store settings saved successfully!');
     } catch (e) {
       showToast('Settings saved locally.');
@@ -658,13 +657,13 @@ export const SunshineStoreAdmin: React.FC = () => {
     const target = updatedProducts.find(p => p.id === productId);
     if (target) {
       try {
-        await setDoc(doc(db, 'store_products', productId), {
+        await SyncService.update('store_products', productId, {
           stockQuantity: target.stockQuantity,
           stockStatus: target.stockStatus,
           updatedAt: new Date().toISOString()
-        }, { merge: true });
+        });
       } catch (e) {
-        console.warn('Sync stock to firestore failed:', e);
+        console.warn('Sync stock via SyncService failed:', e);
       }
     }
     showToast(`Stock level updated to ${finalQty} units.`);

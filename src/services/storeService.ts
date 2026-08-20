@@ -9,22 +9,7 @@ import {
   StoreOrder,
   StoreOrderItem
 } from '../types';
-import { db } from '../lib/firebase';
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
-  deleteDoc, 
-  onSnapshot, 
-  query, 
-  where, 
-  orderBy, 
-  increment,
-  addDoc
-} from 'firebase/firestore';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 // Initial Pre-seeded Categories
 export const DEFAULT_STORE_CATEGORIES: StoreCategory[] = [
@@ -663,8 +648,10 @@ export function recordStoreEvent(log: Omit<StoreAnalyticsLog, 'id' | 'timestamp'
     // Keep max 500 logs locally
     localStorage.setItem(LOCAL_STORE_ANALYTICS_KEY, JSON.stringify(logs.slice(0, 500)));
 
-    // Sync to Firestore asynchronously
-    addDoc(collection(db, 'store_analytics'), fullLog).catch(() => {});
+    // Sync to Supabase asynchronously if configured
+    if (isSupabaseConfigured) {
+      supabase.from('store_analytics').insert(fullLog).then().catch(() => {});
+    }
   } catch (e) {
     // Silent catch
   }
@@ -687,9 +674,9 @@ export async function trackProductView(productId: string, productTitle?: string,
       eventType: 'VIEW'
     });
 
-    // Firestore increment
-    const docRef = doc(db, 'store_products', productId);
-    await updateDoc(docRef, { viewsCount: increment(1) }).catch(() => {});
+    if (isSupabaseConfigured && idx !== -1) {
+      supabase.from('store_products').update({ views_count: products[idx].viewsCount }).eq('id', productId).then().catch(() => {});
+    }
   } catch (e) {
     // Ignore
   }
@@ -717,8 +704,9 @@ export async function trackExternalClick(productId: string, linkId: string, plat
       platform
     });
 
-    const docRef = doc(db, 'store_products', productId);
-    await updateDoc(docRef, { totalClicks: increment(1) }).catch(() => {});
+    if (isSupabaseConfigured && idx !== -1) {
+      supabase.from('store_products').update({ total_clicks: products[idx].totalClicks }).eq('id', productId).then().catch(() => {});
+    }
   } catch (e) {
     // Ignore
   }
@@ -738,10 +726,8 @@ export async function addStoreReview(productId: string, review: Omit<StoreReview
     products[idx].updatedAt = new Date().toISOString();
     saveLocalStoreProducts(products);
 
-    try {
-      await setDoc(doc(db, 'store_products', productId), { reviews: products[idx].reviews, updatedAt: products[idx].updatedAt }, { merge: true });
-    } catch (e) {
-      console.warn('Failed sync review to firestore:', e);
+    if (isSupabaseConfigured) {
+      supabase.from('store_products').update({ reviews: products[idx].reviews, updated_at: products[idx].updatedAt }).eq('id', productId).then().catch(() => {});
     }
   }
   return products;
@@ -756,10 +742,8 @@ export async function updateStoreReview(productId: string, reviewId: string, upd
     products[idx].updatedAt = new Date().toISOString();
     saveLocalStoreProducts(products);
 
-    try {
-      await setDoc(doc(db, 'store_products', productId), { reviews: products[idx].reviews, updatedAt: products[idx].updatedAt }, { merge: true });
-    } catch (e) {
-      console.warn('Failed sync review update to firestore:', e);
+    if (isSupabaseConfigured) {
+      supabase.from('store_products').update({ reviews: products[idx].reviews, updated_at: products[idx].updatedAt }).eq('id', productId).then().catch(() => {});
     }
   }
   return products;
@@ -774,10 +758,8 @@ export async function deleteStoreReview(productId: string, reviewId: string): Pr
     products[idx].updatedAt = new Date().toISOString();
     saveLocalStoreProducts(products);
 
-    try {
-      await setDoc(doc(db, 'store_products', productId), { reviews: products[idx].reviews, updatedAt: products[idx].updatedAt }, { merge: true });
-    } catch (e) {
-      console.warn('Failed sync review deletion to firestore:', e);
+    if (isSupabaseConfigured) {
+      supabase.from('store_products').update({ reviews: products[idx].reviews, updated_at: products[idx].updatedAt }).eq('id', productId).then().catch(() => {});
     }
   }
   return products;
@@ -798,11 +780,9 @@ export async function bulkUpdateProducts(productIds: string[], updates: Partial<
   });
   saveLocalStoreProducts(updatedProducts);
 
-  for (const pid of productIds) {
-    try {
-      await setDoc(doc(db, 'store_products', pid), { ...updates, updatedAt: new Date().toISOString() }, { merge: true });
-    } catch (e) {
-      console.warn('Failed bulk update sync firestore:', e);
+  if (isSupabaseConfigured) {
+    for (const pid of productIds) {
+      supabase.from('store_products').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', pid).then().catch(() => {});
     }
   }
   return updatedProducts;
@@ -814,11 +794,9 @@ export async function bulkDeleteProducts(productIds: string[]): Promise<StorePro
   const remaining = products.filter(p => !productIds.includes(p.id));
   saveLocalStoreProducts(remaining);
 
-  for (const pid of productIds) {
-    try {
-      await deleteDoc(doc(db, 'store_products', pid));
-    } catch (e) {
-      console.warn('Failed bulk delete sync firestore:', e);
+  if (isSupabaseConfigured) {
+    for (const pid of productIds) {
+      supabase.from('store_products').delete().eq('id', pid).then().catch(() => {});
     }
   }
   return remaining;
@@ -847,51 +825,38 @@ export function exportProductsToCSV(products: StoreProduct[]): string {
   return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
 }
 
-// Subscribe to Products with Realtime Firestore + Local Seed fallback
+// Subscribe to Products with Realtime Supabase + Local fallback
 export function subscribeStoreProducts(onUpdate: (products: StoreProduct[]) => void) {
   const local = getLocalStoreProducts();
   onUpdate(local);
 
-  try {
-    const q = collection(db, 'store_products');
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        const remoteProducts: StoreProduct[] = snapshot.docs.map(docSnap => ({
-          id: docSnap.id,
-          ...docSnap.data()
-        } as StoreProduct));
-        
-        saveLocalStoreProducts(remoteProducts);
-        onUpdate(remoteProducts);
-      } else {
-        // Seed initial data to firestore if empty
-        seedStoreToFirestore();
+  if (isSupabaseConfigured) {
+    supabase.from('store_products').select('*').then(({ data, error }) => {
+      if (!error && data && data.length > 0) {
+        saveLocalStoreProducts(data as StoreProduct[]);
+        onUpdate(data as StoreProduct[]);
       }
-    }, (err) => {
-      console.warn('Firestore store_products fallback to local storage:', err.message);
-    });
-
-    return unsubscribe;
-  } catch (e) {
-    return () => {};
+    }).catch(() => {});
   }
+
+  return () => {};
 }
 
-// Seed Store to Firestore
+// Seed Store to Supabase
 export async function seedStoreToFirestore() {
+  if (!isSupabaseConfigured) return;
   try {
     for (const prod of DEFAULT_STORE_PRODUCTS) {
-      await setDoc(doc(db, 'store_products', prod.id), prod, { merge: true });
+      await supabase.from('store_products').upsert(prod);
     }
     for (const cat of DEFAULT_STORE_CATEGORIES) {
-      await setDoc(doc(db, 'store_categories', cat.id), cat, { merge: true });
+      await supabase.from('store_categories').upsert(cat);
     }
     for (const brand of DEFAULT_STORE_BRANDS) {
-      await setDoc(doc(db, 'store_brands', brand.id), brand, { merge: true });
+      await supabase.from('store_brands').upsert(brand);
     }
-    await setDoc(doc(db, 'store_settings', 'main'), DEFAULT_STORE_SETTINGS, { merge: true });
   } catch (e) {
-    console.warn('Failed seeding store to firestore:', e);
+    console.warn('Store seeding notice:', e);
   }
 }
 
@@ -1001,25 +966,16 @@ export function subscribeStoreOrders(onUpdate: (orders: StoreOrder[]) => void) {
   const local = getLocalStoreOrders();
   onUpdate(local);
 
-  try {
-    const q = collection(db, 'store_orders');
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        const remoteOrders: StoreOrder[] = snapshot.docs.map(docSnap => ({
-          id: docSnap.id,
-          ...docSnap.data()
-        } as StoreOrder));
-        saveLocalStoreOrders(remoteOrders);
-        onUpdate(remoteOrders);
+  if (isSupabaseConfigured) {
+    supabase.from('store_orders').select('*').then(({ data, error }) => {
+      if (!error && data && data.length > 0) {
+        saveLocalStoreOrders(data as StoreOrder[]);
+        onUpdate(data as StoreOrder[]);
       }
-    }, (err) => {
-      console.warn('Firestore store_orders fallback to local storage:', err.message);
-    });
-
-    return unsubscribe;
-  } catch (e) {
-    return () => {};
+    }).catch(() => {});
   }
+
+  return () => {};
 }
 
 export async function createStoreOrder(orderData: Omit<StoreOrder, 'id' | 'createdAt' | 'updatedAt'>): Promise<StoreOrder> {
@@ -1035,10 +991,8 @@ export async function createStoreOrder(orderData: Omit<StoreOrder, 'id' | 'creat
   const updatedOrders = [newOrder, ...orders];
   saveLocalStoreOrders(updatedOrders);
 
-  try {
-    await setDoc(doc(db, 'store_orders', id), newOrder);
-  } catch (e) {
-    console.warn('Failed saving store order to firestore:', e);
+  if (isSupabaseConfigured) {
+    supabase.from('store_orders').insert(newOrder).then().catch(() => {});
   }
 
   return newOrder;
@@ -1063,13 +1017,11 @@ export async function updateStoreOrderStatus(
   });
   saveLocalStoreOrders(updated);
 
-  try {
+  if (isSupabaseConfigured) {
     const updates: Partial<StoreOrder> = { updatedAt: new Date().toISOString() };
     if (orderStatus) updates.orderStatus = orderStatus;
     if (paymentStatus) updates.paymentStatus = paymentStatus;
-    await updateDoc(doc(db, 'store_orders', orderId), updates);
-  } catch (e) {
-    console.warn('Failed updating store order status in firestore:', e);
+    supabase.from('store_orders').update(updates).eq('id', orderId).then().catch(() => {});
   }
 
   return updated;

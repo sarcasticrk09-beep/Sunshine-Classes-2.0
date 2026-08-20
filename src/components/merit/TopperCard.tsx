@@ -84,7 +84,10 @@ export const TopperCard: React.FC<TopperCardProps> = ({
             {photo && !imgError ? (
               <img
                 src={photo}
-                alt={name}
+                alt={`Academic board topper ${name} - Sunshine Classes Pihani`}
+                loading="lazy"
+                decoding="async"
+                referrerPolicy="no-referrer"
                 onError={() => setImgError(true)}
                 className="h-16 w-16 rounded-2xl object-cover ring-2 ring-amber-400/60 dark:ring-amber-500/60 shadow-md group-hover:scale-105 transition-transform duration-300"
               />

@@ -1,7 +1,5 @@
 import { SyncService } from "./SyncService";
 import { ROLE_PERMISSIONS } from "../lib/permissions";
-import { collection, getDocs, deleteDoc, doc, setDoc } from 'firebase/firestore';
-import { db } from "../lib/firebase";
 import {
   SEED_STUDENTS,
   SEED_TEACHERS,
@@ -80,91 +78,116 @@ export async function initializeAndSeedFirestore(): Promise<MigrationReport> {
   try {
     // 1. Seed Classes (Class 1 to Class 10)
     for (const cls of SEEDED_CLASSES) {
-      await SyncService.set("classes", cls.classId, {
-        ...cls,
-        createdAt: timestamp,
-        updatedAt: timestamp
-      }, { merge: true });
-      seededClassesList.push(cls.className);
+      try {
+        await SyncService.set("classes", cls.classId, {
+          ...cls,
+          createdAt: timestamp,
+          updatedAt: timestamp
+        }, { merge: true });
+        seededClassesList.push(cls.className);
+      } catch (e) {
+        console.warn(`[Migration] Soft warning seeding class ${cls.classId}:`, e);
+      }
     }
 
     // 2. Seed Default SUPER_ADMIN Role & User
     const superAdminUid = "u-superadmin";
-    await SyncService.set("users", superAdminUid, {
-      id: superAdminUid,
-      userId: superAdminUid,
-      username: "superadmin",
-      name: "Super Admin",
-      email: "superadmin@sunshineclasses.net",
-      role: "SUPER_ADMIN",
-      phone: "9999911111",
-      password: "Sunshine@123",
-      passwordHash: "Sunshine@123",
-      status: "ACTIVE",
-      active: true,
-      mustChangePassword: false,
-      lastLogin: timestamp,
-      createdAt: timestamp,
-      updatedAt: timestamp
-    }, { merge: true });
-    seededUsersList.push("SUPER_ADMIN (superadmin@sunshineclasses.net)");
+    try {
+      await SyncService.set("users", superAdminUid, {
+        id: superAdminUid,
+        userId: superAdminUid,
+        username: "superadmin",
+        name: "Super Admin",
+        email: "superadmin@sunshineclasses.net",
+        role: "SUPER_ADMIN",
+        phone: "9999911111",
+        password: "Sunshine@123",
+        passwordHash: "Sunshine@123",
+        status: "ACTIVE",
+        active: true,
+        mustChangePassword: false,
+        lastLogin: timestamp,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      }, { merge: true });
+      seededUsersList.push("SUPER_ADMIN (superadmin@sunshineclasses.net)");
+    } catch (e) {
+      console.warn("[Migration] Soft warning seeding superadmin user:", e);
+    }
 
     // 3. Seed Default Permission Definitions in Settings
-    await SyncService.set("settings", "permissions", {
-      rolePermissions: ROLE_PERMISSIONS,
-      updatedAt: timestamp
-    }, { merge: true });
-    seededSettingsList.push("settings/permissions");
+    try {
+      await SyncService.set("settings", "permissions", {
+        rolePermissions: ROLE_PERMISSIONS,
+        updatedAt: timestamp
+      }, { merge: true });
+      seededSettingsList.push("settings/permissions");
+    } catch (e) {
+      console.warn("[Migration] Soft warning seeding permissions:", e);
+    }
 
     // 4. Seed Institute Global Settings
-    await SyncService.set("settings", "institute", {
-      instituteName: "Sunshine Classes",
-      tagline: "Shaping Futures, Empowering Excellence",
-      logo: "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=200&auto=format&fit=crop&q=80",
-      academicSession: "2026-2027",
-      contactDetails: {
-        phone: "+91 98765 43210",
-        alternatePhone: "+91 91234 56789",
-        email: "contact@sunshineclasses.com",
-        address: "Sunshine Tower, Knowledge Park, City Center"
-      },
-      defaultFeeSettings: {
-        dueDateDay: 5,
-        gracePeriodDays: 7,
-        lateFeeAmount: 50
-      },
-      receiptSettings: {
-        prefix: "REC-2026-",
-        showLogo: true,
-        footerText: "Thank you for being a valued member of Sunshine Classes!"
-      },
-      whatsappConfig: {
-        enabled: true,
-        autoSendReceipts: true,
-        autoSendReminders: true
-      },
-      createdAt: timestamp,
-      updatedAt: timestamp
-    }, { merge: true });
-    seededSettingsList.push("settings/institute");
+    try {
+      await SyncService.set("settings", "institute", {
+        instituteName: "Sunshine Classes",
+        tagline: "Shaping Futures, Empowering Excellence",
+        logo: "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=200&auto=format&fit=crop&q=80",
+        academicSession: "2026-2027",
+        contactDetails: {
+          phone: "+91 98765 43210",
+          alternatePhone: "+91 91234 56789",
+          email: "contact@sunshineclasses.com",
+          address: "Sunshine Tower, Knowledge Park, City Center"
+        },
+        defaultFeeSettings: {
+          dueDateDay: 5,
+          gracePeriodDays: 7,
+          lateFeeAmount: 50
+        },
+        receiptSettings: {
+          prefix: "REC-2026-",
+          showLogo: true,
+          footerText: "Thank you for being a valued member of Sunshine Classes!"
+        },
+        whatsappConfig: {
+          enabled: true,
+          autoSendReceipts: true,
+          autoSendReminders: true
+        },
+        createdAt: timestamp,
+        updatedAt: timestamp
+      }, { merge: true });
+      seededSettingsList.push("settings/institute");
+    } catch (e) {
+      console.warn("[Migration] Soft warning seeding institute settings:", e);
+    }
 
     // 5. Seed Counters
-    await SyncService.set("settings", "counters", {
-      admission: 100,
-      receipt: 1000,
-      updatedAt: timestamp
-    }, { merge: true });
-    seededSettingsList.push("settings/counters");
+    try {
+      await SyncService.set("settings", "counters", {
+        admission: 100,
+        receipt: 1000,
+        updatedAt: timestamp
+      }, { merge: true });
+      seededSettingsList.push("settings/counters");
+    } catch (e) {
+      console.warn("[Migration] Soft warning seeding counters:", e);
+    }
 
     // 6. Log Initial Audit Event
-    await SyncService.add("audit_logs", {
-      logId: `log-seed-${Date.now()}`,
-      action: "DATABASE_SEEDED",
-      performedBy: "SYSTEM_MIGRATION",
-      targetId: "SYSTEM",
-      details: "Firestore database architecture seeded successfully with Class 1-10, SUPER_ADMIN user, and permission settings.",
-      timestamp
-    });
+    try {
+      await SyncService.add("audit_logs", {
+        logId: `log-seed-${Date.now()}`,
+        action: "DATABASE_SEEDED",
+        performedBy: "SYSTEM_MIGRATION",
+        username: "SYSTEM_MIGRATION",
+        targetId: "SYSTEM",
+        details: "Firestore database architecture seeded successfully with Class 1-10, SUPER_ADMIN user, and permission settings.",
+        timestamp
+      });
+    } catch (e) {
+      console.warn("[Migration] Soft warning logging audit event:", e);
+    }
 
     const report: MigrationReport = {
       timestamp,
@@ -231,25 +254,27 @@ export async function forceResetDatabase(): Promise<void> {
 
   for (const item of collectionsToReset) {
     try {
-      const colRef = collection(db, item.key);
-      const snap = await getDocs(colRef);
+      const existing = await SyncService.list(item.key);
       
       // Delete existing documents
-      const deletePromises = snap.docs.map(d => deleteDoc(doc(db, item.key, d.id)));
-      await Promise.all(deletePromises);
+      for (const d of existing) {
+        const id = (d as any).id || (d as any).userId || (d as any).studentId;
+        if (id) {
+          await SyncService.delete(item.key, String(id));
+        }
+      }
       console.log(`Cleared collection: ${item.key}`);
 
       // Seed new clean data
       if (Array.isArray(item.seed)) {
-        const seedPromises = item.seed.map(async (seedItem: any) => {
-          const docId = String(seedItem.id || seedItem.userId || seedItem.studentId || seedItem.teacherId || seedItem.rollNo || seedItem.admissionNo || seedItem.username || Date.now());
-          return setDoc(doc(db, item.key, docId), seedItem);
-        });
-        await Promise.all(seedPromises);
+        for (const seedItem of item.seed) {
+          const docId = String((seedItem as any).id || (seedItem as any).userId || (seedItem as any).studentId || (seedItem as any).teacherId || (seedItem as any).rollNo || (seedItem as any).admissionNo || (seedItem as any).username || Date.now());
+          await SyncService.set(item.key, docId, seedItem);
+        }
         console.log(`Seeded collection: ${item.key} with ${item.seed.length} items.`);
       } else {
         // Singular document or config
-        await setDoc(doc(db, item.key, 'main'), item.seed as any);
+        await SyncService.set(item.key, 'main', item.seed as any);
         console.log(`Seeded config doc: ${item.key}`);
       }
     } catch (err) {

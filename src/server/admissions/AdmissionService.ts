@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { collection, doc, getDoc, getDocs, runTransaction, setDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, runTransaction, setDoc, updateDoc, deleteDoc, query, where } from '../shared/db';
 import { PasswordService } from '../auth/PasswordService';
 import {
   validateAdmissionInput,

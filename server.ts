@@ -8,14 +8,13 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import nodemailer from "nodemailer";
-import { initializeApp as initializeAdminApp, cert } from "firebase-admin/app";
-import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import helmet from "helmet";
 import compression from "compression";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
+import fs from "fs";
 
 import { PasswordService } from "./src/server/auth/PasswordService";
 import { AuthController } from "./src/server/auth/AuthController";
@@ -35,168 +34,37 @@ import { WebhookVerificationController } from "./src/server/notifications/Webhoo
 import { WebhookController } from "./src/server/notifications/WebhookController";
 import { FinanceReportController } from "./src/server/reports/FinanceReportController";
 import { SEED_USERS } from "./src/data";
+import {
+  serverSupabase,
+  getAdminDb,
+  adminDb,
+  getAdminAuth,
+  doc,
+  collection,
+  getDoc,
+  getDocs,
+  setDoc,
+  deleteDoc,
+  runTransaction,
+  AdminDocRefAdapter,
+  AdminDocSnapAdapter
+} from "./src/server/shared/db";
 
-
-// Ensure process env variables are available (for local testing fallback)
-import "dotenv/config";
-
-// Initialize Firebase Admin SDK
-const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-let adminAppInitialized = false;
-
-if (serviceAccountJson) {
-  try {
-    const serviceAccount = typeof serviceAccountJson === "string" ? JSON.parse(serviceAccountJson) : serviceAccountJson;
-    
-    if (serviceAccount.private_key && typeof serviceAccount.private_key === "string") {
-      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
-    }
-
-    if (!serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
-      throw new Error("Missing required fields in FIREBASE_SERVICE_ACCOUNT_JSON (project_id, private_key, client_email)");
-    }
-
-    initializeAdminApp({
-      credential: cert(serviceAccount)
-    });
-    console.log(`[Firebase Admin SDK] Initialized successfully with Service Account for project: ${serviceAccount.project_id}`);
-    adminAppInitialized = true;
-  } catch (e: any) {
-    console.error("[Firebase Admin SDK] Error during service account initialization:", e.message);
-  }
-}
-
-if (!adminAppInitialized) {
-  try {
-    // Try to fall back to Application Default Credentials
-    // Read from firebase-applet-config.json if possible to get projectId
-    let projectId: string | undefined = undefined;
-    try {
-      const configPath = path.join(process.cwd(), "firebase-applet-config.json");
-      if (fs.existsSync(configPath)) {
-        const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-        projectId = config.projectId;
-      }
-    } catch (err) {
-      // Ignore
-    }
-
-    initializeAdminApp(projectId ? { projectId } : undefined);
-    console.log(`[Firebase Admin SDK] Initialized successfully with Application Default Credentials (ADC)${projectId ? ` for project: ${projectId}` : ""}`);
-    adminAppInitialized = true;
-  } catch (e: any) {
-    console.error("[Firebase Admin SDK] Warning: Failed to initialize Firebase Admin SDK. Backend Firebase operations may fail. Error:", e.message);
-    // DO NOT call process.exit(1) so the dev server can start and display the preview!
-  }
-}
-
-// Initialize server-side firebase instance
-import { initializeApp } from "firebase/app";
-import { setLogLevel } from "firebase/firestore";
-import { getFirestore as getAdminFirestore } from "firebase-admin/firestore";
-import fs from "fs";
-
-let firestoreDatabaseId: string | undefined = process.env.FIREBASE_DATABASE_ID || process.env.FIRESTORE_DATABASE_ID;
-if (firestoreDatabaseId === "(default)" || firestoreDatabaseId === "default") {
-  firestoreDatabaseId = undefined;
-}
-console.log("[Firebase Admin SDK] Detected firestoreDatabaseId:", firestoreDatabaseId || "(default)");
-
-const adminDb = firestoreDatabaseId ? getAdminFirestore(firestoreDatabaseId) : getAdminFirestore();
+export {
+  doc,
+  collection,
+  getDoc,
+  getDocs,
+  setDoc,
+  deleteDoc,
+  runTransaction,
+  AdminDocRefAdapter,
+  AdminDocSnapAdapter
+};
 export const db = {} as any;
 
-export class AdminDocRefAdapter {
-  constructor(public rawRef: any) {}
-  get id() { return this.rawRef.id; }
-  get path() { return this.rawRef.path; }
-}
-
-export class AdminDocSnapAdapter {
-  constructor(public existsVal: boolean, public dataVal: any) {}
-  exists() { return this.existsVal; }
-  data() { return this.dataVal; }
-}
-
-export function doc(dbAny: any, collectionName: string, documentId: string): any {
-  const rawRef = adminDb.collection(collectionName).doc(documentId);
-  return new AdminDocRefAdapter(rawRef);
-}
-
-export function collection(dbAny: any, collectionName: string): any {
-  return adminDb.collection(collectionName);
-}
-
-export async function getDoc(docRef: any): Promise<any> {
-  const rawRef = (docRef as AdminDocRefAdapter).rawRef;
-  const snap: any = await rawRef.get();
-  return new AdminDocSnapAdapter(snap.exists, snap.data());
-}
-
-export async function getDocs(colRefAny: any): Promise<any> {
-  const rawRef = colRefAny.rawRef || colRefAny;
-  const snap: any = await rawRef.get();
-  return {
-    empty: snap.empty,
-    docs: snap.docs.map((d: any) => ({
-      id: d.id,
-      data: () => d.data(),
-      exists: () => d.exists
-    }))
-  };
-}
-
-export async function setDoc(docRef: any, data: any, options?: { merge?: boolean }): Promise<void> {
-  const rawRef = (docRef as AdminDocRefAdapter).rawRef;
-  if (options && options.merge !== undefined) {
-    await rawRef.set(data, { merge: options.merge });
-  } else {
-    await rawRef.set(data);
-  }
-}
-
-export async function deleteDoc(docRef: any): Promise<void> {
-  const rawRef = (docRef as AdminDocRefAdapter).rawRef;
-  await rawRef.delete();
-}
-
-export async function runTransaction(dbAny: any, updateFunction: (transaction: any) => Promise<any>): Promise<any> {
-  return await adminDb.runTransaction(async (adminTx) => {
-    const txAdapter = {
-      async get(docRef: any) {
-        const rawRef = (docRef as AdminDocRefAdapter).rawRef;
-        const snap: any = await adminTx.get(rawRef);
-        return new AdminDocSnapAdapter(snap.exists, snap.data());
-      },
-      set(docRef: any, data: any, options?: { merge?: boolean }) {
-        const rawRef = (docRef as AdminDocRefAdapter).rawRef;
-        if (options && options.merge !== undefined) {
-          adminTx.set(rawRef, data, { merge: options.merge });
-        } else {
-          adminTx.set(rawRef, data);
-        }
-        return txAdapter;
-      },
-      update(docRef: any, data: any) {
-        const rawRef = (docRef as AdminDocRefAdapter).rawRef;
-        adminTx.update(rawRef, data);
-        return txAdapter;
-      },
-      delete(docRef: any) {
-        const rawRef = (docRef as AdminDocRefAdapter).rawRef;
-        adminTx.delete(rawRef);
-        return txAdapter;
-      }
-    };
-    return await updateFunction(txAdapter);
-  });
-}
-
-// Silence Firestore's built-in SDK logging on the server
-try {
-  setLogLevel("silent");
-} catch (e) {
-  // Silent catch
-}
+// Ensure process env variables are available
+import "dotenv/config";
 
 // Global console filter to prevent Firestore connectivity warnings and stream cancellations from flooding server logs.
 const formatArg = (arg: any): string => {
@@ -366,7 +234,7 @@ function simpleSecureHash(password: string): string {
 
 async function startServer() {
   const app = express();
-  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+  const PORT = 3000;
 
   // Security headers with relaxed content security policy for preview frames
   app.use(helmet({
@@ -449,19 +317,19 @@ async function startServer() {
   });
   app.get("/api/health/firestore", async (req, res) => {
     try {
-      const snap = await adminDb.collection("students").limit(1).get();
+      const snap = await adminDb.collection("students").get();
       res.status(200).json({
         status: "OK",
-        firestoreConnected: true,
-        databaseId: firestoreDatabaseId || "(default)",
+        databaseConnected: true,
+        databaseProvider: "Supabase",
         documentsFound: snap.docs.length,
         timestamp: new Date().toISOString()
       });
     } catch (err: any) {
-      console.error("[Firestore Health Check Error]:", err.message);
+      console.error("[Database Health Check Error]:", err.message);
       res.status(500).json({
         status: "ERROR",
-        firestoreConnected: false,
+        databaseConnected: false,
         error: err.message,
         timestamp: new Date().toISOString()
       });
@@ -3701,29 +3569,16 @@ Sunshine Classes — *Excellence in Education* ☀️`;
     }
   };
 
-  if (!isProduction || process.env.FORCE_SEED_USERS === "true") {
-    await ensureSeedUsersExist();
-  } else {
-    console.log("[Firebase Init] Production environment detected. Skipping automatic seed users assertion.");
-  }
-
-  const primaryServer = app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Sunshine Classes Full-Stack Server running on port ${PORT} in ${isProduction ? 'production' : 'development'} mode`);
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Sunshine Classes Full-Stack Server running on http://localhost:${PORT} in ${isProduction ? 'production' : 'development'} mode`);
   });
 
-  // Dual-port binding backup: bind to both common ports (3000 and 8080) in production for health check fail-safe
-  if (isProduction) {
-    const backupPort = PORT === 3000 ? 8080 : 3000;
-    try {
-      const fallbackServer = app.listen(backupPort, "0.0.0.0", () => {
-        console.log(`[Backup Server] Listening on port ${backupPort} as a fail-safe fallback for health checks and traffic routing`);
-      });
-      fallbackServer.on('error', (err: any) => {
-        console.log(`[Backup Server] Port ${backupPort} unavailable or already bound (normal behavior if proxy/routing is using it):`, err.message);
-      });
-    } catch (e: any) {
-      console.log(`[Backup Server] Failed to establish fallback server on port ${backupPort}:`, e.message);
-    }
+  if (!isProduction || process.env.FORCE_SEED_USERS === "true") {
+    ensureSeedUsersExist().catch((err) => {
+      console.warn("[Firebase Init] Non-blocking seed users assertion error:", err.message);
+    });
+  } else {
+    console.log("[Firebase Init] Production environment detected. Skipping automatic seed users assertion.");
   }
 }
 

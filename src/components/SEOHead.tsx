@@ -99,6 +99,12 @@ export function SEOHead() {
           description: "Learn more about Sunshine Classes, Pihani's leading coaching institute. Dedicated to excellence in education for Classes 1 to 10 with highly qualified teachers, regular weekly test series, and board exam preparation support.",
           keywords: "About Sunshine Classes, Coaching Institute Pihani, Tuition Pihani, Best Teachers Pihani, Academic Excellence Pihani, Hardoi Coaching"
         };
+      case '/faculty':
+        return {
+          title: "Expert Teaching Faculty & Mentors | Sunshine Classes Pihani",
+          description: "Meet the experienced educators and mentor team at Sunshine Classes Pihani. Specialized subject teachers for Mathematics, Science, English, and Social Studies dedicated to board excellence.",
+          keywords: "Faculty Sunshine Classes, Teachers Pihani, Best Math Teacher Pihani, Science Teacher Hardoi, Coaching Mentors Pihani"
+        };
       case '/courses':
         return {
           title: "Tuition Directory & Coaching Programs in Pihani | Sunshine Classes",
@@ -119,10 +125,18 @@ export function SEOHead() {
           keywords: "Sunshine Classes Results, Board Exam Toppers Pihani, Parent Testimonials Tuition, Coaching Success Hardoi, Student Scorecards"
         };
       case '/resources':
+      case '/study-material':
         return {
           title: "Free E-Learning Resources, Syllabus & Homework Portals | Sunshine Classes",
           description: "Access high-quality study materials, chapter-wise notes, and class assignments curated by expert teachers. Log in to the Sunshine student portal for digital homework submissions and test schedules.",
           keywords: "Coaching Study Materials, Free Syllabus Pihani, Tuitions Notes PDF, Homework Portal Sunshine, Student Learning Resources"
+        };
+      case '/store':
+      case '/books':
+        return {
+          title: "Sunshine Store & Book Depot | Textbooks & Stationery in Pihani",
+          description: "Browse and order NCERT textbooks, practice test workbooks, sample papers, science lab manuals, and school stationery directly from Sunshine Classes campus book depot in Pihani.",
+          keywords: "Sunshine Store, NCERT Books Pihani, Coaching Books Hardoi, School Stationery Pihani, CBSE Books Depot"
         };
       case '/gallery':
         return {
@@ -133,7 +147,7 @@ export function SEOHead() {
       case '/contact':
         return {
           title: "Contact Sunshine Classes | Phone, Email & Google Maps Location in Pihani",
-          description: "Get in touch with Sunshine Classes in Pihani, Hardoi. Reach us at +91-9140411354 or contact@sunshineclasses.org. Find our physical campus address, office hours, and dynamic directions map.",
+          description: "Get in touch with Sunshine Classes in Pihani, Hardoi. Reach us at +91-8707738284, +91-9161586254, or contact@sunshineclasses.org. Campus address: Mohalla Mishrana, Opp. Subhash Park, Pihani, Hardoi.",
           keywords: "Contact Sunshine Classes, Phone Number Pihani Tuition, Address Coaching Pihani, Google Maps Sunshine Classes, Support Email ERP"
         };
       case '/fees':
@@ -142,7 +156,44 @@ export function SEOHead() {
           description: "View our affordable monthly fee ledgers, payment schedules, and pay securely via UPI, QR, or bank transfer. Print immediate, officially signed digital receipts with instant status synchronizations.",
           keywords: "Affordable Fees Tuition, Tuition Fee Portal, Online Fee Payment Pihani, UPI QR Fees, Sunshine Classes Billing"
         };
+      case '/privacy':
+      case '/privacy-policy':
+        return {
+          title: "Privacy Policy & Student Data Protection | Sunshine Classes Pihani",
+          description: "Official privacy statement and student data protection standards for Sunshine Classes Pihani. Learn how we safeguard student records, parent contact numbers, and ERP credentials.",
+          keywords: "Privacy Policy Sunshine Classes, Student Data Protection Pihani, Coaching ERP Security, Sunshine Privacy"
+        };
+      case '/terms':
+      case '/terms-and-conditions':
+        return {
+          title: "Terms of Admission & Student Code of Conduct | Sunshine Classes",
+          description: "Review the institutional rules, attendance regulations, monthly fee billing schedules, and campus code of conduct for enrolled students at Sunshine Classes Pihani, Hardoi.",
+          keywords: "Terms of Admission Sunshine Classes, Coaching Code of Conduct Pihani, Institute Rules Hardoi, Tuition Fee Terms"
+        };
+      case '/login':
+      case '/login/student':
+      case '/login/admin':
+      case '/student/login':
+      case '/admin/login':
+        return {
+          title: "Portal Login | Sunshine Classes ERP Management System",
+          description: "Secure login portal for Sunshine Classes students, teachers, receptionists, and administrators. Access homework, tests, attendance, and fee status records.",
+          keywords: "Sunshine ERP Login, Student Login Pihani, Coaching Admin Portal, Teacher Dashboard Login"
+        };
+      case '/404':
+        return {
+          title: "404 - Page Not Found | Sunshine Classes Pihani",
+          description: "The requested page on Sunshine Classes could not be found. Explore our tuition courses, study material hub, or contact our campus helpdesk in Pihani.",
+          keywords: "404 Page Not Found, Sunshine Classes Pihani"
+        };
       default:
+        if (pathname.includes('/store/') || pathname.includes('/books/') || pathname.includes('/product/')) {
+          return {
+            title: "Sunshine Store Product Details | Textbooks & Resources Pihani",
+            description: "Explore book details, edition specifications, and available stock at Sunshine Classes campus store in Pihani, Hardoi.",
+            keywords: "Sunshine Store Books, Textbook Pihani, School Study Book Hardoi"
+          };
+        }
         return {
           title: "Sunshine Classes | Best Coaching Institute & Tuitions in Pihani, Hardoi",
           description: "Sunshine Classes is the leading coaching center in Pihani, Hardoi, offering highly premium education for Classes 1 to 10. Experienced educators, personalized learning paths, weekly mock tests, and smart tech integration.",

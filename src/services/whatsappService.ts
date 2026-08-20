@@ -1,21 +1,4 @@
-import { 
-  collection, 
-  doc, 
-  addDoc, 
-  getDoc, 
-  getDocs, 
-  setDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  orderBy, 
-  onSnapshot, 
-  serverTimestamp,
-  increment,
-  runTransaction
-} from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { SyncService } from "./SyncService";
 import { auditLogsService } from "./firestoreDbService";
 
 // ========================================================
@@ -102,7 +85,7 @@ export interface ContactLabel {
 }
 
 // ========================================================
-// 2. ConversationService (Real-time Firestore operations)
+// 2. ConversationService (SyncService operations)
 // ========================================================
 
 export const ConversationService = {
@@ -110,16 +93,18 @@ export const ConversationService = {
    * Subscribes to WhatsApp Chats with filters for Real-time rendering
    */
   subscribeChats(callback: (chats: WhatsAppChat[]) => void) {
-    const colRef = collection(db, "whatsappChats");
-    // Sort by pinned (desc) and lastMessageTime (desc)
-    const q = query(colRef, orderBy("pinned", "desc"), orderBy("lastMessageTime", "desc"));
-    
-    return onSnapshot(q, (snapshot) => {
-      const chats: WhatsAppChat[] = [];
-      snapshot.forEach((doc) => {
-        chats.push({ id: doc.id, ...doc.data() } as WhatsAppChat);
+    const fetchAndSort = async () => {
+      const chats = await SyncService.list<WhatsAppChat>("whatsappChats");
+      chats.sort((a, b) => {
+        if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+        return new Date(b.lastMessageTime || 0).getTime() - new Date(a.lastMessageTime || 0).getTime();
       });
       callback(chats);
+    };
+
+    fetchAndSort();
+    return SyncService.subscribe("whatsappChats", () => {
+      fetchAndSort();
     });
   },
 
@@ -127,19 +112,17 @@ export const ConversationService = {
    * Subscribes to WhatsApp Messages within a single conversation
    */
   subscribeMessages(conversationId: string, callback: (messages: WhatsAppMessage[]) => void) {
-    const colRef = collection(db, "whatsappMessages");
-    const q = query(
-      colRef, 
-      where("conversationId", "==", conversationId),
-      orderBy("timestamp", "asc")
-    );
+    const fetchAndFilter = async () => {
+      const allMessages = await SyncService.list<WhatsAppMessage>("whatsappMessages");
+      const filtered = allMessages
+        .filter(m => m.conversationId === conversationId)
+        .sort((a, b) => new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime());
+      callback(filtered);
+    };
 
-    return onSnapshot(q, (snapshot) => {
-      const messages: WhatsAppMessage[] = [];
-      snapshot.forEach((doc) => {
-        messages.push({ id: doc.id, ...doc.data() } as WhatsAppMessage);
-      });
-      callback(messages);
+    fetchAndFilter();
+    return SyncService.subscribe("whatsappMessages", () => {
+      fetchAndFilter();
     });
   },
 
@@ -148,11 +131,11 @@ export const ConversationService = {
    */
   async getOrCreateChat(phone: string, details: Partial<WhatsAppChat>): Promise<string> {
     const chatId = phone.replace(/\D/g, ""); // standardized ID
-    const docRef = doc(db, "whatsappChats", chatId);
-    const docSnap = await getDoc(docRef);
+    const existing = await SyncService.get<WhatsAppChat>("whatsappChats", chatId);
 
-    if (!docSnap.exists()) {
+    if (!existing) {
       const payload: WhatsAppChat = {
+        id: chatId,
         phone,
         name: details.name || "Unknown Contact",
         role: details.role || "GUEST",
@@ -168,7 +151,7 @@ export const ConversationService = {
         typing: false,
         labels: details.labels || []
       };
-      await setDoc(docRef, payload);
+      await SyncService.set("whatsappChats", chatId, payload);
     }
     return chatId;
   },
@@ -177,24 +160,21 @@ export const ConversationService = {
    * Pins, archives, or mutes a chat
    */
   async updateChatStatus(chatId: string, updates: Partial<WhatsAppChat>): Promise<void> {
-    const docRef = doc(db, "whatsappChats", chatId);
-    await updateDoc(docRef, updates);
+    await SyncService.update("whatsappChats", chatId, updates);
   },
 
   /**
    * Adds or removes a label for a contact
    */
   async updateContactLabels(chatId: string, labels: string[]): Promise<void> {
-    const docRef = doc(db, "whatsappChats", chatId);
-    await updateDoc(docRef, { labels });
+    await SyncService.update("whatsappChats", chatId, { labels });
   },
 
   /**
    * Resets the unread badge count for a chat
    */
   async markAsRead(chatId: string): Promise<void> {
-    const docRef = doc(db, "whatsappChats", chatId);
-    await updateDoc(docRef, { unreadCount: 0 });
+    await SyncService.update("whatsappChats", chatId, { unreadCount: 0 });
   }
 };
 
@@ -204,8 +184,7 @@ export const ConversationService = {
 
 export const WhatsAppService = {
   /**
-   * Dispatches a live message. If Meta Business API is connected later, 
-   * this is the single entry-point for the payload request.
+   * Dispatches a live message.
    */
   async sendMessage(
     chatId: string, 
@@ -218,52 +197,49 @@ export const WhatsAppService = {
       operatorUsername: string
     }
   ): Promise<string> {
-    const chatDocRef = doc(db, "whatsappChats", chatId);
-    const chatSnap = await getDoc(chatDocRef);
-    if (!chatSnap.exists()) {
+    const chatData = await SyncService.get<WhatsAppChat>("whatsappChats", chatId);
+    if (!chatData) {
       throw new Error("Target chat does not exist");
     }
 
-    const chatData = chatSnap.data() as WhatsAppChat;
+    const msgId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
     const messagePayload: WhatsAppMessage = {
+      id: msgId,
       conversationId: chatId,
       sender: "BUSINESS",
       senderName: options.operatorUsername || "Staff",
       receiver: chatData.phone,
       text,
       timestamp: new Date().toISOString(),
-      status: "SENT", // Simulates delivered status instantly
+      status: "SENT",
       mediaUrl: options.mediaUrl || "",
       mediaType: options.mediaType,
       templateUsed: options.templateUsed || ""
     };
 
-    // 1. Save message to Firestore database
-    const msgColRef = collection(db, "whatsappMessages");
-    const msgDocRef = await addDoc(msgColRef, messagePayload);
+    // 1. Save message
+    await SyncService.set("whatsappMessages", msgId, messagePayload);
 
     // 2. Update chat head index
-    await updateDoc(chatDocRef, {
+    await SyncService.update("whatsappChats", chatId, {
       lastMessage: text || (options.mediaType ? `📎 Attached ${options.mediaType}` : "Template message"),
       lastMessageTime: new Date().toISOString()
     });
 
     // 3. Simulate automatic receiver response in Sandbox environment
     setTimeout(async () => {
-      // Automatic simulation for non-production to keep system lively
-      await updateDoc(doc(db, "whatsappMessages", msgDocRef.id), {
+      await SyncService.update("whatsappMessages", msgId, {
         status: "READ"
       });
     }, 1200);
 
-    return msgDocRef.id;
+    return msgId;
   },
 
   /**
    * Receives incoming webhooks from Meta Cloud API
    */
   async receiveIncomingWebhook(payload: any): Promise<void> {
-    // Standard template for future developer integration
     console.log("Future Webhook Endpoint Received Meta API Payload: ", payload);
   }
 };
@@ -274,12 +250,7 @@ export const WhatsAppService = {
 
 export const TemplateService = {
   async fetchAll(): Promise<WhatsAppTemplate[]> {
-    const colRef = collection(db, "whatsappTemplates");
-    const snap = await getDocs(colRef);
-    const list: WhatsAppTemplate[] = [];
-    snap.forEach((doc) => {
-      list.push({ id: doc.id, ...doc.data() } as WhatsAppTemplate);
-    });
+    const list = await SyncService.list<WhatsAppTemplate>("whatsappTemplates");
 
     // Seed default approved templates if collection is empty
     if (list.length === 0) {
@@ -332,8 +303,9 @@ export const TemplateService = {
       ];
 
       for (const t of defaults) {
-        const ref = await addDoc(collection(db, "whatsappTemplates"), t);
-        list.push({ id: ref.id, ...t });
+        const id = `tpl-${t.name}`;
+        await SyncService.set("whatsappTemplates", id, { id, ...t });
+        list.push({ id, ...t });
       }
     }
 
@@ -341,16 +313,18 @@ export const TemplateService = {
   },
 
   async createTemplate(template: Omit<WhatsAppTemplate, "createdAt">): Promise<string> {
+    const id = template.id || `tpl-${Date.now()}`;
     const payload = {
       ...template,
+      id,
       createdAt: new Date().toISOString()
     };
-    const ref = await addDoc(collection(db, "whatsappTemplates"), payload);
-    return ref.id;
+    await SyncService.set("whatsappTemplates", id, payload);
+    return id;
   },
 
   async deleteTemplate(id: string): Promise<void> {
-    await deleteDoc(doc(db, "whatsappTemplates", id));
+    await SyncService.delete("whatsappTemplates", id);
   }
 };
 
@@ -360,14 +334,8 @@ export const TemplateService = {
 
 export const BroadcastService = {
   async fetchAll(): Promise<Broadcast[]> {
-    const colRef = collection(db, "broadcasts");
-    const q = query(colRef, orderBy("createdAt", "desc"));
-    const snap = await getDocs(q);
-    const list: Broadcast[] = [];
-    snap.forEach((doc) => {
-      list.push({ id: doc.id, ...doc.data() } as Broadcast);
-    });
-    return list;
+    const list = await SyncService.list<Broadcast>("broadcasts");
+    return list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   },
 
   async createBroadcast(
@@ -376,8 +344,10 @@ export const BroadcastService = {
     operatorId: string,
     operatorUsername: string
   ): Promise<string> {
+    const bId = `bc-${Date.now()}`;
     const payload: Broadcast = {
       ...broadcast,
+      id: bId,
       status: broadcast.scheduledTime ? "PENDING" : "SENT",
       sentCount: recipients.length,
       failedCount: 0,
@@ -385,7 +355,7 @@ export const BroadcastService = {
     };
 
     // Save Broadcast record
-    const bRef = await addDoc(collection(db, "broadcasts"), payload);
+    await SyncService.set("broadcasts", bId, payload);
 
     // If scheduled, add to scheduledMessages collection
     if (broadcast.scheduledTime) {
@@ -397,7 +367,9 @@ export const BroadcastService = {
           teacherId: rec.teacherId || ""
         });
 
-        await addDoc(collection(db, "scheduledMessages"), {
+        const schedId = `sched-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
+        await SyncService.set("scheduledMessages", schedId, {
+          id: schedId,
           chatId,
           phone: rec.phone,
           text: `Broadcast: ${broadcast.title}`,
@@ -432,7 +404,7 @@ export const BroadcastService = {
       );
     }
 
-    return bRef.id;
+    return bId;
   }
 };
 
@@ -442,24 +414,16 @@ export const BroadcastService = {
 
 export const ScheduledMessageService = {
   async fetchAll(): Promise<ScheduledMessage[]> {
-    const colRef = collection(db, "scheduledMessages");
-    const q = query(colRef, orderBy("sendAt", "asc"));
-    const snap = await getDocs(q);
-    const list: ScheduledMessage[] = [];
-    snap.forEach((doc) => {
-      list.push({ id: doc.id, ...doc.data() } as ScheduledMessage);
-    });
-    return list;
+    const list = await SyncService.list<ScheduledMessage>("scheduledMessages");
+    return list.sort((a, b) => new Date(a.sendAt || 0).getTime() - new Date(b.sendAt || 0).getTime());
   },
 
   async cancelScheduledMessage(id: string): Promise<void> {
-    const docRef = doc(db, "scheduledMessages", id);
-    await updateDoc(docRef, { status: "CANCELLED" });
+    await SyncService.update("scheduledMessages", id, { status: "CANCELLED" });
   },
 
   async rescheduleMessage(id: string, newSendAt: string): Promise<void> {
-    const docRef = doc(db, "scheduledMessages", id);
-    await updateDoc(docRef, { sendAt: newSendAt });
+    await SyncService.update("scheduledMessages", id, { sendAt: newSendAt });
   }
 };
 

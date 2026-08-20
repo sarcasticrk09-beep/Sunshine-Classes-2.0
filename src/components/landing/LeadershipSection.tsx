@@ -69,10 +69,11 @@ export const LeadershipSection: React.FC<LeadershipSectionProps> = ({
                     {fm.photoUrl ? (
                       <img 
                         src={fm.photoUrl} 
-                        alt={fm.name} 
+                        alt={`${fm.name} - ${fm.title}, Sunshine Classes`} 
                         className="h-full w-full object-cover rounded-2xl" 
                         loading="lazy"
                         decoding="async"
+                        referrerPolicy="no-referrer"
                       />
                     ) : (
                       <span>{fm.avatarInitials}</span>

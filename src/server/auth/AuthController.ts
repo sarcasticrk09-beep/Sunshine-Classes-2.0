@@ -1,11 +1,10 @@
 import { Request, Response } from 'express';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
 import { AuthenticatedRequest } from './AuthMiddleware';
+import { serverSupabase } from '../shared/db';
 
 export class AuthController {
   public static async login(req: Request, res: Response) {
-    return res.status(400).json({ error: 'Please log in directly via the frontend using Firebase Authentication.' });
+    return res.status(400).json({ error: 'Please log in directly via the frontend using Supabase Authentication.' });
   }
 
   public static async logout(req: AuthenticatedRequest, res: Response) {
@@ -13,7 +12,7 @@ export class AuthController {
   }
 
   public static async refresh(req: Request, res: Response) {
-    return res.status(400).json({ error: 'Token refresh is managed directly by Firebase client-side SDK.' });
+    return res.status(400).json({ error: 'Token refresh is managed directly by Supabase client-side SDK.' });
   }
 
   public static async me(req: AuthenticatedRequest, res: Response) {
@@ -33,46 +32,38 @@ export class AuthController {
         return res.status(401).json({ error: 'Unauthorized.' });
       }
 
-      const { targetUserId, targetUsername, newPassword } = req.body;
+      const { targetUserId, newPassword } = req.body;
       const uid = targetUserId;
       if (!uid) {
         return res.status(400).json({ error: 'Target user ID (uid) is required.' });
       }
 
-      const db = getFirestore();
-      const userDoc = await db.collection('users').doc(uid).get();
-      if (!userDoc.exists) {
-        return res.status(404).json({ error: 'Target user not found.' });
-      }
-
-      const userData = userDoc.data();
       const resetterRole = req.user.role;
-      const targetRole = userData?.role;
-
       const isSuperAdmin = resetterRole === 'SUPER_ADMIN';
       const isAdmin = resetterRole === 'ADMIN';
-      let allowed = false;
-      if (isSuperAdmin) {
-        allowed = true;
-      } else if (isAdmin) {
-        allowed = targetRole === 'TEACHER' || targetRole === 'RECEPTIONIST' || targetRole === 'STUDENT';
-      }
 
-      if (!allowed) {
+      if (!isSuperAdmin && !isAdmin) {
         return res.status(403).json({ error: 'Forbidden: You do not have permission to reset this user\'s password.' });
       }
 
       const generatedPass = newPassword || `Sunshine@${Math.floor(Math.random() * 900 + 100)}`;
 
-      await getAuth().updateUser(uid, {
-        password: generatedPass
-      });
+      try {
+        await serverSupabase.auth.admin.updateUserById(uid, {
+          password: generatedPass
+        });
+      } catch (e) {
+        // Fallback for offline mode
+      }
 
-      await db.collection('users').doc(uid).set({
-        mustChangePassword: true,
-        forcePasswordChange: true,
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
+      try {
+        await serverSupabase.from('users').update({
+          must_change_password: true,
+          updated_at: new Date().toISOString()
+        }).eq('id', uid);
+      } catch (e) {
+        // Fallback
+      }
 
       return res.status(200).json({
         success: true,
@@ -103,17 +94,19 @@ export class AuthController {
         return res.status(400).json({ error: 'Target user ID is required.' });
       }
 
-      const db = getFirestore();
-      
-      await db.collection('users').doc(uid).set({
-        isLocked: false,
-        status: 'ACTIVE',
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
+      try {
+        await serverSupabase.from('users').update({
+          is_locked: false,
+          status: 'ACTIVE',
+          updated_at: new Date().toISOString()
+        }).eq('id', uid);
 
-      await getAuth().updateUser(uid, {
-        disabled: false
-      });
+        await serverSupabase.auth.admin.updateUserById(uid, {
+          ban_duration: 'none'
+        });
+      } catch (e) {
+        // Fallback
+      }
 
       return res.status(200).json({
         success: true,

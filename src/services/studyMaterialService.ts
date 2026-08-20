@@ -1,20 +1,6 @@
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  orderBy, 
-  increment,
-  writeBatch
-} from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { StudyMaterial, StudyMaterialStatus, StudyMaterialType } from '../types';
 import { SEED_STUDY_MATERIALS } from '../data';
+import { SyncService } from './SyncService';
 
 const COLLECTION_NAME = 'study_materials';
 
@@ -28,28 +14,23 @@ export function generateSlug(title: string): string {
 }
 
 /**
- * Fetch all study materials (Firestore with local fallback)
+ * Fetch all study materials
  */
 export async function getStudyMaterials(): Promise<StudyMaterial[]> {
   try {
-    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
-    if (!querySnapshot.empty) {
-      const items: StudyMaterial[] = [];
-      querySnapshot.forEach((docSnap) => {
-        const data = docSnap.data() as StudyMaterial;
-        items.push({
-          ...data,
-          id: docSnap.id,
-          materialId: data.materialId || docSnap.id,
-          desc: data.description || data.desc || '',
-          file: data.file || data.fileUrl || '',
-          category: data.category || (data.materialType === 'NOTES' ? 'NOTES' : 'QUESTION_PAPER')
-        });
-      });
-      return items;
+    const list = await SyncService.list<StudyMaterial>(COLLECTION_NAME);
+    if (list && list.length > 0) {
+      return list.map((data) => ({
+        ...data,
+        id: data.id,
+        materialId: data.materialId || data.id,
+        desc: data.description || data.desc || '',
+        file: data.file || data.fileUrl || '',
+        category: data.category || (data.materialType === 'NOTES' ? 'NOTES' : 'QUESTION_PAPER')
+      }));
     }
   } catch (err) {
-    console.warn('Firestore study_materials fetch error, using fallback seed data:', err);
+    console.warn('Study materials fetch error, using fallback seed data:', err);
   }
   return SEED_STUDY_MATERIALS;
 }
@@ -59,26 +40,12 @@ export async function getStudyMaterials(): Promise<StudyMaterial[]> {
  */
 export async function getPublicStudyMaterials(): Promise<StudyMaterial[]> {
   try {
-    const q = query(
-      collection(db, COLLECTION_NAME),
-      where('isPublic', '==', true),
-      where('status', '==', 'PUBLISHED')
-    );
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-      const items: StudyMaterial[] = [];
-      querySnapshot.forEach((docSnap) => {
-        const data = docSnap.data() as StudyMaterial;
-        items.push({
-          ...data,
-          id: docSnap.id,
-          materialId: data.materialId || docSnap.id
-        });
-      });
-      return items;
+    const list = await SyncService.list<StudyMaterial>(COLLECTION_NAME);
+    if (list && list.length > 0) {
+      return list.filter((m) => (m.isPublic === undefined || m.isPublic) && (m.status === undefined || m.status === 'PUBLISHED'));
     }
   } catch (err) {
-    console.warn('Error fetching public study materials from Firestore:', err);
+    console.warn('Error fetching public study materials:', err);
   }
   return SEED_STUDY_MATERIALS.filter((m) => m.isPublic && m.status === 'PUBLISHED');
 }
@@ -130,9 +97,9 @@ export async function createStudyMaterial(
   };
 
   try {
-    await setDoc(doc(db, COLLECTION_NAME, newId), fullMaterial);
+    await SyncService.set(COLLECTION_NAME, newId, fullMaterial);
   } catch (err) {
-    console.error('Error saving study material to Firestore:', err);
+    console.error('Error saving study material:', err);
   }
 
   return fullMaterial;
@@ -156,9 +123,9 @@ export async function updateStudyMaterial(
   }
 
   try {
-    await updateDoc(doc(db, COLLECTION_NAME, id), payload);
+    await SyncService.update(COLLECTION_NAME, id, payload);
   } catch (err) {
-    console.error(`Error updating study material ${id} in Firestore:`, err);
+    console.error(`Error updating study material ${id}:`, err);
   }
 }
 
@@ -167,9 +134,9 @@ export async function updateStudyMaterial(
  */
 export async function deleteStudyMaterial(id: string): Promise<void> {
   try {
-    await deleteDoc(doc(db, COLLECTION_NAME, id));
+    await SyncService.delete(COLLECTION_NAME, id);
   } catch (err) {
-    console.error(`Error deleting study material ${id} from Firestore:`, err);
+    console.error(`Error deleting study material ${id}:`, err);
   }
 }
 
@@ -177,14 +144,8 @@ export async function deleteStudyMaterial(id: string): Promise<void> {
  * Bulk delete study materials
  */
 export async function bulkDeleteStudyMaterials(ids: string[]): Promise<void> {
-  try {
-    const batch = writeBatch(db);
-    ids.forEach((id) => {
-      batch.delete(doc(db, COLLECTION_NAME, id));
-    });
-    await batch.commit();
-  } catch (err) {
-    console.error('Error bulk deleting study materials:', err);
+  for (const id of ids) {
+    await SyncService.delete(COLLECTION_NAME, id);
   }
 }
 
@@ -197,19 +158,12 @@ export async function bulkUpdateStatus(
   isPublic?: boolean
 ): Promise<void> {
   const now = new Date().toISOString();
-  try {
-    const batch = writeBatch(db);
-    ids.forEach((id) => {
-      const ref = doc(db, COLLECTION_NAME, id);
-      const updateData: any = { status, updatedAt: now };
-      if (isPublic !== undefined) {
-        updateData.isPublic = isPublic;
-      }
-      batch.update(ref, updateData);
-    });
-    await batch.commit();
-  } catch (err) {
-    console.error('Error bulk updating status:', err);
+  for (const id of ids) {
+    const updateData: any = { status, updatedAt: now };
+    if (isPublic !== undefined) {
+      updateData.isPublic = isPublic;
+    }
+    await SyncService.update(COLLECTION_NAME, id, updateData);
   }
 }
 
@@ -218,9 +172,12 @@ export async function bulkUpdateStatus(
  */
 export async function incrementViewCount(id: string): Promise<void> {
   try {
-    await updateDoc(doc(db, COLLECTION_NAME, id), {
-      viewCount: increment(1)
-    });
+    const item = await SyncService.get<StudyMaterial>(COLLECTION_NAME, id);
+    if (item) {
+      await SyncService.update(COLLECTION_NAME, id, {
+        viewCount: (item.viewCount || 0) + 1
+      });
+    }
   } catch (err) {
     console.warn(`Could not increment view count for ${id}:`, err);
   }
@@ -232,10 +189,13 @@ export async function incrementViewCount(id: string): Promise<void> {
 export async function incrementDownloadCount(id: string): Promise<void> {
   const now = new Date().toISOString();
   try {
-    await updateDoc(doc(db, COLLECTION_NAME, id), {
-      downloadCount: increment(1),
-      lastDownloaded: now
-    });
+    const item = await SyncService.get<StudyMaterial>(COLLECTION_NAME, id);
+    if (item) {
+      await SyncService.update(COLLECTION_NAME, id, {
+        downloadCount: (item.downloadCount || 0) + 1,
+        lastDownloaded: now
+      });
+    }
   } catch (err) {
     console.warn(`Could not increment download count for ${id}:`, err);
   }

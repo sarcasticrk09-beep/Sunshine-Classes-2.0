@@ -1,69 +1,8 @@
 /// <reference types="vite/client" />
-import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged, User } from "firebase/auth";
-import { 
-  initializeFirestore, 
-  collection, 
-  getDocs, 
-  setDoc, 
-  doc, 
-  writeBatch,
-  addDoc,
-  setLogLevel
-} from "firebase/firestore";
+import { SyncService } from "../services/SyncService";
+import { supabase } from "./supabase";
 
-const metaEnv = (import.meta as any).env || {};
-
-const requiredClientVars = [
-  "VITE_FIREBASE_PROJECT_ID",
-  "VITE_FIREBASE_APP_ID",
-  "VITE_FIREBASE_API_KEY",
-  "VITE_FIREBASE_AUTH_DOMAIN",
-  "VITE_FIREBASE_STORAGE_BUCKET",
-  "VITE_FIREBASE_MESSAGING_SENDER_ID"
-];
-
-const missingClientVars = requiredClientVars.filter(varName => !metaEnv[varName]);
-
-if (missingClientVars.length > 0) {
-  const errorMsg = `[Firebase Client Error] Missing required environment variable(s): ${missingClientVars.join(", ")}. Ensure VITE_FIREBASE_* variables are set in your environment.`;
-  console.error(errorMsg);
-  throw new Error(errorMsg);
-}
-
-const firebaseConfig = {
-  projectId: metaEnv.VITE_FIREBASE_PROJECT_ID,
-  appId: metaEnv.VITE_FIREBASE_APP_ID,
-  apiKey: metaEnv.VITE_FIREBASE_API_KEY,
-  authDomain: metaEnv.VITE_FIREBASE_AUTH_DOMAIN,
-  storageBucket: metaEnv.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID
-};
-
-// Silence Firestore's built-in SDK logging
-try {
-  setLogLevel("silent");
-} catch (e) {
-  // Silent catch
-}
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
-});
-
-export const auth = getAuth(app);
-
-export const googleProvider = new GoogleAuthProvider();
-googleProvider.addScope("https://mail.google.com/");
-googleProvider.addScope("https://www.googleapis.com/auth/gmail.send");
-googleProvider.addScope("https://www.googleapis.com/auth/gmail.readonly");
-googleProvider.addScope("https://www.googleapis.com/auth/gmail.compose");
-googleProvider.addScope("https://www.googleapis.com/auth/gmail.modify");
-googleProvider.addScope("https://www.googleapis.com/auth/gmail.labels");
-
-// In-memory token storage (Security requirement: never put access token in localStorage)
+// In-memory token storage
 let cachedAccessToken: string | null = null;
 
 export const getCachedAccessToken = (): string | null => cachedAccessToken;
@@ -75,167 +14,59 @@ export function clearCachedAccessToken(): void {
   cachedAccessToken = null;
 }
 
-// In-memory Firebase ID Token storage
+// In-memory Auth Token storage
 let cachedIdToken: string | null = null;
 export const getCachedIdToken = (): string | null => cachedIdToken;
 export const setCachedIdToken = (token: string | null): void => {
   cachedIdToken = token;
 };
 
-export async function googleSignInForGmail(): Promise<{ user: User; accessToken: string }> {
-  const result = await signInWithPopup(auth, googleProvider);
-  const credential = GoogleAuthProvider.credentialFromResult(result);
-  if (!credential?.accessToken) {
-    throw new Error("Failed to acquire access token from Google sign-in.");
+export const auth = {
+  currentUser: null,
+  signOut: async () => {
+    await supabase.auth.signOut();
   }
-  cachedAccessToken = credential.accessToken;
-  return { user: result.user, accessToken: credential.accessToken };
-}
-
-// Global console filter to prevent Firestore connectivity warnings and stream cancellations from flooding logs.
-const formatArg = (arg: any): string => {
-  if (arg === null || arg === undefined) return "";
-  if (arg instanceof Error) {
-    return `${arg.name || "Error"}: ${arg.message || ""} ${arg.stack || ""} ${String(arg)}`;
-  }
-  if (typeof arg === "object") {
-    try {
-      const base = JSON.stringify(arg);
-      const msg = arg.message || "";
-      const code = arg.code || "";
-      const name = arg.name || "";
-      return `${base} ${msg} ${code} ${name} ${String(arg)}`;
-    } catch {
-      return String(arg);
-    }
-  }
-  return String(arg);
 };
 
-const shouldIgnore = (args: any[]): boolean => {
-  const msg = args.map(formatArg).join(" ");
-  return (
-    msg.includes("@firebase/firestore") ||
-    msg.includes("Could not reach Cloud Firestore") ||
-    msg.includes("code=unavailable") ||
-    msg.includes("Disconnecting idle stream") ||
-    msg.includes("Timed out waiting for new targets") ||
-    msg.includes("CANCELLED") ||
-    msg.includes("GrpcConnection RPC")
-  );
-};
-
-const originalWarn = console.warn;
-console.warn = function (...args) {
-  if (shouldIgnore(args)) return;
-  originalWarn.apply(console, args);
-};
-
-const originalError = console.error;
-console.error = function (...args) {
-  if (shouldIgnore(args)) return;
-  originalError.apply(console, args);
-};
-
-const originalLog = console.log;
-console.log = function (...args) {
-  if (shouldIgnore(args)) return;
-  originalLog.apply(console, args);
-};
-
-const originalInfo = console.info;
-console.info = function (...args) {
-  if (shouldIgnore(args)) return;
-  originalInfo.apply(console, args);
-};
-
-if (typeof window !== "undefined") {
-  window.addEventListener("unhandledrejection", (event) => {
-    const reason = event.reason;
-    if (reason && shouldIgnore([reason])) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-  });
-
-  window.addEventListener("error", (event) => {
-    const error = event.error || event.message;
-    if (error && shouldIgnore([error])) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-  });
-}
+export const db = {} as any;
 
 /**
- * Generic helper to fetch all items in a Firestore collection.
+ * Generic helper to fetch all items in a collection.
  */
 export async function fetchCollection<T>(collectionName: string): Promise<T[]> {
-  try {
-    const colRef = collection(db, collectionName);
-    const snapshot = await getDocs(colRef);
-    const items: T[] = [];
-    snapshot.forEach((doc) => {
-      items.push({ id: doc.id, ...doc.data() } as T);
-    });
-    return items;
-  } catch (error) {
-    console.error(`Error fetching collection ${collectionName}:`, error);
-    return [];
-  }
+  return await SyncService.list<T>(collectionName);
 }
 
 /**
- * Generic helper to save or update an item in a Firestore collection by ID.
+ * Generic helper to save or update an item in a collection by ID.
  */
 export async function saveDocument(collectionName: string, id: string, data: any): Promise<void> {
-  try {
-    const docRef = doc(db, collectionName, id);
-    // Remove the id field from document body to prevent duplication if desired, or keep it.
-    await setDoc(docRef, data, { merge: true });
-  } catch (error) {
-    console.error(`Error saving document in ${collectionName} with ID ${id}:`, error);
-    throw error;
-  }
+  await SyncService.set(collectionName, id, data, { merge: true });
 }
 
 /**
- * Generic helper to add a new document and let Firestore auto-generate an ID.
+ * Generic helper to add a new document.
  */
 export async function addDocument(collectionName: string, data: any): Promise<string> {
-  try {
-    const colRef = collection(db, collectionName);
-    const docRef = await addDoc(colRef, data);
-    return docRef.id;
-  } catch (error) {
-    console.error(`Error adding document to ${collectionName}:`, error);
-    throw error;
-  }
+  const newId = data.id || `doc-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+  await SyncService.set(collectionName, newId, { ...data, id: newId });
+  return newId;
 }
 
 /**
- * Seeds Firestore with default local SEED data if collections are currently empty.
+ * Seeds collection with default local SEED data if collection is currently empty.
  */
 export async function seedFirestoreIfEmpty(
   collectionName: string, 
   seedData: any[]
 ): Promise<boolean> {
   try {
-    const colRef = collection(db, collectionName);
-    const snapshot = await getDocs(colRef);
-    
-    if (snapshot.empty && seedData.length > 0) {
-      console.log(`Seeding Firestore collection: ${collectionName} with ${seedData.length} records...`);
-      const batch = writeBatch(db);
-      
-      seedData.forEach((item) => {
-        // Ensure every seed item has a unique, reliable ID
+    const list = await SyncService.list(collectionName);
+    if (list.length === 0 && seedData.length > 0) {
+      for (const item of seedData) {
         const id = item.id || `seed-${Math.random().toString(36).substr(2, 9)}`;
-        const docRef = doc(db, collectionName, id);
-        batch.set(docRef, item);
-      });
-      
-      await batch.commit();
+        await SyncService.set(collectionName, id, item);
+      }
       return true;
     }
     return false;
@@ -246,5 +77,22 @@ export async function seedFirestoreIfEmpty(
 }
 
 export async function googleSignIn(): Promise<any> {
-  return googleSignInForGmail();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google'
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function googleSignInForGmail(): Promise<{ user: { email?: string }; accessToken: string }> {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      scopes: 'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly'
+    }
+  });
+  if (error) throw error;
+  const token = (data as any)?.session?.provider_token || (data as any)?.session?.access_token || '';
+  const email = (data as any)?.session?.user?.email || '';
+  return { user: { email }, accessToken: token };
 }

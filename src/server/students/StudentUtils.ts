@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc } from '../shared/db';
 
 export const VALID_CLASSES = [
   'Nursery', 'LKG', 'UKG',

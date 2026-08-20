@@ -44,7 +44,7 @@ import { simpleSecureHash } from '../auth/AuthProvider';
 import { Student, Attendance, FeeStatus, FeeReceipt, Test, StudentMark, Homework, HomeworkSubmission, AppNotification, StudentSubscription, SubscriptionPayment, SubscriptionReceipt, SubscriptionNotification, SubscriptionConfig, TimetableEntry, StudyMaterial, BatchBulletinPost, UPIPayment, Admission, ClassEntity, Batch } from '../types';
 import SunshineLogo from './SunshineLogo';
 import { CloudinaryUpload } from './CloudinaryUpload';
-import { getFeeStatusForRecord } from '../lib/feeUtils';
+import { getFeeStatusForRecord, isFeeDueSoon } from '../lib/feeUtils';
 import { getPaymentProvider } from '../lib/paymentProviders';
 import { generateReceiptPdf, generatePaymentHistoryPdf } from '../lib/pdfGenerator';
 import { EnrollmentWizard } from './admissions/EnrollmentWizard';
@@ -1820,13 +1820,23 @@ export default function StudentDashboard({
                                 </td>
                                 <td className="py-1 px-3 block md:table-cell md:p-3 text-center">
                                   <span className="inline-block md:hidden font-bold text-slate-400 w-28">Status:</span>
-                                  <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                                    f.status === 'PAID' ? 'bg-green-50 text-green-700 border border-green-200' :
-                                    f.status === 'PARTIAL' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
-                                    'bg-red-50 text-red-600 border border-red-200'
-                                  }`}>
-                                    {f.status}
-                                  </span>
+                                  {(() => {
+                                    const isDueSoon = f.pendingFee > 0 && f.status !== 'PAID' && isFeeDueSoon(f.dueDate, 3);
+                                    return (
+                                      <span
+                                        id={`fee-status-badge-${f.id}`}
+                                        className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${
+                                          f.status === 'PAID'
+                                            ? 'bg-green-50 text-green-700 border border-green-200'
+                                            : f.status === 'PARTIAL'
+                                            ? `bg-amber-50 text-amber-600 border border-amber-200 ${isDueSoon ? 'animate-pulse ring-2 ring-amber-300/60 shadow-sm' : ''}`
+                                            : `bg-red-50 text-red-600 border border-red-200 ${isDueSoon ? 'animate-pulse ring-2 ring-rose-300/60 shadow-sm' : ''}`
+                                        }`}
+                                      >
+                                        {f.status}
+                                      </span>
+                                    );
+                                  })()}
                                 </td>
                                 <td className="py-1.5 px-3 block md:table-cell md:p-3 text-center">
                                   <span className="inline-block md:hidden font-bold text-slate-400 w-28">Action:</span>
@@ -2778,11 +2788,12 @@ export default function StudentDashboard({
                       <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                         {myFees.map((f) => {
                           const status = getFeeStatusForRecord(f);
+                          const isDueSoon = f.pendingFee > 0 && status !== 'PAID' && isFeeDueSoon(f.dueDate, 3);
                           let statusBg = 'bg-slate-50 text-slate-500';
                           if (status === 'PAID') statusBg = 'bg-emerald-50 text-emerald-700 border border-emerald-100';
-                          else if (status === 'PARTIAL') statusBg = 'bg-amber-50 text-amber-700 border border-amber-100';
+                          else if (status === 'PARTIAL') statusBg = `bg-amber-50 text-amber-700 border border-amber-100 ${isDueSoon ? 'animate-pulse ring-1 ring-amber-300' : ''}`;
                           else if (status === 'OVERDUE') statusBg = 'bg-rose-50 text-rose-700 border border-rose-100 animate-pulse';
-                          else if (status === 'PENDING') statusBg = 'bg-orange-50 text-orange-700 border border-orange-100';
+                          else if (status === 'PENDING') statusBg = `bg-orange-50 text-orange-700 border border-orange-100 ${isDueSoon ? 'animate-pulse ring-1 ring-orange-300' : ''}`;
                           else if (status === 'UPCOMING') statusBg = 'bg-blue-50 text-blue-700 border border-blue-100';
                           
                           return (
@@ -2790,7 +2801,7 @@ export default function StudentDashboard({
                               <span className="font-medium text-slate-700 font-display">{f.month}</span>
                               <div className="flex items-center gap-2">
                                 <span className="font-bold text-slate-500 font-mono">₹{f.totalFee}</span>
-                                <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase ${statusBg}`}>{status}</span>
+                                <span id={`timeline-badge-${f.id}`} className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase ${statusBg}`}>{status}</span>
                               </div>
                             </div>
                           );

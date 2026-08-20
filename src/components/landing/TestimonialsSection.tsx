@@ -125,9 +125,11 @@ export const TestimonialsSection: React.FC<TestimonialsSectionProps> = ({
               <div className="pt-3 border-t border-slate-200/60 dark:border-slate-800 flex items-center gap-3">
                 <img
                   src={t.avatarUrl || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=60'}
-                  alt={t.name}
+                  alt={`Reviewer ${t.name} - Sunshine Classes Pihani`}
                   className="h-10 w-10 rounded-full object-cover border border-slate-200 shrink-0"
                   loading="lazy"
+                  decoding="async"
+                  referrerPolicy="no-referrer"
                 />
                 <div>
                   <h4 className="font-display font-black text-xs text-slate-900 dark:text-white">

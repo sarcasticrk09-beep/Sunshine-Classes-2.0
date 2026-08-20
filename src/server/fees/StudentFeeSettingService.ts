@@ -1,5 +1,4 @@
-import { collection, doc, getDoc, getDocs, setDoc, deleteDoc } from '../shared/db';
-import { query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where } from '../shared/db';
 import { AuditService } from '../shared/AuditService';
 import { TimelineService } from '../shared/TimelineService';
 import { EventPublisher } from '../shared/EventPublisher';

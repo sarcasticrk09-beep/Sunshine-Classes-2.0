@@ -75,7 +75,7 @@ import { Student, Teacher, User, UserRole, UserAccountStatus, Course, Batch, Cla
 import { interpolateTemplate, getFeeForClass } from '../data';
 import { sendWhatsAppMessage, interpolateWhatsAppTemplate } from '../lib/whatsappService';
 import { googleSignIn, getCachedAccessToken, clearCachedAccessToken, db, getCachedIdToken } from '../lib/firebase';
-import { doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { SyncService } from '../services/SyncService';
 import { studentService } from '../services/studentService';
 import { noticesService } from '../services/firestoreDbService';
 import { CloudinaryUpload } from './CloudinaryUpload';
@@ -396,11 +396,8 @@ export default function AdminDashboard({
   const fetchLocalUsers = async () => {
     setFetchingLocalUsers(true);
     try {
-      const { collection, getDocs } = await import('firebase/firestore');
-      const { db } = await import('../lib/firebase');
-      const colRef = collection(db, 'users');
-      const snap = await getDocs(colRef);
-      setLocalUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const list = await SyncService.list('users');
+      setLocalUsers(list);
     } catch (err) {
       console.error(err);
     } finally {

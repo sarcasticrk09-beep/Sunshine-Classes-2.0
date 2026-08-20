@@ -3,8 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { collection, doc, getDoc, getDocs } from '../shared/db';
-import { getCountFromServer, query, where, limit } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, getCountFromServer, query, where, limit } from '../shared/db';
 import {
   VALID_CLASSES,
   VALID_STATUSES,

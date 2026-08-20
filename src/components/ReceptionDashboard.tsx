@@ -27,13 +27,15 @@ import {
   Check,
   AlertTriangle,
   Clock,
-  MessageSquare
+  MessageSquare,
+  CheckSquare
 } from 'lucide-react';
 import { Admission, Student, FeeStatus, FeeReceipt, Inquiry, Batch, StudentSubscription, SubscriptionPayment, SubscriptionReceipt, SubscriptionNotification, SubscriptionConfig } from '../types';
 import { getFeeForClass } from '../data';
 import SunshineLogo from './SunshineLogo';
 import { WhatsAppCommunication } from './WhatsAppCommunication';
-import { getCurrentAndNextMonths } from '../lib/feeUtils';
+import { getCurrentAndNextMonths, isFeeDueSoon } from '../lib/feeUtils';
+import { generateReceiptPdf } from '../lib/pdfGenerator';
 import AdmissionsModule from './admissions/AdmissionsModule';
 import { getCachedIdToken } from '../lib/firebase';
 
@@ -411,6 +413,42 @@ export default function ReceptionDashboard({
     exportToPDF(`Fee Payment History - ${studentName}`, headers, rows, summaryStats);
   };
 
+  const handlePrintSelectedReceipts = () => {
+    if (selectedReceiptIds.length === 0) {
+      alert("Please select at least one receipt to print.");
+      return;
+    }
+
+    const receiptsToPrint = feeReceipts.filter(r => selectedReceiptIds.includes(r.id));
+    if (receiptsToPrint.length === 0) {
+      alert("No matching receipts found.");
+      return;
+    }
+
+    // Trigger generateReceiptPdf for all selected receipts
+    receiptsToPrint.forEach((rec) => {
+      const studentObj = students.find(s => s.id === rec.studentId) || {
+        id: rec.studentId,
+        rollNo: 'SC-1001',
+        name: rec.studentName,
+        class: rec.class,
+        preferredBatch: 'Regular Batch',
+        gender: 'OTHER',
+        admissionDate: rec.date,
+        mobile: '',
+        parentMobile: '',
+        address: 'Pihani, Hardoi',
+        fatherName: '',
+        motherName: '',
+        dob: '2008-01-01',
+        email: ''
+      } as Student;
+
+      const doc = generateReceiptPdf(rec, studentObj);
+      doc.save(`Receipt-${rec.id}-${rec.studentName.replace(/\s+/g, '_')}.pdf`);
+    });
+  };
+
   const handlePrintSingleReceipt = (rec: FeeReceipt) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -618,6 +656,8 @@ export default function ReceptionDashboard({
   
   // Selected receipt to show print popup
   const [receiptToPrint, setReceiptToPrint] = useState<FeeReceipt | null>(null);
+  // Selected receipt IDs for batch print / actions
+  const [selectedReceiptIds, setSelectedReceiptIds] = useState<string[]>([]);
 
   // Search filtered students
   const filteredStudentsForSearch = students.filter(
@@ -1187,13 +1227,29 @@ export default function ReceptionDashboard({
                             <td className="py-1 px-3 text-slate-800 font-bold block md:table-cell md:p-3"><span className="inline-block md:hidden font-bold text-slate-400 w-28">Pending:</span>₹{ledger.pendingFee}</td>
                             <td className="py-1 px-3 block md:table-cell md:p-3">
                               <span className="inline-block md:hidden font-bold text-slate-400 w-28">Status:</span>
-                              {ledger.pendingFee === 0 ? (
-                                <span className="text-[9px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">Paid</span>
-                              ) : isOverdue ? (
-                                <span className="text-[9px] font-black uppercase text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100">Overdue ({ledger.dueDate})</span>
-                              ) : (
-                                <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">Pending</span>
-                              )}
+                              {(() => {
+                                const isDueSoon = ledger.pendingFee > 0 && !isOverdue && isFeeDueSoon(ledger.dueDate, 3);
+                                if (ledger.pendingFee === 0) {
+                                  return (
+                                    <span id={`reception-status-badge-${ledger.id}`} className="text-[9px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">Paid</span>
+                                  );
+                                }
+                                if (isOverdue) {
+                                  return (
+                                    <span id={`reception-status-badge-${ledger.id}`} className="text-[9px] font-black uppercase text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100 animate-pulse">Overdue ({ledger.dueDate})</span>
+                                  );
+                                }
+                                return (
+                                  <span
+                                    id={`reception-status-badge-${ledger.id}`}
+                                    className={`text-[9px] font-black uppercase text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100 transition-all ${
+                                      isDueSoon ? 'animate-pulse ring-2 ring-blue-300/60 shadow-sm' : ''
+                                    }`}
+                                  >
+                                    Pending {isDueSoon ? '(Due Soon)' : ''}
+                                  </span>
+                                );
+                              })()}
                             </td>
                             <td className="py-1 px-3 text-left md:text-center block md:table-cell md:p-3">
                               <span className="inline-block md:hidden font-bold text-slate-400 w-28">Action:</span>
@@ -1228,26 +1284,55 @@ export default function ReceptionDashboard({
                     <h3 className="font-display font-bold text-base text-slate-800">Counter Cashflow History</h3>
                     <p className="text-xs text-slate-500">Real-time listing of tuition fee vouchers collected at the reception counter.</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {selectedReceiptIds.length > 0 && (
+                      <button
+                        type="button"
+                        id="btn-print-selected-receipts"
+                        onClick={handlePrintSelectedReceipts}
+                        className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-1.5 text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer animate-fade-in"
+                        title="Print/Download PDF for all selected check-marked receipts"
+                      >
+                        <Printer size={13} /> Print Selected ({selectedReceiptIds.length})
+                      </button>
+                    )}
                     <button
+                      id="btn-export-payments-csv"
                       onClick={handleExportPaymentsCSV}
                       className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
                     >
                       <FileSpreadsheet size={13} className="text-emerald-600" /> Export CSV
                     </button>
                     <button
+                      id="btn-export-payments-pdf"
                       onClick={handleExportPaymentsPDF}
-                      className="rounded-xl bg-amber-600 hover:bg-amber-700 px-3 py-1.5 text-xs font-bold text-white flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                      className="rounded-xl bg-slate-800 hover:bg-slate-900 px-3 py-1.5 text-xs font-bold text-white flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
                     >
                       <Printer size={13} /> Export PDF
                     </button>
                   </div>
                 </div>
 
-                <div className="border border-slate-100 rounded-xl bg-white">
+                <div className="border border-slate-100 rounded-xl bg-white overflow-hidden">
                   <table className="w-full text-left border-collapse block md:table">
                     <thead className="hidden md:table-header-group">
                       <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        <th className="p-3 w-10 text-center">
+                          <input
+                            type="checkbox"
+                            id="cb-select-all-receipts"
+                            aria-label="Select all receipts"
+                            checked={feeReceipts.length > 0 && selectedReceiptIds.length === feeReceipts.length}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedReceiptIds(feeReceipts.map(r => r.id));
+                              } else {
+                                setSelectedReceiptIds([]);
+                              }
+                            }}
+                            className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer h-4 w-4"
+                          />
+                        </th>
                         <th className="p-3">Receipt ID</th>
                         <th className="p-3">Student Name</th>
                         <th className="p-3">Cycle</th>
@@ -1257,35 +1342,60 @@ export default function ReceptionDashboard({
                       </tr>
                     </thead>
                     <tbody className="block md:table-row-group divide-y divide-slate-100 md:divide-y md:divide-slate-50 text-xs">
-                      {feeReceipts.map((rec) => (
-                        <tr key={rec.id} className="hover:bg-slate-50/50 block md:table-row p-3 md:p-0">
-                          <td className="py-1 px-3 font-semibold text-amber-600 block md:table-cell md:p-3"><span className="inline-block md:hidden font-bold text-slate-400 w-28">Receipt ID:</span>{rec.id}</td>
-                          <td className="py-1 px-3 font-bold text-slate-800 block md:table-cell md:p-3"><span className="inline-block md:hidden font-bold text-slate-400 w-28">Student:</span>{rec.studentName}</td>
-                          <td className="py-1 px-3 text-slate-600 block md:table-cell md:p-3"><span className="inline-block md:hidden font-bold text-slate-400 w-28">Cycle:</span>{rec.month}</td>
-                          <td className="py-1 px-3 font-bold text-slate-800 block md:table-cell md:p-3"><span className="inline-block md:hidden font-bold text-slate-400 w-28">Amount:</span>₹{rec.amountPaid}</td>
-                          <td className="py-1 px-3 text-slate-500 font-mono text-[10px] block md:table-cell md:p-3"><span className="inline-block md:hidden font-bold text-slate-400 w-28">Method:</span>{rec.paymentMethod}</td>
-                          <td className="py-1 px-3 block md:table-cell md:p-3">
-                            <span className="inline-block md:hidden font-bold text-slate-400 w-28">Actions:</span>
-                            <div className="inline-flex gap-1.5 align-middle">
-                              <button
-                                id={`btn-reception-print-${rec.id}`}
-                                onClick={() => setReceiptToPrint(rec)}
-                                className="inline-flex items-center gap-1 rounded bg-slate-100 hover:bg-slate-200 px-2 py-1 text-[10px] font-bold text-slate-700 transition-colors cursor-pointer"
-                              >
-                                <Printer size={10} /> View Voucher
-                              </button>
-                              <button
-                                id={`btn-reception-pdf-history-${rec.id}`}
-                                onClick={() => handleDownloadStudentHistoryPDF(rec.studentId, rec.studentName)}
-                                className="inline-flex items-center gap-1 rounded bg-amber-600 hover:bg-amber-700 text-white px-2 py-1 text-[10px] font-bold transition-colors cursor-pointer"
-                                title="Download complete payment history for this student"
-                              >
-                                <Download size={10} /> Download PDF
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                      {feeReceipts.map((rec) => {
+                        const isSelected = selectedReceiptIds.includes(rec.id);
+                        return (
+                          <tr
+                            key={rec.id}
+                            className={`hover:bg-slate-50/50 block md:table-row p-3 md:p-0 transition-colors ${
+                              isSelected ? 'bg-amber-50/40' : ''
+                            }`}
+                          >
+                            <td className="py-1 px-3 block md:table-cell md:p-3 text-center">
+                              <span className="inline-block md:hidden font-bold text-slate-400 w-28">Select:</span>
+                              <input
+                                type="checkbox"
+                                id={`cb-receipt-${rec.id}`}
+                                aria-label={`Select receipt ${rec.id}`}
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedReceiptIds(prev => [...prev, rec.id]);
+                                  } else {
+                                    setSelectedReceiptIds(prev => prev.filter(id => id !== rec.id));
+                                  }
+                                }}
+                                className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer h-4 w-4"
+                              />
+                            </td>
+                            <td className="py-1 px-3 font-semibold text-amber-600 block md:table-cell md:p-3"><span className="inline-block md:hidden font-bold text-slate-400 w-28">Receipt ID:</span>{rec.id}</td>
+                            <td className="py-1 px-3 font-bold text-slate-800 block md:table-cell md:p-3"><span className="inline-block md:hidden font-bold text-slate-400 w-28">Student:</span>{rec.studentName}</td>
+                            <td className="py-1 px-3 text-slate-600 block md:table-cell md:p-3"><span className="inline-block md:hidden font-bold text-slate-400 w-28">Cycle:</span>{rec.month}</td>
+                            <td className="py-1 px-3 font-bold text-slate-800 block md:table-cell md:p-3"><span className="inline-block md:hidden font-bold text-slate-400 w-28">Amount:</span>₹{rec.amountPaid}</td>
+                            <td className="py-1 px-3 text-slate-500 font-mono text-[10px] block md:table-cell md:p-3"><span className="inline-block md:hidden font-bold text-slate-400 w-28">Method:</span>{rec.paymentMethod}</td>
+                            <td className="py-1 px-3 block md:table-cell md:p-3">
+                              <span className="inline-block md:hidden font-bold text-slate-400 w-28">Actions:</span>
+                              <div className="inline-flex gap-1.5 align-middle">
+                                <button
+                                  id={`btn-reception-print-${rec.id}`}
+                                  onClick={() => setReceiptToPrint(rec)}
+                                  className="inline-flex items-center gap-1 rounded bg-slate-100 hover:bg-slate-200 px-2 py-1 text-[10px] font-bold text-slate-700 transition-colors cursor-pointer"
+                                >
+                                  <Printer size={10} /> View Voucher
+                                </button>
+                                <button
+                                  id={`btn-reception-pdf-history-${rec.id}`}
+                                  onClick={() => handleDownloadStudentHistoryPDF(rec.studentId, rec.studentName)}
+                                  className="inline-flex items-center gap-1 rounded bg-amber-600 hover:bg-amber-700 text-white px-2 py-1 text-[10px] font-bold transition-colors cursor-pointer"
+                                  title="Download complete payment history for this student"
+                                >
+                                  <Download size={10} /> Download PDF
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

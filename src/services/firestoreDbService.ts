@@ -1,15 +1,3 @@
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  query, 
-  where, 
-  orderBy, 
-  limit,
-  Timestamp 
-} from "firebase/firestore";
-import { db } from "../lib/firebase";
 import { SyncService } from "./SyncService";
 
 export { SyncService };
@@ -31,13 +19,11 @@ export function validatePhone(phone: string | undefined): boolean {
   return cleaned.length >= 10;
 }
 
-export function toFirestoreTimestamp(dateInput?: string | Date | number): Timestamp {
-  if (!dateInput) return Timestamp.now();
-  if (dateInput instanceof Timestamp) return dateInput;
-  if (dateInput instanceof Date) return Timestamp.fromDate(dateInput);
-  if (typeof dateInput === 'number') return Timestamp.fromMillis(dateInput);
-  const parsed = new Date(dateInput);
-  return isNaN(parsed.getTime()) ? Timestamp.now() : Timestamp.fromDate(parsed);
+export function toFirestoreTimestamp(dateInput?: string | Date | number): any {
+  if (!dateInput) return new Date().toISOString();
+  if (dateInput instanceof Date) return dateInput.toISOString();
+  if (typeof dateInput === 'number') return new Date(dateInput).toISOString();
+  return dateInput;
 }
 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -76,28 +62,27 @@ export function parseFeeMonth(monthInput: any, yearInput?: number) {
 // ==========================================
 
 export async function generateNextSequence(field: "admission" | "receipt"): Promise<string> {
-  const counterDocRef = doc(db, "settings", "counters");
   const year = new Date().getFullYear();
-
-  return await SyncService.runTransactionBlock(async (transaction) => {
-    const counterDoc = await transaction.get(counterDocRef);
+  try {
+    const counterDoc = await SyncService.get<any>("settings", "counters");
     let nextVal = 100;
-
-    if (counterDoc.exists()) {
-      const data = counterDoc.data();
-      const currentVal = data[field] || 100;
-      nextVal = currentVal + 1;
-      transaction.update(counterDocRef, { [field]: nextVal });
-    } else {
-      transaction.set(counterDocRef, { [field]: nextVal });
+    if (counterDoc && counterDoc[field]) {
+      nextVal = Number(counterDoc[field]) + 1;
     }
+    await SyncService.set("settings", "counters", {
+      ...(counterDoc || {}),
+      [field]: nextVal
+    }, { merge: true });
 
     if (field === "admission") {
       return `ADM-${year}-${String(nextVal).padStart(4, "0")}`;
     } else {
       return `REC-${year}-${String(nextVal).padStart(4, "0")}`;
     }
-  });
+  } catch (e) {
+    const rand = Math.floor(100 + Math.random() * 900);
+    return field === "admission" ? `ADM-${year}-${rand}` : `REC-${year}-${rand}`;
+  }
 }
 
 // ==========================================

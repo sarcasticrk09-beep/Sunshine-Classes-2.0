@@ -90,6 +90,28 @@ export function calculateDueDate(monthStr: string, dueDay: number): string {
 }
 
 /**
+ * Returns true if a pending/partial fee is due within the specified number of days (e.g. within 3 days).
+ */
+export function isFeeDueSoon(dueDateStr?: string, withinDays: number = 3): boolean {
+  if (!dueDateStr) return false;
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const [year, month, day] = dueDateStr.split('-').map(Number);
+    if (!year || !month || !day) return false;
+    const dueDate = new Date(year, month - 1, day);
+    dueDate.setHours(0, 0, 0, 0);
+
+    const diffTime = dueDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    // Due today or within the next 'withinDays' days
+    return diffDays >= 0 && diffDays <= withinDays;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Resolves the dynamic, current fee status based on payment and current date.
  */
 export function getFeeStatusForRecord(
