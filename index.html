@@ -21,7 +21,8 @@
     <!-- Canonical URL Generation -->
     <script>
       (function() {
-        const canonicalUrl = "%VITE_SITE_URL%" || "https://sunshineclasses.net";
+        const rawUrl = "%VITE_SITE_URL%";
+        const canonicalUrl = (rawUrl && !rawUrl.startsWith('%')) ? rawUrl : "https://sunshineclasses.net";
         const cleanUrl = canonicalUrl.endsWith('/') ? canonicalUrl.slice(0, -1) : canonicalUrl;
         const link = document.createElement('link');
         link.setAttribute('rel', 'canonical');

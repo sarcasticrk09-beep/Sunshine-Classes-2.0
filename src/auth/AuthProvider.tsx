@@ -298,6 +298,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           };
           setCurrentUser(fallbackUser);
           setRole(role);
+          const fallbackToken = `dev_${btoa(JSON.stringify({ sub: fallbackUser.id, role, username: fallbackUser.username, email: fallbackUser.email }))}`;
+          setCachedIdToken(fallbackToken);
           const sessionObj = { user: fallbackUser, role };
           sessionStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
           if (remember) localStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
@@ -321,6 +323,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       setCurrentUser(userObj);
       setRole(cleanRole);
+      const fallbackToken = `dev_${btoa(JSON.stringify({ sub: userObj.id, role: cleanRole, username: userObj.username, email: userObj.email }))}`;
+      setCachedIdToken(fallbackToken);
 
       const sessionObj = { user: userObj, role: userObj.role };
       sessionStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
@@ -509,6 +513,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     setCurrentUser(newUser);
     setRole('STUDENT');
+    const studentToken = `dev_${btoa(JSON.stringify({ sub: newUser.id, role: 'STUDENT', username: newUser.username, email: newUser.email }))}`;
+    setCachedIdToken(studentToken);
 
     const sessionObj = { user: newUser, role: 'STUDENT' };
     sessionStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));

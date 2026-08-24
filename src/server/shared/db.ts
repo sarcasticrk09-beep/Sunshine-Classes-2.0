@@ -70,12 +70,31 @@ export class AdminDocRefAdapter {
   constructor(public colName: string, public docId: string) {}
   get id() { return this.docId; }
   get path() { return `${this.colName}/${this.docId}`; }
+
+  async get(): Promise<AdminDocSnapAdapter> {
+    return await getDoc(this);
+  }
+
+  async set(data: any, options?: { merge?: boolean }): Promise<void> {
+    return await setDoc(this, data, options);
+  }
+
+  async update(data: any): Promise<void> {
+    return await updateDoc(this, data);
+  }
+
+  async delete(): Promise<void> {
+    return await deleteDoc(this);
+  }
 }
 
 export class AdminDocSnapAdapter {
-  constructor(public existsVal: boolean, public dataVal: any) {}
-  exists() { return this.existsVal; }
-  data() { return this.dataVal; }
+  public id: string;
+  constructor(public existsVal: boolean, public dataVal: any, idVal?: string) {
+    this.id = idVal || dataVal?.id || '';
+  }
+  exists(): boolean { return this.existsVal; }
+  data(): any { return this.dataVal; }
 }
 
 export function doc(dbAny: any, collectionName: string, documentId: string): any {
@@ -84,6 +103,8 @@ export function doc(dbAny: any, collectionName: string, documentId: string): any
 
 export function collection(dbAny: any, collectionName: string): any {
   return {
+    id: collectionName,
+    colName: collectionName,
     doc: (id: string) => new AdminDocRefAdapter(collectionName, id),
     get: async () => getDocs({ colName: collectionName }),
     where: () => ({

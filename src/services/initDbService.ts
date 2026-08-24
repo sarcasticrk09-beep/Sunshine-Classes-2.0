@@ -90,29 +90,51 @@ export async function initializeAndSeedFirestore(): Promise<MigrationReport> {
       }
     }
 
-    // 2. Seed Default SUPER_ADMIN Role & User
-    const superAdminUid = "u-superadmin";
-    try {
-      await SyncService.set("users", superAdminUid, {
-        id: superAdminUid,
-        userId: superAdminUid,
-        username: "superadmin",
-        name: "Super Admin",
-        email: "superadmin@sunshineclasses.net",
-        role: "SUPER_ADMIN",
-        phone: "9999911111",
-        password: "Sunshine@123",
-        passwordHash: "Sunshine@123",
-        status: "ACTIVE",
+    // 2. Seed Default SUPER_ADMIN Roles & Users (Priyanshu Gupta & Rajeev Kumar Verma)
+    const superAdmins = [
+      {
+        id: "u-priyanshu",
+        userId: "u-priyanshu",
+        username: "priyanshu",
+        name: "Priyanshu Gupta (Founder)",
+        email: "sunshineclassespihani@gmail.com",
+        role: "SUPER_ADMIN" as const,
+        phone: "9999900000",
+        password: "Founder@Sunshine2026",
+        passwordHash: "Founder@Sunshine2026",
+        status: "ACTIVE" as const,
         active: true,
         mustChangePassword: false,
         lastLogin: timestamp,
         createdAt: timestamp,
         updatedAt: timestamp
-      }, { merge: true });
-      seededUsersList.push("SUPER_ADMIN (superadmin@sunshineclasses.net)");
-    } catch (e) {
-      console.warn("[Migration] Soft warning seeding superadmin user:", e);
+      },
+      {
+        id: "u-rajeev",
+        userId: "u-rajeev",
+        username: "rajeev",
+        name: "Rajeev Kumar Verma (Co-Founder)",
+        email: "kumarvermarajeev79@gmail.com",
+        role: "SUPER_ADMIN" as const,
+        phone: "9999900001",
+        password: "Cofounder@Sunshine2026",
+        passwordHash: "Cofounder@Sunshine2026",
+        status: "ACTIVE" as const,
+        active: true,
+        mustChangePassword: false,
+        lastLogin: timestamp,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      }
+    ];
+
+    for (const sa of superAdmins) {
+      try {
+        await SyncService.set("users", sa.id, sa, { merge: true });
+        seededUsersList.push(`SUPER_ADMIN (${sa.name} - ${sa.email})`);
+      } catch (e) {
+        console.warn(`[Migration] Soft warning seeding superadmin user ${sa.username}:`, e);
+      }
     }
 
     // 3. Seed Default Permission Definitions in Settings

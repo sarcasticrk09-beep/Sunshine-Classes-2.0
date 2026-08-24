@@ -217,18 +217,25 @@ CREATE TABLE IF NOT EXISTS public.settings (
 );
 
 -- ========================================================
--- ROW LEVEL SECURITY (RLS) POLICIES
+-- ROW LEVEL SECURITY (RLS) POLICIES & HELPER FUNCTIONS
 -- ========================================================
 
 -- Enable RLS on core entities
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.teachers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fee_statuses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.fee_receipts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.submissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.homework ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.student_marks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.study_materials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
 
--- Helper function to get current user role from JWT / users table
+-- 1. Helper Security Functions with Explicit search_path
 CREATE OR REPLACE FUNCTION public.get_auth_role()
 RETURNS TEXT AS $$
 DECLARE
@@ -240,155 +247,402 @@ BEGIN
   );
   RETURN COALESCE(v_role, 'ANONYMOUS');
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE
+SET search_path = public, pg_temp;
 
--- Helper function to get current student ID for authenticated user
+CREATE OR REPLACE FUNCTION public.is_admin_or_super_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN public.get_auth_role() IN ('SUPER_ADMIN', 'FOUNDER', 'CO-FOUNDER', 'ADMIN');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE
+SET search_path = public, pg_temp;
+
+CREATE OR REPLACE FUNCTION public.is_admin_or_receptionist()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN public.get_auth_role() IN ('SUPER_ADMIN', 'FOUNDER', 'CO-FOUNDER', 'ADMIN', 'RECEPTIONIST', 'ACCOUNTANT');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE
+SET search_path = public, pg_temp;
+
 CREATE OR REPLACE FUNCTION public.get_current_student_id()
 RETURNS TEXT AS $$
 DECLARE
   v_student_id TEXT;
+  v_email TEXT;
 BEGIN
+  v_email := current_setting('request.jwt.claims', true)::jsonb->>'email';
   SELECT id INTO v_student_id FROM public.students
-  WHERE user_id = auth.uid()::text OR email = (current_setting('request.jwt.claims', true)::jsonb->>'email');
+  WHERE user_id = auth.uid()::text OR (v_email IS NOT NULL AND email = v_email)
+  LIMIT 1;
   RETURN v_student_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE
+SET search_path = public, pg_temp;
 
--- Helper function to get assigned batches for current teacher
+CREATE OR REPLACE FUNCTION public.get_current_teacher_id()
+RETURNS TEXT AS $$
+DECLARE
+  v_teacher_id TEXT;
+  v_email TEXT;
+BEGIN
+  v_email := current_setting('request.jwt.claims', true)::jsonb->>'email';
+  SELECT id INTO v_teacher_id FROM public.teachers
+  WHERE user_id = auth.uid()::text OR (v_email IS NOT NULL AND email = v_email)
+  LIMIT 1;
+  RETURN v_teacher_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE
+SET search_path = public, pg_temp;
+
 CREATE OR REPLACE FUNCTION public.get_current_teacher_batches()
 RETURNS TEXT[] AS $$
 DECLARE
   v_batches TEXT[];
+  v_email TEXT;
 BEGIN
+  v_email := current_setting('request.jwt.claims', true)::jsonb->>'email';
   SELECT assigned_batches INTO v_batches FROM public.teachers
-  WHERE user_id = auth.uid()::text OR email = (current_setting('request.jwt.claims', true)::jsonb->>'email');
+  WHERE user_id = auth.uid()::text OR (v_email IS NOT NULL AND email = v_email)
+  LIMIT 1;
   RETURN COALESCE(v_batches, '{}');
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE
+SET search_path = public, pg_temp;
+
+-- Revoke permissions
+REVOKE ALL ON FUNCTION public.get_auth_role() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.is_admin_or_super_admin() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.is_admin_or_receptionist() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.get_current_student_id() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.get_current_teacher_id() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.get_current_teacher_batches() FROM PUBLIC, anon;
+
+GRANT EXECUTE ON FUNCTION public.get_auth_role() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_admin_or_super_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_admin_or_receptionist() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_current_student_id() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_current_teacher_id() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_current_teacher_batches() TO authenticated;
 
 -- ========================================================
--- 1. RLS POLICIES FOR 'students' TABLE
+-- RLS POLICIES
 -- ========================================================
 
-DROP POLICY IF EXISTS "Admins and Staff have full access to students" ON public.students;
-CREATE POLICY "Admins and Staff have full access to students"
-ON public.students
-FOR ALL
-USING (
-  public.get_auth_role() IN ('SUPER_ADMIN', 'ADMIN', 'RECEPTIONIST')
-);
+-- [1] USERS
+DROP POLICY IF EXISTS "users_select_policy" ON public.users;
+CREATE POLICY "users_select_policy" ON public.users
+  FOR SELECT TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR id = auth.uid()::text
+  );
 
-DROP POLICY IF EXISTS "Students can view only their own record" ON public.students;
-CREATE POLICY "Students can view only their own record"
-ON public.students
-FOR SELECT
-USING (
-  public.get_auth_role() = 'STUDENT'
-  AND (
-    user_id = auth.uid()::text
-    OR email = (current_setting('request.jwt.claims', true)::jsonb->>'email')
+DROP POLICY IF EXISTS "users_admin_manage_policy" ON public.users;
+CREATE POLICY "users_admin_manage_policy" ON public.users
+  FOR ALL TO authenticated
+  USING (public.is_admin_or_super_admin() = TRUE)
+  WITH CHECK (public.is_admin_or_super_admin() = TRUE);
+
+-- [2] STUDENTS
+DROP POLICY IF EXISTS "students_select_policy" ON public.students;
+CREATE POLICY "students_select_policy" ON public.students
+  FOR SELECT TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR user_id = auth.uid()::text
+    OR (
+      public.get_auth_role() = 'TEACHER'
+      AND (
+        preferred_batch = ANY(public.get_current_teacher_batches())
+        OR array_length(public.get_current_teacher_batches(), 1) IS NULL
+      )
+    )
+  );
+
+DROP POLICY IF EXISTS "students_staff_manage_policy" ON public.students;
+CREATE POLICY "students_staff_manage_policy" ON public.students
+  FOR ALL TO authenticated
+  USING (public.is_admin_or_receptionist() = TRUE)
+  WITH CHECK (public.is_admin_or_receptionist() = TRUE);
+
+-- [3] TEACHERS
+DROP POLICY IF EXISTS "teachers_select_policy" ON public.teachers;
+CREATE POLICY "teachers_select_policy" ON public.teachers
+  FOR SELECT TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR user_id::text = auth.uid()::text
+  );
+
+DROP POLICY IF EXISTS "teachers_admin_manage_policy" ON public.teachers;
+CREATE POLICY "teachers_admin_manage_policy" ON public.teachers
+  FOR ALL TO authenticated
+  USING (public.is_admin_or_super_admin() = TRUE)
+  WITH CHECK (public.is_admin_or_super_admin() = TRUE);
+
+-- [4] FEE_STATUSES
+DROP POLICY IF EXISTS "fee_statuses_select_policy" ON public.fee_statuses;
+CREATE POLICY "fee_statuses_select_policy" ON public.fee_statuses
+  FOR SELECT TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR (
+      public.get_auth_role() = 'STUDENT'
+      AND student_id = public.get_current_student_id()
+    )
+  );
+
+DROP POLICY IF EXISTS "fee_statuses_staff_manage_policy" ON public.fee_statuses;
+CREATE POLICY "fee_statuses_staff_manage_policy" ON public.fee_statuses
+  FOR ALL TO authenticated
+  USING (public.is_admin_or_receptionist() = TRUE)
+  WITH CHECK (public.is_admin_or_receptionist() = TRUE);
+
+-- [5] FEE_RECEIPTS
+DROP POLICY IF EXISTS "fee_receipts_select_policy" ON public.fee_receipts;
+CREATE POLICY "fee_receipts_select_policy" ON public.fee_receipts
+  FOR SELECT TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR (
+      public.get_auth_role() = 'STUDENT'
+      AND student_id = public.get_current_student_id()
+    )
+  );
+
+DROP POLICY IF EXISTS "fee_receipts_staff_manage_policy" ON public.fee_receipts;
+CREATE POLICY "fee_receipts_staff_manage_policy" ON public.fee_receipts
+  FOR ALL TO authenticated
+  USING (public.is_admin_or_receptionist() = TRUE)
+  WITH CHECK (public.is_admin_or_receptionist() = TRUE);
+
+-- [6] SUBMISSIONS
+DROP POLICY IF EXISTS "submissions_select_policy" ON public.submissions;
+CREATE POLICY "submissions_select_policy" ON public.submissions
+  FOR SELECT TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR (public.get_auth_role() = 'STUDENT' AND student_id = public.get_current_student_id())
+    OR (
+      public.get_auth_role() = 'TEACHER'
+      AND homework_id IN (
+        SELECT id FROM public.homework 
+        WHERE teacher_id = public.get_current_teacher_id() 
+           OR batch_name = ANY(public.get_current_teacher_batches())
+      )
+    )
+  );
+
+DROP POLICY IF EXISTS "submissions_student_insert_policy" ON public.submissions;
+CREATE POLICY "submissions_student_insert_policy" ON public.submissions
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    student_id = public.get_current_student_id()
+    OR public.is_admin_or_receptionist() = TRUE
+  );
+
+DROP POLICY IF EXISTS "submissions_update_policy" ON public.submissions;
+CREATE POLICY "submissions_update_policy" ON public.submissions
+  FOR UPDATE TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR (public.get_auth_role() = 'STUDENT' AND student_id = public.get_current_student_id())
+    OR (
+      public.get_auth_role() = 'TEACHER'
+      AND homework_id IN (
+        SELECT id FROM public.homework 
+        WHERE teacher_id = public.get_current_teacher_id() 
+           OR batch_name = ANY(public.get_current_teacher_batches())
+      )
+    )
   )
-);
+  WITH CHECK (
+    public.is_admin_or_receptionist() = TRUE
+    OR (public.get_auth_role() = 'STUDENT' AND student_id = public.get_current_student_id())
+    OR (
+      public.get_auth_role() = 'TEACHER'
+      AND homework_id IN (
+        SELECT id FROM public.homework 
+        WHERE teacher_id = public.get_current_teacher_id() 
+           OR batch_name = ANY(public.get_current_teacher_batches())
+      )
+    )
+  );
 
-DROP POLICY IF EXISTS "Teachers can view students in their assigned batches" ON public.students;
-CREATE POLICY "Teachers can view students in their assigned batches"
-ON public.students
-FOR SELECT
-USING (
-  public.get_auth_role() = 'TEACHER'
-  AND (
-    preferred_batch = ANY(public.get_current_teacher_batches())
-    OR array_length(public.get_current_teacher_batches(), 1) IS NULL
+-- [7] HOMEWORK
+DROP POLICY IF EXISTS "homework_select_policy" ON public.homework;
+CREATE POLICY "homework_select_policy" ON public.homework
+  FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "homework_staff_manage_policy" ON public.homework;
+CREATE POLICY "homework_staff_manage_policy" ON public.homework
+  FOR ALL TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR (
+      public.get_auth_role() = 'TEACHER'
+      AND (
+        teacher_id = public.get_current_teacher_id()
+        OR batch_name = ANY(public.get_current_teacher_batches())
+      )
+    )
   )
-);
+  WITH CHECK (
+    public.is_admin_or_receptionist() = TRUE
+    OR (
+      public.get_auth_role() = 'TEACHER'
+      AND (
+        teacher_id = public.get_current_teacher_id()
+        OR batch_name = ANY(public.get_current_teacher_batches())
+      )
+    )
+  );
 
--- ========================================================
--- 2. RLS POLICIES FOR 'fee_statuses' TABLE
--- ========================================================
+-- [8] ATTENDANCE
+DROP POLICY IF EXISTS "attendance_select_policy" ON public.attendance;
+CREATE POLICY "attendance_select_policy" ON public.attendance
+  FOR SELECT TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR student_id = public.get_current_student_id()
+    OR (
+      public.get_auth_role() = 'TEACHER'
+      AND (
+        batch = ANY(public.get_current_teacher_batches())
+        OR array_length(public.get_current_teacher_batches(), 1) IS NULL
+      )
+    )
+  );
 
-DROP POLICY IF EXISTS "Admins and Receptionists have full access to fee_statuses" ON public.fee_statuses;
-CREATE POLICY "Admins and Receptionists have full access to fee_statuses"
-ON public.fee_statuses
-FOR ALL
-USING (
-  public.get_auth_role() IN ('SUPER_ADMIN', 'ADMIN', 'RECEPTIONIST')
-);
-
-DROP POLICY IF EXISTS "Students can view only their own fee status" ON public.fee_statuses;
-CREATE POLICY "Students can view only their own fee status"
-ON public.fee_statuses
-FOR SELECT
-USING (
-  public.get_auth_role() = 'STUDENT'
-  AND student_id = public.get_current_student_id()
-);
-
-DROP POLICY IF EXISTS "Teachers can view fee statuses for students in their batches" ON public.fee_statuses;
-CREATE POLICY "Teachers can view fee statuses for students in their batches"
-ON public.fee_statuses
-FOR SELECT
-USING (
-  public.get_auth_role() = 'TEACHER'
-  AND student_id IN (
-    SELECT id FROM public.students
-    WHERE preferred_batch = ANY(public.get_current_teacher_batches())
+DROP POLICY IF EXISTS "attendance_staff_manage_policy" ON public.attendance;
+CREATE POLICY "attendance_staff_manage_policy" ON public.attendance
+  FOR ALL TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR (
+      public.get_auth_role() = 'TEACHER'
+      AND (
+        batch = ANY(public.get_current_teacher_batches())
+        OR array_length(public.get_current_teacher_batches(), 1) IS NULL
+      )
+    )
   )
-);
+  WITH CHECK (
+    public.is_admin_or_receptionist() = TRUE
+    OR (
+      public.get_auth_role() = 'TEACHER'
+      AND (
+        batch = ANY(public.get_current_teacher_batches())
+        OR array_length(public.get_current_teacher_batches(), 1) IS NULL
+      )
+    )
+  );
 
--- ========================================================
--- 3. RLS POLICIES FOR 'submissions' TABLE
--- ========================================================
+-- [9] TESTS & STUDENT_MARKS
+DROP POLICY IF EXISTS "tests_select_policy" ON public.tests;
+CREATE POLICY "tests_select_policy" ON public.tests
+  FOR SELECT TO authenticated USING (true);
 
-DROP POLICY IF EXISTS "Admins have full access to submissions" ON public.submissions;
-CREATE POLICY "Admins have full access to submissions"
-ON public.submissions
-FOR ALL
-USING (
-  public.get_auth_role() IN ('SUPER_ADMIN', 'ADMIN')
-);
-
-DROP POLICY IF EXISTS "Students can manage only their own submissions" ON public.submissions;
-CREATE POLICY "Students can manage only their own submissions"
-ON public.submissions
-FOR ALL
-USING (
-  public.get_auth_role() = 'STUDENT'
-  AND student_id = public.get_current_student_id()
-)
-WITH CHECK (
-  public.get_auth_role() = 'STUDENT'
-  AND student_id = public.get_current_student_id()
-);
-
-DROP POLICY IF EXISTS "Teachers can view and grade submissions for their homework" ON public.submissions;
-CREATE POLICY "Teachers can view and grade submissions for their homework"
-ON public.submissions
-FOR ALL
-USING (
-  public.get_auth_role() = 'TEACHER'
-  AND homework_id IN (
-    SELECT id FROM public.homework
-    WHERE teacher_id = (SELECT id FROM public.teachers WHERE user_id = auth.uid()::text LIMIT 1)
-       OR batch_name = ANY(public.get_current_teacher_batches())
+DROP POLICY IF EXISTS "tests_staff_manage_policy" ON public.tests;
+CREATE POLICY "tests_staff_manage_policy" ON public.tests
+  FOR ALL TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR (
+      public.get_auth_role() = 'TEACHER'
+      AND (
+        teacher_id = public.get_current_teacher_id()
+        OR batch = ANY(public.get_current_teacher_batches())
+      )
+    )
   )
-);
+  WITH CHECK (
+    public.is_admin_or_receptionist() = TRUE
+    OR (
+      public.get_auth_role() = 'TEACHER'
+      AND (
+        teacher_id = public.get_current_teacher_id()
+        OR batch = ANY(public.get_current_teacher_batches())
+      )
+    )
+  );
 
--- ========================================================
--- 4. PUBLIC ACCESS POLICIES FOR PUBLIC STUDY MATERIALS
--- ========================================================
+DROP POLICY IF EXISTS "student_marks_select_policy" ON public.student_marks;
+CREATE POLICY "student_marks_select_policy" ON public.student_marks
+  FOR SELECT TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR (public.get_auth_role() = 'STUDENT' AND student_id = public.get_current_student_id())
+    OR (
+      public.get_auth_role() = 'TEACHER'
+      AND test_id IN (
+        SELECT id FROM public.tests 
+        WHERE teacher_id = public.get_current_teacher_id() 
+           OR batch = ANY(public.get_current_teacher_batches())
+      )
+    )
+  );
 
-DROP POLICY IF EXISTS "Anyone can view public study materials" ON public.study_materials;
-CREATE POLICY "Anyone can view public study materials"
-ON public.study_materials
-FOR SELECT
-USING (
-  is_public = TRUE AND status = 'PUBLISHED'
-);
+DROP POLICY IF EXISTS "student_marks_staff_manage_policy" ON public.student_marks;
+CREATE POLICY "student_marks_staff_manage_policy" ON public.student_marks
+  FOR ALL TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR (
+      public.get_auth_role() = 'TEACHER'
+      AND test_id IN (
+        SELECT id FROM public.tests 
+        WHERE teacher_id = public.get_current_teacher_id() 
+           OR batch = ANY(public.get_current_teacher_batches())
+      )
+    )
+  )
+  WITH CHECK (
+    public.is_admin_or_receptionist() = TRUE
+    OR (
+      public.get_auth_role() = 'TEACHER'
+      AND test_id IN (
+        SELECT id FROM public.tests 
+        WHERE teacher_id = public.get_current_teacher_id() 
+           OR batch = ANY(public.get_current_teacher_batches())
+      )
+    )
+  );
 
-DROP POLICY IF EXISTS "Staff full access to study materials" ON public.study_materials;
-CREATE POLICY "Staff full access to study materials"
-ON public.study_materials
-FOR ALL
-USING (
-  public.get_auth_role() IN ('SUPER_ADMIN', 'ADMIN', 'TEACHER')
-);
+-- [10] STUDY MATERIALS
+DROP POLICY IF EXISTS "study_materials_select_policy" ON public.study_materials;
+CREATE POLICY "study_materials_select_policy" ON public.study_materials
+  FOR SELECT USING (
+    (is_public = TRUE AND status = 'PUBLISHED')
+    OR public.get_auth_role() IN ('SUPER_ADMIN', 'ADMIN', 'RECEPTIONIST', 'TEACHER')
+  );
+
+DROP POLICY IF EXISTS "study_materials_staff_manage_policy" ON public.study_materials;
+CREATE POLICY "study_materials_staff_manage_policy" ON public.study_materials
+  FOR ALL TO authenticated
+  USING (public.get_auth_role() IN ('SUPER_ADMIN', 'ADMIN', 'TEACHER'))
+  WITH CHECK (public.get_auth_role() IN ('SUPER_ADMIN', 'ADMIN', 'TEACHER'));
+
+-- [11] AUDIT LOGS (Immutable)
+DROP POLICY IF EXISTS "audit_logs_select_policy" ON public.audit_logs;
+CREATE POLICY "audit_logs_select_policy" ON public.audit_logs
+  FOR SELECT TO authenticated
+  USING (public.is_admin_or_super_admin() = TRUE);
+
+DROP POLICY IF EXISTS "audit_logs_insert_policy" ON public.audit_logs;
+CREATE POLICY "audit_logs_insert_policy" ON public.audit_logs
+  FOR INSERT TO authenticated WITH CHECK (true);
+
+-- [12] SETTINGS
+DROP POLICY IF EXISTS "settings_select_policy" ON public.settings;
+CREATE POLICY "settings_select_policy" ON public.settings
+  FOR SELECT TO authenticated
+  USING (public.is_admin_or_receptionist() = TRUE);
+
+DROP POLICY IF EXISTS "settings_admin_manage_policy" ON public.settings;
+CREATE POLICY "settings_admin_manage_policy" ON public.settings
+  FOR ALL TO authenticated
+  USING (public.is_admin_or_super_admin() = TRUE)
+  WITH CHECK (public.is_admin_or_super_admin() = TRUE);

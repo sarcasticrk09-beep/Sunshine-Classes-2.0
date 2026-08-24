@@ -273,18 +273,9 @@ export default function App() {
     }
   });
 
-  // State for the stunning brand introduction splash screen/preloader
-  const [showSplash, setShowSplash] = useState(true);
   const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [copiedShareLink, setCopiedShareLink] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-    }, 2500); // Elegant 2.5 seconds showcase
-    return () => clearTimeout(timer);
-  }, []);
 
   // Cloud Database Loader States - starts false for instant render with local state fallback
   const [cloudLoading, setCloudLoading] = useState(false);
@@ -425,44 +416,38 @@ export default function App() {
     let migrated = raw.map(u => {
       let updatedUser = { ...u };
       let uChanged = false;
-      if (updatedUser.username === 'admin') {
-        if (updatedUser.email !== 'sunshineclassespihani@gmail.com') {
-          updatedUser.name = 'Priyanshu Gupta (Founder)';
-          updatedUser.email = 'sunshineclassespihani@gmail.com';
-          updatedUser.phone = '9999900000';
-          uChanged = true;
-        }
-        if (updatedUser.role !== 'SUPER_ADMIN') {
-          updatedUser.role = 'SUPER_ADMIN';
-          uChanged = true;
-        }
+      if (updatedUser.username === 'priyanshu' || updatedUser.username === 'founder') {
+        updatedUser.name = 'Priyanshu Gupta (Founder)';
+        updatedUser.email = 'sunshineclassespihani@gmail.com';
+        updatedUser.role = 'SUPER_ADMIN';
+        uChanged = true;
       }
-      if (updatedUser.username === 'rajeev') {
-        if (updatedUser.email !== 'kumarvermarajeev79@gmail.com') {
-          updatedUser.name = 'Rajeev Kr. Verma (Co-Founder)';
-          updatedUser.email = 'kumarvermarajeev79@gmail.com';
-          uChanged = true;
-        }
-        if (updatedUser.role !== 'ADMIN') {
-          updatedUser.role = 'ADMIN';
-          uChanged = true;
-        }
+      if (updatedUser.username === 'rajeev' || updatedUser.username === 'cofounder') {
+        updatedUser.name = 'Rajeev Kumar Verma (Co-Founder)';
+        updatedUser.email = 'kumarvermarajeev79@gmail.com';
+        updatedUser.role = 'SUPER_ADMIN';
+        uChanged = true;
       }
       if (uChanged) {
         changed = true;
       }
       return updatedUser;
     });
+
+    // Ensure both Super Admins exist
+    if (!migrated.some(u => u.username === 'priyanshu')) {
+      const priyanshuUser = SEED_USERS.find(u => u.username === 'priyanshu');
+      if (priyanshuUser) {
+        migrated.unshift(priyanshuUser);
+        changed = true;
+      }
+    }
     if (!migrated.some(u => u.username === 'rajeev')) {
-      changed = true;
-      migrated.push({
-        id: 'u8',
-        username: 'rajeev',
-        name: 'Rajeev Kr. Verma (Co-Founder)',
-        email: 'kumarvermarajeev79@gmail.com',
-        role: 'ADMIN',
-        phone: '9999900001'
-      });
+      const rajeevUser = SEED_USERS.find(u => u.username === 'rajeev');
+      if (rajeevUser) {
+        migrated.push(rajeevUser);
+        changed = true;
+      }
     }
 
     // Encrypt/hash passwords on-load for 100% security
@@ -3781,83 +3766,12 @@ Sunshine Classes`;
 
   return (
     <>
-      <AnimatePresence mode="wait">
-        {showSplash && (
-          <motion.div
-            key="splash-screen"
-            initial={{ opacity: 1 }}
-            exit={{ 
-              opacity: 0,
-              y: -50,
-              scale: 0.96,
-              transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } 
-            }}
-            className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-slate-50 dark:bg-[#020617] p-6 transition-colors duration-300 select-none"
-          >
-            {/* Ambient Background Glows */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full bg-brand-orange/15 dark:bg-brand-orange/10 blur-[120px] animate-pulse"></div>
-              <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full bg-brand-blue/15 dark:bg-brand-blue/10 blur-[120px] animate-pulse" style={{ animationDelay: '1.5s' }}></div>
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[450px] h-[450px] rounded-full bg-amber-500/15 dark:bg-amber-500/10 blur-[160px] animate-pulse" style={{ animationDelay: '0.7s' }}></div>
-            </div>
-
-            <div className="text-center max-w-md flex flex-col items-center relative z-10">
-              {/* Logo container with scale-up entrance and correct theme-aware text contrast */}
-              <motion.div
-                initial={{ scale: 0.85, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.8, ease: [0.34, 1.56, 0.64, 1] }}
-                className="mb-8"
-              >
-                <SunshineLogo size="xl" layout="vertical" textColor={theme === 'dark' ? 'light' : 'dark'} />
-              </motion.div>
-
-              {/* Motto / Quote */}
-              <motion.p
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 0.75, y: 0 }}
-                transition={{ delay: 0.3, duration: 0.6 }}
-                className="text-xs italic text-slate-500 dark:text-slate-400 tracking-wide mb-6 font-serif-brand max-w-xs text-center"
-              >
-                "Empowering Minds, Brightening Futures."
-              </motion.p>
-
-              {/* Technical elegant custom loading bar */}
-              <div className="w-64 h-[4px] bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden mb-6 relative shadow-inner">
-                <motion.div
-                  initial={{ width: "0%" }}
-                  animate={{ width: "100%" }}
-                  transition={{ duration: 2.2, ease: "easeInOut" }}
-                  className="h-full bg-gradient-to-r from-brand-orange via-amber-400 to-brand-blue rounded-full shadow-[0_0_12px_rgba(249,115,22,0.4)]"
-                ></motion.div>
-              </div>
-
-              {/* Interactive subtle status description */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 0.9, y: 0 }}
-                transition={{ delay: 0.4, duration: 0.5 }}
-                className="flex items-center gap-2 bg-white/80 dark:bg-slate-900/60 backdrop-blur-md py-2.5 px-5 rounded-full border border-slate-100/80 dark:border-slate-800/80 shadow-md transition-colors"
-              >
-                <RefreshCw className="h-3.5 w-3.5 text-brand-orange animate-spin" />
-                <span className="text-[11px] font-extrabold text-slate-600 dark:text-slate-300 tracking-wider uppercase">
-                  Initializing Sunshine Experience...
-                </span>
-              </motion.div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {currentUser && currentUser.forcePasswordChange && (
         <ForcePasswordChange onSuccess={() => navigate(0)} />
       )}
 
-      <motion.div
+      <div
         id="main-app-container"
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: showSplash ? 0 : 1, y: showSplash ? 15 : 0 }}
-        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         className="min-h-screen bg-slate-50 dark:bg-slate-950 relative flex flex-col justify-between max-w-full overflow-x-hidden transition-colors duration-300"
       >
       {/* Primary ERP / Website Display Controller */}
@@ -4347,7 +4261,8 @@ Sunshine Classes`;
         }}
       />
       <MailSimulatorWidget />
-    </motion.div>
+      <CookieConsentBanner />
+    </div>
     </>
   );
 }

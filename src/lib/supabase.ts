@@ -16,6 +16,33 @@ export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
 
 let supabaseClient: any = null;
 
+// Helper to determine if running under HTTPS (e.g. Railway, Cloud Run, custom domain)
+function isSecureContext(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.location.protocol === 'https:';
+}
+
+export function setAuthCookie(name: string, value: string, days: number = 7): void {
+  if (typeof document === 'undefined') return;
+  const isSecure = isSecureContext();
+  const maxAge = value ? days * 24 * 60 * 60 : 0;
+  const secureFlag = isSecure ? '; Secure' : '';
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax${secureFlag}`;
+}
+
+export function getAuthCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp('(^|;\\s*)(' + name + ')=([^;]*)'));
+  return match ? decodeURIComponent(match[3]) : null;
+}
+
+export function clearAuthCookie(name: string): void {
+  if (typeof document === 'undefined') return;
+  const isSecure = isSecureContext();
+  const secureFlag = isSecure ? '; Secure' : '';
+  document.cookie = `${name}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax${secureFlag}`;
+}
+
 // In-memory token storage (JWT Bearer tokens for authenticated API requests)
 let cachedIdToken: string | null = null;
 let cachedAccessToken: string | null = null;
@@ -23,8 +50,14 @@ let cachedAccessToken: string | null = null;
 export const getCachedIdToken = (): string | null => {
   if (cachedIdToken) return cachedIdToken;
   if (typeof window !== 'undefined') {
-    const stored = sessionStorage.getItem('sunshine_access_token') || localStorage.getItem('sunshine_access_token');
-    if (stored) return stored;
+    const stored = sessionStorage.getItem('sunshine_access_token') || 
+                   localStorage.getItem('sunshine_access_token') ||
+                   getAuthCookie('sunshine_access_token') ||
+                   getAuthCookie('sunshine_token');
+    if (stored) {
+      cachedIdToken = stored;
+      return stored;
+    }
   }
   return null;
 };
@@ -34,9 +67,13 @@ export const setCachedIdToken = (token: string | null): void => {
   if (typeof window !== 'undefined') {
     if (token) {
       sessionStorage.setItem('sunshine_access_token', token);
+      localStorage.setItem('sunshine_access_token', token);
+      setAuthCookie('sunshine_access_token', token, 7);
     } else {
       sessionStorage.removeItem('sunshine_access_token');
       localStorage.removeItem('sunshine_access_token');
+      clearAuthCookie('sunshine_access_token');
+      clearAuthCookie('sunshine_token');
     }
   }
 };

@@ -2,31 +2,159 @@
 import { SyncService } from "../services/SyncService";
 import { supabase } from "./supabase";
 
-// In-memory token storage
-let cachedAccessToken: string | null = null;
+// Standard Firebase Auth Persistence Types
+export const browserLocalPersistence = 'LOCAL';
+export const browserSessionPersistence = 'SESSION';
+export const inMemoryPersistence = 'NONE';
+export const indexedDBLocalPersistence = 'INDEXEDDB';
 
-export const getCachedAccessToken = (): string | null => cachedAccessToken;
+let currentPersistenceMode: string = browserLocalPersistence;
+
+// Helper to determine if running under HTTPS (e.g. Railway, Cloud Run, custom domain)
+function isSecureContext(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.location.protocol === 'https:';
+}
+
+// Cross-domain cookie helper for session tokens
+export function setAuthCookie(name: string, value: string, days: number = 7): void {
+  if (typeof document === 'undefined') return;
+  const isSecure = isSecureContext();
+  const maxAge = value ? days * 24 * 60 * 60 : 0;
+  const secureFlag = isSecure ? '; Secure' : '';
+  // SameSite=Lax ensures cookies are sent on top-level navigations across domains/subdomains
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax${secureFlag}`;
+}
+
+export function getAuthCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp('(^|;\\s*)(' + name + ')=([^;]*)'));
+  return match ? decodeURIComponent(match[3]) : null;
+}
+
+export function clearAuthCookie(name: string): void {
+  if (typeof document === 'undefined') return;
+  const isSecure = isSecureContext();
+  const secureFlag = isSecure ? '; Secure' : '';
+  document.cookie = `${name}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax${secureFlag}`;
+}
+
+// In-memory token storage with storage & cookie synchronization
+let cachedAccessToken: string | null = null;
+let cachedIdToken: string | null = null;
+
+export const getCachedAccessToken = (): string | null => {
+  if (cachedAccessToken) return cachedAccessToken;
+  if (typeof window !== 'undefined') {
+    const token = sessionStorage.getItem('sunshine_access_token') || 
+                  localStorage.getItem('sunshine_access_token') ||
+                  getAuthCookie('sunshine_access_token') ||
+                  getAuthCookie('sunshine_token');
+    if (token) {
+      cachedAccessToken = token;
+      return token;
+    }
+  }
+  return null;
+};
+
 export const setCachedAccessToken = (token: string | null): void => {
   cachedAccessToken = token;
+  setCachedIdToken(token);
 };
 
 export function clearCachedAccessToken(): void {
   cachedAccessToken = null;
+  setCachedIdToken(null);
 }
 
-// In-memory Auth Token storage
-let cachedIdToken: string | null = null;
-export const getCachedIdToken = (): string | null => cachedIdToken;
-export const setCachedIdToken = (token: string | null): void => {
-  cachedIdToken = token;
+export const getCachedIdToken = (): string | null => {
+  if (cachedIdToken) return cachedIdToken;
+  if (typeof window !== 'undefined') {
+    const token = sessionStorage.getItem('sunshine_access_token') || 
+                  localStorage.getItem('sunshine_access_token') ||
+                  getAuthCookie('sunshine_access_token') ||
+                  getAuthCookie('sunshine_token');
+    if (token) {
+      cachedIdToken = token;
+      return token;
+    }
+  }
+  return null;
 };
 
+export const setCachedIdToken = (token: string | null): void => {
+  cachedIdToken = token;
+  if (typeof window !== 'undefined') {
+    if (token) {
+      if (currentPersistenceMode === browserLocalPersistence) {
+        localStorage.setItem('sunshine_access_token', token);
+      }
+      sessionStorage.setItem('sunshine_access_token', token);
+      setAuthCookie('sunshine_access_token', token, 7);
+    } else {
+      sessionStorage.removeItem('sunshine_access_token');
+      localStorage.removeItem('sunshine_access_token');
+      clearAuthCookie('sunshine_access_token');
+      clearAuthCookie('sunshine_token');
+    }
+  }
+};
+
+export async function setPersistence(_authObj: any, persistence: string): Promise<void> {
+  currentPersistenceMode = persistence;
+  if (typeof window !== 'undefined' && persistence === browserSessionPersistence) {
+    localStorage.removeItem('sunshine_access_token');
+  }
+}
+
+// Authentication state listeners for Firebase Auth compatibility
+type AuthStateListener = (user: any) => void;
+const authListeners: Set<AuthStateListener> = new Set();
+
+export function onAuthStateChanged(_authObj: any, callback: AuthStateListener): () => void {
+  authListeners.add(callback);
+  // Initial check from active session
+  if (typeof window !== 'undefined') {
+    try {
+      const activeSession = sessionStorage.getItem('sunshine_active_session') || localStorage.getItem('sunshine_active_session');
+      if (activeSession) {
+        const parsed = JSON.parse(activeSession);
+        callback(parsed?.user || null);
+      } else {
+        callback(null);
+      }
+    } catch {
+      callback(null);
+    }
+  }
+  return () => {
+    authListeners.delete(callback);
+  };
+}
+
+export function notifyAuthStateChange(user: any): void {
+  authListeners.forEach((listener) => {
+    try {
+      listener(user);
+    } catch (e) {
+      console.warn('[Firebase Auth] Listener callback error:', e);
+    }
+  });
+}
+
 export const auth = {
-  currentUser: null,
+  currentUser: null as any,
   signOut: async () => {
+    clearCachedAccessToken();
+    notifyAuthStateChange(null);
     await supabase.auth.signOut();
   }
 };
+
+export function getAuth() {
+  return auth;
+}
 
 export const db = {} as any;
 
@@ -94,5 +222,9 @@ export async function googleSignInForGmail(): Promise<{ user: { email?: string }
   if (error) throw error;
   const token = (data as any)?.session?.provider_token || (data as any)?.session?.access_token || '';
   const email = (data as any)?.session?.user?.email || '';
+  if (token) {
+    setCachedAccessToken(token);
+  }
   return { user: { email }, accessToken: token };
 }
+

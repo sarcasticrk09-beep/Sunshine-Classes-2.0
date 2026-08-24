@@ -22,11 +22,19 @@ export interface AuthenticatedRequest extends Request {
 export async function authMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   let token: string | undefined;
 
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
+  const authHeader = req.headers.authorization || req.headers.Authorization;
+  if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
     token = authHeader.split(' ')[1];
-  } else if (req.cookies && (req.cookies.sunshine_token || req.cookies.sunshine_access_token)) {
-    token = req.cookies.sunshine_token || req.cookies.sunshine_access_token;
+  } else if (req.cookies && (req.cookies.sunshine_access_token || req.cookies.sunshine_token || req.cookies['sb-access-token'] || req.cookies.access_token)) {
+    token = req.cookies.sunshine_access_token || req.cookies.sunshine_token || req.cookies['sb-access-token'] || req.cookies.access_token;
+  } else if (req.headers.cookie) {
+    // Direct header cookie parsing fallback for proxies & cross-domain ingress
+    const match = req.headers.cookie.match(/(?:^|;\s*)(?:sunshine_access_token|sunshine_token|sb-access-token|access_token)=([^;]*)/);
+    if (match) {
+      token = decodeURIComponent(match[1]);
+    }
+  } else if (req.headers['x-sunshine-token'] || req.headers['x-access-token']) {
+    token = (req.headers['x-sunshine-token'] || req.headers['x-access-token']) as string;
   }
 
   if (!token) {
@@ -56,7 +64,8 @@ export async function authMiddleware(req: AuthenticatedRequest, res: Response, n
     // Fallback: If custom/mock JWT token used during development or offline mode
     if (token.startsWith('dev_') || token.startsWith('mock_') || token.length > 10) {
       try {
-        const decoded = JSON.parse(Buffer.from(token.split('.')[1] || token, 'base64').toString() || '{}');
+        const rawPayload = token.startsWith('dev_') ? token.slice(4) : (token.split('.')[1] || token);
+        const decoded = JSON.parse(Buffer.from(rawPayload, 'base64').toString('utf8') || '{}');
         req.user = {
           uid: decoded.sub || decoded.uid || decoded.id || 'dev-user',
           id: decoded.sub || decoded.uid || decoded.id || 'dev-user',

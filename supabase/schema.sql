@@ -559,24 +559,103 @@ CREATE TRIGGER on_auth_user_created
 -- --------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.get_auth_role()
 RETURNS VARCHAR AS $$
-  SELECT role::VARCHAR FROM public.users WHERE id = auth.uid();
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+DECLARE
+  v_role TEXT;
+BEGIN
+  v_role := COALESCE(
+    current_setting('request.jwt.claims', true)::jsonb->>'role',
+    (SELECT role::text FROM public.users WHERE id::text = auth.uid()::text LIMIT 1)
+  );
+  RETURN COALESCE(v_role, 'ANONYMOUS');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE
+SET search_path = public, pg_temp;
 
-CREATE OR REPLACE FUNCTION public.get_auth_student_id()
-RETURNS UUID AS $$
-  SELECT id FROM public.students WHERE user_id = auth.uid() LIMIT 1;
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
-
-CREATE OR REPLACE FUNCTION public.get_auth_teacher_id()
-RETURNS UUID AS $$
-  SELECT id FROM public.teachers WHERE user_id = auth.uid() LIMIT 1;
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+CREATE OR REPLACE FUNCTION public.is_admin_or_super_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN public.get_auth_role() IN ('SUPER_ADMIN', 'FOUNDER', 'CO-FOUNDER', 'ADMIN');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE
+SET search_path = public, pg_temp;
 
 CREATE OR REPLACE FUNCTION public.is_admin_or_receptionist()
 RETURNS BOOLEAN AS $$
-  SELECT role IN ('SUPER_ADMIN', 'FOUNDER', 'CO-FOUNDER', 'ADMIN', 'RECEPTIONIST', 'ACCOUNTANT')
-  FROM public.users WHERE id = auth.uid();
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+BEGIN
+  RETURN public.get_auth_role() IN ('SUPER_ADMIN', 'FOUNDER', 'CO-FOUNDER', 'ADMIN', 'RECEPTIONIST', 'ACCOUNTANT');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE
+SET search_path = public, pg_temp;
+
+CREATE OR REPLACE FUNCTION public.get_auth_student_id()
+RETURNS UUID AS $$
+DECLARE
+  v_id UUID;
+BEGIN
+  SELECT id INTO v_id FROM public.students WHERE user_id = auth.uid() LIMIT 1;
+  RETURN v_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE
+SET search_path = public, pg_temp;
+
+CREATE OR REPLACE FUNCTION public.get_auth_teacher_id()
+RETURNS UUID AS $$
+DECLARE
+  v_id UUID;
+BEGIN
+  SELECT id INTO v_id FROM public.teachers WHERE user_id = auth.uid() LIMIT 1;
+  RETURN v_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE
+SET search_path = public, pg_temp;
+
+CREATE OR REPLACE FUNCTION public.get_current_student_id()
+RETURNS TEXT AS $$
+DECLARE
+  v_student_id TEXT;
+  v_email TEXT;
+BEGIN
+  v_email := current_setting('request.jwt.claims', true)::jsonb->>'email';
+  SELECT id::text INTO v_student_id FROM public.students
+  WHERE user_id::text = auth.uid()::text OR (v_email IS NOT NULL AND email = v_email)
+  LIMIT 1;
+  RETURN v_student_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE
+SET search_path = public, pg_temp;
+
+CREATE OR REPLACE FUNCTION public.get_current_teacher_batches()
+RETURNS TEXT[] AS $$
+DECLARE
+  v_batches TEXT[];
+  v_email TEXT;
+BEGIN
+  v_email := current_setting('request.jwt.claims', true)::jsonb->>'email';
+  SELECT assigned_batches INTO v_batches FROM public.teachers
+  WHERE user_id::text = auth.uid()::text OR (v_email IS NOT NULL AND email = v_email)
+  LIMIT 1;
+  RETURN COALESCE(v_batches, '{}');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE
+SET search_path = public, pg_temp;
+
+-- Revoke all execute from public and anon
+REVOKE ALL ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.get_auth_role() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.is_admin_or_super_admin() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.is_admin_or_receptionist() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.get_auth_student_id() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.get_auth_teacher_id() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.get_current_student_id() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.get_current_teacher_batches() FROM PUBLIC, anon;
+
+GRANT EXECUTE ON FUNCTION public.get_auth_role() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_admin_or_super_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_admin_or_receptionist() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_auth_student_id() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_auth_teacher_id() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_current_student_id() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_current_teacher_batches() TO authenticated;
 
 -- --------------------------------------------------------------------
 -- 29. ROW LEVEL SECURITY (RLS) POLICIES
@@ -591,6 +670,7 @@ ALTER TABLE public.batches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fee_statuses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fee_receipts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.fee_structures ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payment_verifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.student_marks ENABLE ROW LEVEL SECURITY;
@@ -606,152 +686,422 @@ ALTER TABLE public.inquiries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
--- --------------------------------------------------------------------
--- GRANULAR POLICIES: STUDENTS TABLE
--- --------------------------------------------------------------------
-DROP POLICY IF EXISTS "Students read policy" ON public.students;
-DROP POLICY IF EXISTS "Manage students" ON public.students;
-
--- 1. Students: View own record only.
--- 2. Teachers: View students enrolled in batches they teach.
--- 3. Staff (Admin, Super Admin, Receptionist): View all students.
-CREATE POLICY "Granular students select policy" ON public.students
+-- 1. USERS
+CREATE POLICY "users_select_policy" ON public.users
   FOR SELECT TO authenticated
   USING (
-    -- Admin, Receptionist, Accountant, Super Admin have full read access
     public.is_admin_or_receptionist() = TRUE
-    OR
-    -- Student can only see their own profile
-    user_id = auth.uid()
-    OR
-    -- Teacher can only see students whose preferred_batch matches a batch taught by them
-    preferred_batch IN (
+    OR id = auth.uid()
+  );
+
+CREATE POLICY "users_admin_manage_policy" ON public.users
+  FOR ALL TO authenticated
+  USING (public.is_admin_or_super_admin() = TRUE)
+  WITH CHECK (public.is_admin_or_super_admin() = TRUE);
+
+-- 2. STUDENTS
+CREATE POLICY "students_select_policy" ON public.students
+  FOR SELECT TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR user_id = auth.uid()
+    OR preferred_batch IN (
       SELECT name FROM public.batches WHERE teacher_id = public.get_auth_teacher_id()
     )
   );
 
-CREATE POLICY "Admin manage students" ON public.students
+CREATE POLICY "students_staff_manage_policy" ON public.students
   FOR ALL TO authenticated
   USING (public.is_admin_or_receptionist() = TRUE)
   WITH CHECK (public.is_admin_or_receptionist() = TRUE);
 
--- --------------------------------------------------------------------
--- GRANULAR POLICIES: FEE_STATUSES TABLE
--- --------------------------------------------------------------------
-DROP POLICY IF EXISTS "Fee statuses read policy" ON public.fee_statuses;
-DROP POLICY IF EXISTS "Manage fee statuses" ON public.fee_statuses;
-
--- 1. Students: View only their own fee invoices/statuses.
--- 2. Staff (Admin, Super Admin, Receptionist, Accountant): Full access to manage & view fees.
--- 3. Teachers: BLOCKED from viewing fee records.
-CREATE POLICY "Granular fee_statuses select policy" ON public.fee_statuses
+-- 3. TEACHERS
+CREATE POLICY "teachers_select_policy" ON public.teachers
   FOR SELECT TO authenticated
   USING (
     public.is_admin_or_receptionist() = TRUE
-    OR
-    student_id = public.get_auth_student_id()
+    OR user_id::text = auth.uid()::text
   );
 
-CREATE POLICY "Admin manage fee_statuses" ON public.fee_statuses
+CREATE POLICY "teachers_admin_manage_policy" ON public.teachers
+  FOR ALL TO authenticated
+  USING (public.is_admin_or_super_admin() = TRUE)
+  WITH CHECK (public.is_admin_or_super_admin() = TRUE);
+
+CREATE POLICY "teachers_self_update_policy" ON public.teachers
+  FOR UPDATE TO authenticated
+  USING (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+
+-- 4. CLASSES
+CREATE POLICY "classes_select_policy" ON public.classes
+  FOR SELECT USING (true);
+
+CREATE POLICY "classes_admin_manage_policy" ON public.classes
+  FOR ALL TO authenticated
+  USING (public.is_admin_or_super_admin() = TRUE)
+  WITH CHECK (public.is_admin_or_super_admin() = TRUE);
+
+-- 5. BATCHES
+CREATE POLICY "batches_select_policy" ON public.batches
+  FOR SELECT USING (true);
+
+CREATE POLICY "batches_staff_manage_policy" ON public.batches
   FOR ALL TO authenticated
   USING (public.is_admin_or_receptionist() = TRUE)
   WITH CHECK (public.is_admin_or_receptionist() = TRUE);
 
--- --------------------------------------------------------------------
--- GRANULAR POLICIES: HOMEWORK_SUBMISSIONS (SUBMISSIONS) TABLE
--- --------------------------------------------------------------------
-DROP POLICY IF EXISTS "Homework submissions read policy" ON public.homework_submissions;
-DROP POLICY IF EXISTS "Manage homework submissions" ON public.homework_submissions;
-
--- 1. Students: View and insert only their own submissions.
--- 2. Teachers: View & evaluate submissions for homework assigned to their batches/created by them.
--- 3. Staff (Admin, Super Admin): View all submissions.
-CREATE POLICY "Granular homework_submissions select policy" ON public.homework_submissions
+-- 6. ADMISSIONS
+CREATE POLICY "admissions_select_policy" ON public.admissions
   FOR SELECT TO authenticated
   USING (
     public.is_admin_or_receptionist() = TRUE
-    OR
-    student_id = public.get_auth_student_id()
-    OR
-    homework_id IN (
+    OR (auth.uid() IS NOT NULL AND user_id = auth.uid())
+  );
+
+CREATE POLICY "admissions_safe_public_insert_policy" ON public.admissions
+  FOR INSERT WITH CHECK (
+    status = 'PENDING' OR status IS NULL
+  );
+
+CREATE POLICY "admissions_staff_manage_policy" ON public.admissions
+  FOR ALL TO authenticated
+  USING (public.is_admin_or_receptionist() = TRUE)
+  WITH CHECK (public.is_admin_or_receptionist() = TRUE);
+
+-- 7. INQUIRIES
+CREATE POLICY "inquiries_select_policy" ON public.inquiries
+  FOR SELECT TO authenticated
+  USING (public.is_admin_or_receptionist() = TRUE);
+
+CREATE POLICY "inquiries_safe_public_insert_policy" ON public.inquiries
+  FOR INSERT WITH CHECK (name IS NOT NULL);
+
+CREATE POLICY "inquiries_staff_manage_policy" ON public.inquiries
+  FOR ALL TO authenticated
+  USING (public.is_admin_or_receptionist() = TRUE)
+  WITH CHECK (public.is_admin_or_receptionist() = TRUE);
+
+-- 8. ATTENDANCE
+CREATE POLICY "attendance_select_policy" ON public.attendance
+  FOR SELECT TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR student_id = public.get_auth_student_id()
+    OR batch_id IN (
+      SELECT id FROM public.batches WHERE teacher_id = public.get_auth_teacher_id()
+    )
+  );
+
+CREATE POLICY "attendance_staff_manage_policy" ON public.attendance
+  FOR ALL TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR batch_id IN (
+      SELECT id FROM public.batches WHERE teacher_id = public.get_auth_teacher_id()
+    )
+  )
+  WITH CHECK (
+    public.is_admin_or_receptionist() = TRUE
+    OR batch_id IN (
+      SELECT id FROM public.batches WHERE teacher_id = public.get_auth_teacher_id()
+    )
+  );
+
+-- 9. FEE_STATUSES
+CREATE POLICY "fee_statuses_select_policy" ON public.fee_statuses
+  FOR SELECT TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR student_id = public.get_auth_student_id()
+  );
+
+CREATE POLICY "fee_statuses_staff_manage_policy" ON public.fee_statuses
+  FOR ALL TO authenticated
+  USING (public.is_admin_or_receptionist() = TRUE)
+  WITH CHECK (public.is_admin_or_receptionist() = TRUE);
+
+-- 10. FEE_RECEIPTS
+CREATE POLICY "fee_receipts_select_policy" ON public.fee_receipts
+  FOR SELECT TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR student_id = public.get_auth_student_id()
+  );
+
+CREATE POLICY "fee_receipts_staff_manage_policy" ON public.fee_receipts
+  FOR ALL TO authenticated
+  USING (public.is_admin_or_receptionist() = TRUE)
+  WITH CHECK (public.is_admin_or_receptionist() = TRUE);
+
+-- 11. FEE_STRUCTURES
+CREATE POLICY "fee_structures_select_policy" ON public.fee_structures
+  FOR SELECT USING (true);
+
+CREATE POLICY "fee_structures_admin_manage_policy" ON public.fee_structures
+  FOR ALL TO authenticated
+  USING (public.is_admin_or_super_admin() = TRUE)
+  WITH CHECK (public.is_admin_or_super_admin() = TRUE);
+
+-- 12. PAYMENT_VERIFICATIONS
+CREATE POLICY "payment_verifications_select_policy" ON public.payment_verifications
+  FOR SELECT TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR student_id = public.get_auth_student_id()
+  );
+
+CREATE POLICY "payment_verifications_insert_policy" ON public.payment_verifications
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    public.is_admin_or_receptionist() = TRUE
+    OR student_id = public.get_auth_student_id()
+  );
+
+CREATE POLICY "payment_verifications_staff_manage_policy" ON public.payment_verifications
+  FOR ALL TO authenticated
+  USING (public.is_admin_or_receptionist() = TRUE)
+  WITH CHECK (public.is_admin_or_receptionist() = TRUE);
+
+-- 13. HOMEWORK
+CREATE POLICY "homework_select_policy" ON public.homework
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "homework_staff_manage_policy" ON public.homework
+  FOR ALL TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR teacher_id = public.get_auth_teacher_id()
+  )
+  WITH CHECK (
+    public.is_admin_or_receptionist() = TRUE
+    OR teacher_id = public.get_auth_teacher_id()
+  );
+
+-- 14. HOMEWORK_SUBMISSIONS
+CREATE POLICY "homework_submissions_select_policy" ON public.homework_submissions
+  FOR SELECT TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR student_id = public.get_auth_student_id()
+    OR homework_id IN (
       SELECT id FROM public.homework WHERE teacher_id = public.get_auth_teacher_id()
     )
   );
 
-CREATE POLICY "Student insert own homework_submissions" ON public.homework_submissions
+CREATE POLICY "homework_submissions_insert_policy" ON public.homework_submissions
   FOR INSERT TO authenticated
   WITH CHECK (
     student_id = public.get_auth_student_id()
-    OR
-    public.is_admin_or_receptionist() = TRUE
+    OR public.is_admin_or_receptionist() = TRUE
   );
 
-CREATE POLICY "Teacher or admin evaluate homework_submissions" ON public.homework_submissions
+CREATE POLICY "homework_submissions_update_policy" ON public.homework_submissions
   FOR UPDATE TO authenticated
   USING (
     public.is_admin_or_receptionist() = TRUE
-    OR
-    homework_id IN (
+    OR (student_id = public.get_auth_student_id() AND status = 'PENDING')
+    OR homework_id IN (
       SELECT id FROM public.homework WHERE teacher_id = public.get_auth_teacher_id()
     )
   )
   WITH CHECK (
     public.is_admin_or_receptionist() = TRUE
-    OR
-    homework_id IN (
+    OR (student_id = public.get_auth_student_id() AND status = 'PENDING')
+    OR homework_id IN (
       SELECT id FROM public.homework WHERE teacher_id = public.get_auth_teacher_id()
     )
   );
 
-CREATE POLICY "Admin delete homework_submissions" ON public.homework_submissions
+CREATE POLICY "homework_submissions_admin_delete_policy" ON public.homework_submissions
   FOR DELETE TO authenticated
+  USING (public.is_admin_or_super_admin() = TRUE);
+
+-- 15. TESTS
+CREATE POLICY "tests_select_policy" ON public.tests
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "tests_staff_manage_policy" ON public.tests
+  FOR ALL TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR teacher_id = public.get_auth_teacher_id()
+  )
+  WITH CHECK (
+    public.is_admin_or_receptionist() = TRUE
+    OR teacher_id = public.get_auth_teacher_id()
+  );
+
+-- 16. STUDENT_MARKS
+CREATE POLICY "student_marks_select_policy" ON public.student_marks
+  FOR SELECT TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR student_id = public.get_auth_student_id()
+    OR test_id IN (
+      SELECT id FROM public.tests WHERE teacher_id = public.get_auth_teacher_id()
+    )
+  );
+
+CREATE POLICY "student_marks_staff_manage_policy" ON public.student_marks
+  FOR ALL TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR test_id IN (
+      SELECT id FROM public.tests WHERE teacher_id = public.get_auth_teacher_id()
+    )
+  )
+  WITH CHECK (
+    public.is_admin_or_receptionist() = TRUE
+    OR test_id IN (
+      SELECT id FROM public.tests WHERE teacher_id = public.get_auth_teacher_id()
+    )
+  );
+
+-- 17. STUDY_MATERIALS
+CREATE POLICY "study_materials_select_policy" ON public.study_materials
+  FOR SELECT USING (
+    (is_public = TRUE AND status = 'PUBLISHED')
+    OR public.get_auth_role() IN ('SUPER_ADMIN', 'ADMIN', 'RECEPTIONIST', 'TEACHER')
+  );
+
+CREATE POLICY "study_materials_staff_manage_policy" ON public.study_materials
+  FOR ALL TO authenticated
+  USING (public.get_auth_role() IN ('SUPER_ADMIN', 'ADMIN', 'TEACHER'))
+  WITH CHECK (public.get_auth_role() IN ('SUPER_ADMIN', 'ADMIN', 'TEACHER'));
+
+-- 18. TOPPERS
+CREATE POLICY "toppers_select_policy" ON public.toppers
+  FOR SELECT USING (true);
+
+CREATE POLICY "toppers_admin_manage_policy" ON public.toppers
+  FOR ALL TO authenticated
+  USING (public.is_admin_or_super_admin() = TRUE)
+  WITH CHECK (public.is_admin_or_super_admin() = TRUE);
+
+-- 19. STORE_CATEGORIES & STORE_PRODUCTS
+CREATE POLICY "store_categories_select_policy" ON public.store_categories
+  FOR SELECT USING (true);
+
+CREATE POLICY "store_categories_admin_manage_policy" ON public.store_categories
+  FOR ALL TO authenticated
+  USING (public.is_admin_or_super_admin() = TRUE)
+  WITH CHECK (public.is_admin_or_super_admin() = TRUE);
+
+CREATE POLICY "store_products_select_policy" ON public.store_products
+  FOR SELECT USING (true);
+
+CREATE POLICY "store_products_admin_manage_policy" ON public.store_products
+  FOR ALL TO authenticated
+  USING (public.is_admin_or_super_admin() = TRUE)
+  WITH CHECK (public.is_admin_or_super_admin() = TRUE);
+
+-- 20. STORE_ORDERS
+CREATE POLICY "store_orders_select_policy" ON public.store_orders
+  FOR SELECT TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR (auth.uid() IS NOT NULL AND user_id = auth.uid())
+  );
+
+CREATE POLICY "store_orders_insert_policy" ON public.store_orders
+  FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "store_orders_staff_manage_policy" ON public.store_orders
+  FOR ALL TO authenticated
+  USING (public.is_admin_or_receptionist() = TRUE)
+  WITH CHECK (public.is_admin_or_receptionist() = TRUE);
+
+-- 21. BATCH_BULLETINS
+CREATE POLICY "batch_bulletins_select_policy" ON public.batch_bulletins
+  FOR SELECT TO authenticated
+  USING (
+    public.is_admin_or_receptionist() = TRUE
+    OR batch_name = (
+      SELECT preferred_batch FROM public.students WHERE user_id = auth.uid() LIMIT 1
+    )
+    OR batch_id IN (
+      SELECT id FROM public.batches WHERE teacher_id = public.get_auth_teacher_id()
+    )
+  );
+
+CREATE POLICY "batch_bulletins_insert_policy" ON public.batch_bulletins
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    public.is_admin_or_receptionist() = TRUE
+    OR batch_id IN (
+      SELECT id FROM public.batches WHERE teacher_id = public.get_auth_teacher_id()
+    )
+    OR batch_name = (
+      SELECT preferred_batch FROM public.students WHERE user_id = auth.uid() LIMIT 1
+    )
+  );
+
+CREATE POLICY "batch_bulletins_manage_policy" ON public.batch_bulletins
+  FOR ALL TO authenticated
+  USING (
+    public.is_admin_or_super_admin() = TRUE
+    OR author_id = auth.uid()
+  )
+  WITH CHECK (
+    public.is_admin_or_super_admin() = TRUE
+    OR author_id = auth.uid()
+  );
+
+-- 22. SETTINGS
+CREATE POLICY "settings_select_policy" ON public.settings
+  FOR SELECT TO authenticated
   USING (public.is_admin_or_receptionist() = TRUE);
 
--- --------------------------------------------------------------------
--- GENERAL POLICIES FOR REMAINING TABLES
--- --------------------------------------------------------------------
-CREATE POLICY "Users read policy" ON public.users FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Classes read policy" ON public.classes FOR SELECT USING (true);
-CREATE POLICY "Departed students read policy" ON public.departed_students FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Teachers read policy" ON public.teachers FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Admissions read policy" ON public.admissions FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Batches read policy" ON public.batches FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Attendance read policy" ON public.attendance FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Fee receipts read policy" ON public.fee_receipts FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Payment verifications read policy" ON public.payment_verifications FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Tests read policy" ON public.tests FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Student marks read policy" ON public.student_marks FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Homework read policy" ON public.homework FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Toppers read policy" ON public.toppers FOR SELECT USING (true);
-CREATE POLICY "Study materials read policy" ON public.study_materials FOR SELECT USING (true);
-CREATE POLICY "Store categories read policy" ON public.store_categories FOR SELECT USING (true);
-CREATE POLICY "Store products read policy" ON public.store_products FOR SELECT USING (true);
-CREATE POLICY "Store orders read policy" ON public.store_orders FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Batch bulletins read policy" ON public.batch_bulletins FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Inquiries read policy" ON public.inquiries FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Settings read policy" ON public.settings FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Audit logs read policy" ON public.audit_logs FOR SELECT TO authenticated USING (true);
+CREATE POLICY "settings_admin_manage_policy" ON public.settings
+  FOR ALL TO authenticated
+  USING (public.is_admin_or_super_admin() = TRUE)
+  WITH CHECK (public.is_admin_or_super_admin() = TRUE);
 
-CREATE POLICY "Admin manage all users" ON public.users FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Manage classes" ON public.classes FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Manage departed students" ON public.departed_students FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Manage teachers" ON public.teachers FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Manage admissions" ON public.admissions FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Public insert admissions" ON public.admissions FOR INSERT WITH CHECK (true);
-CREATE POLICY "Manage batches" ON public.batches FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Manage attendance" ON public.attendance FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Manage fee receipts" ON public.fee_receipts FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Manage payment verifications" ON public.payment_verifications FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Manage tests" ON public.tests FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Manage student marks" ON public.student_marks FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Manage homework" ON public.homework FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Manage toppers" ON public.toppers FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Manage study materials" ON public.study_materials FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Manage store categories" ON public.store_categories FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Manage store products" ON public.store_products FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Manage store orders" ON public.store_orders FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Manage batch bulletins" ON public.batch_bulletins FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Manage inquiries" ON public.inquiries FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Public insert inquiries" ON public.inquiries FOR INSERT WITH CHECK (true);
-CREATE POLICY "Manage settings" ON public.settings FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Insert audit logs" ON public.audit_logs FOR INSERT TO authenticated WITH CHECK (true);
+-- 23. AUDIT_LOGS
+CREATE POLICY "audit_logs_select_policy" ON public.audit_logs
+  FOR SELECT TO authenticated
+  USING (public.is_admin_or_super_admin() = TRUE);
+
+CREATE POLICY "audit_logs_insert_policy" ON public.audit_logs
+  FOR INSERT TO authenticated WITH CHECK (true);
+
+-- 24. DEPARTED_STUDENTS
+CREATE POLICY "departed_students_staff_manage_policy" ON public.departed_students
+  FOR ALL TO authenticated
+  USING (public.is_admin_or_receptionist() = TRUE)
+  WITH CHECK (public.is_admin_or_receptionist() = TRUE);
+
+-- ========================================================
+-- SANITIZED PUBLIC VIEWS (FOR FACULTY SHOWCASE & PUBLIC CONFIG)
+-- ========================================================
+
+-- Public Faculty Showcase View (Excludes salary, phone, private email, address)
+CREATE OR REPLACE VIEW public.public_teachers WITH (security_barrier = true) AS
+SELECT 
+  id,
+  name,
+  specialty,
+  qualification,
+  experience,
+  bio,
+  photo_url,
+  joined_date,
+  status
+FROM public.teachers
+WHERE status = 'ACTIVE';
+
+GRANT SELECT ON public.public_teachers TO anon, authenticated;
+
+-- Public Settings View (Excludes internal private system configuration)
+CREATE OR REPLACE VIEW public.public_settings WITH (security_barrier = true) AS
+SELECT 
+  id,
+  data,
+  updated_at
+FROM public.settings
+WHERE id IN ('branding', 'public_contact', 'institute_info', 'store_settings', 'landing_page_config');
+
+GRANT SELECT ON public.public_settings TO anon, authenticated;
+
+

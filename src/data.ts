@@ -589,20 +589,40 @@ export const SEED_EMAIL_TEMPLATES: EmailTemplatesConfig = {
 export const SEED_TEACHERS: Teacher[] = [
   {
     id: 't1',
-    userId: 'u2',
+    userId: 'u-teacher-1',
     name: 'Priyanshu Gupta (Teacher)',
-    email: 'teacher@sunshineclasses.net',
+    email: 'priyanshu.teacher@sunshineclasses.net',
     phone: '9999900004',
     qualification: 'M.Sc. Mathematics, B.Ed',
     specialty: ['Mathematics', 'Physics'],
-    batches: ['Class 10 - Morning Excellence']
+    batches: ['Class 10 - Morning Excellence', 'Class 9 - Foundations']
+  },
+  {
+    id: 't2',
+    userId: 'u-teacher-2',
+    name: 'Amit Sharma',
+    email: 'amit.teacher@sunshineclasses.net',
+    phone: '9999900012',
+    qualification: 'M.Sc. Chemistry, B.Ed',
+    specialty: ['Science', 'Chemistry'],
+    batches: ['Class 10 - Morning Excellence', 'Class 8 - Star Batch']
+  },
+  {
+    id: 't3',
+    userId: 'u-teacher-3',
+    name: 'Neha Singh',
+    email: 'neha.teacher@sunshineclasses.net',
+    phone: '9999900013',
+    qualification: 'M.A. English Literature, B.Ed',
+    specialty: ['English', 'Social Science'],
+    batches: ['Class 9 - Foundations', 'Class 8 - Star Batch']
   }
 ];
 
 export const SEED_STUDENTS: Student[] = [
   {
     id: 's1',
-    userId: 'u4',
+    userId: 'u-student-1',
     rollNo: 'SC-1001',
     name: 'Rahul Verma',
     class: 'Class 10 Board Specialists',
@@ -614,19 +634,62 @@ export const SEED_STUDENTS: Student[] = [
     mobile: '9999900005',
     whatsapp: '9999900005',
     parentMobile: '9999900006',
-    email: 'student@sunshineclasses.net',
+    email: 'rahul.verma@sunshineclasses.net',
     preferredBatch: 'Class 10 - Morning Excellence',
     preferredTiming: '07:00 AM - 09:30 AM',
     admissionDate: '2025-04-10',
-    attendancePercentage: 92,
+    attendancePercentage: 94,
+    status: 'ACTIVE'
+  },
+  {
+    id: 's2',
+    userId: 'u-student-2',
+    rollNo: 'SC-1002',
+    name: 'Ananya Sharma',
+    class: 'Class 9 Foundations',
+    fatherName: 'Sanjay Sharma',
+    motherName: 'Pooja Sharma',
+    dob: '2012-08-20',
+    gender: 'Female',
+    address: '45 Station Road, Pihani, Hardoi, UP',
+    mobile: '9999900021',
+    whatsapp: '9999900021',
+    parentMobile: '9999900022',
+    email: 'ananya.sharma@sunshineclasses.net',
+    preferredBatch: 'Class 9 - Foundations',
+    preferredTiming: '04:00 PM - 06:30 PM',
+    admissionDate: '2025-05-02',
+    attendancePercentage: 96,
+    status: 'ACTIVE'
+  },
+  {
+    id: 's3',
+    userId: 'u-student-3',
+    rollNo: 'SC-1003',
+    name: 'Aryan Patel',
+    class: 'Class 8 Star Batch',
+    fatherName: 'Virendra Patel',
+    motherName: 'Sunita Patel',
+    dob: '2013-11-10',
+    gender: 'Male',
+    address: '88 Market Chowk, Pihani, Hardoi, UP',
+    mobile: '9999900031',
+    whatsapp: '9999900031',
+    parentMobile: '9999900032',
+    email: 'aryan.patel@sunshineclasses.net',
+    preferredBatch: 'Class 8 - Star Batch',
+    preferredTiming: '04:00 PM - 06:00 PM',
+    admissionDate: '2025-06-15',
+    attendancePercentage: 91,
     status: 'ACTIVE'
   }
 ];
 
 export const SEED_USERS: User[] = [
+  // Super Admin 1: Priyanshu Gupta (Founder)
   {
-    id: 'u1',
-    username: 'founder',
+    id: 'u-priyanshu',
+    username: 'priyanshu',
     name: 'Priyanshu Gupta (Founder)',
     email: 'sunshineclassespihani@gmail.com',
     role: 'SUPER_ADMIN',
@@ -637,10 +700,11 @@ export const SEED_USERS: User[] = [
     active: true,
     mustChangePassword: false
   },
+  // Super Admin 2: Rajeev Kumar Verma (Co-Founder)
   {
-    id: 'u8',
-    username: 'cofounder',
-    name: 'Rajeev Kr. Verma (Co-Founder)',
+    id: 'u-rajeev',
+    username: 'rajeev',
+    name: 'Rajeev Kumar Verma (Co-Founder)',
     email: 'kumarvermarajeev79@gmail.com',
     role: 'SUPER_ADMIN',
     phone: '9999900001',
@@ -650,23 +714,38 @@ export const SEED_USERS: User[] = [
     active: true,
     mustChangePassword: false
   },
+  // Founder / Super Admin aliases for backwards-compatibility & easy logins
   {
-    id: 'u-superadmin',
-    username: 'superadmin',
-    name: 'Super Admin',
-    email: 'superadmin@sunshineclasses.net',
+    id: 'u-founder',
+    username: 'founder',
+    name: 'Priyanshu Gupta (Founder)',
+    email: 'founder@sunshineclasses.net',
     role: 'SUPER_ADMIN',
-    phone: '9999911111',
-    password: 'Sunshine@123',
-    passwordHash: 'Sunshine@123',
+    phone: '9999900000',
+    password: 'Founder@Sunshine2026',
+    passwordHash: 'Founder@Sunshine2026',
     status: 'ACTIVE',
     active: true,
     mustChangePassword: false
   },
   {
+    id: 'u-cofounder',
+    username: 'cofounder',
+    name: 'Rajeev Kumar Verma (Co-Founder)',
+    email: 'cofounder@sunshineclasses.net',
+    role: 'SUPER_ADMIN',
+    phone: '9999900001',
+    password: 'Cofounder@Sunshine2026',
+    passwordHash: 'Cofounder@Sunshine2026',
+    status: 'ACTIVE',
+    active: true,
+    mustChangePassword: false
+  },
+  // General Admin
+  {
     id: 'u-admin',
     username: 'admin',
-    name: 'Admin User',
+    name: 'Institute Admin',
     email: 'admin@sunshineclasses.net',
     role: 'ADMIN',
     phone: '9999922222',
@@ -676,23 +755,11 @@ export const SEED_USERS: User[] = [
     active: true,
     mustChangePassword: false
   },
-  {
-    id: 'u-teacher',
-    username: 'teacher',
-    name: 'Priyanshu Gupta (Teacher)',
-    email: 'teacher@sunshineclasses.net',
-    role: 'TEACHER',
-    phone: '9999900004',
-    password: 'Teacher@123',
-    passwordHash: 'Teacher@123',
-    status: 'ACTIVE',
-    active: true,
-    mustChangePassword: false
-  },
+  // Receptionist Desk
   {
     id: 'u-reception',
     username: 'reception',
-    name: 'Receptionist User',
+    name: 'Receptionist Desk',
     email: 'reception@sunshineclasses.net',
     role: 'RECEPTIONIST',
     phone: '9999933333',
@@ -702,13 +769,80 @@ export const SEED_USERS: User[] = [
     active: true,
     mustChangePassword: false
   },
+  // Test Teachers
   {
-    id: 'u-student',
+    id: 'u-teacher-1',
+    username: 'teacher',
+    name: 'Priyanshu Gupta (Teacher)',
+    email: 'priyanshu.teacher@sunshineclasses.net',
+    role: 'TEACHER',
+    phone: '9999900004',
+    password: 'Teacher@123',
+    passwordHash: 'Teacher@123',
+    status: 'ACTIVE',
+    active: true,
+    mustChangePassword: false
+  },
+  {
+    id: 'u-teacher-2',
+    username: 'amit.sharma',
+    name: 'Amit Sharma',
+    email: 'amit.teacher@sunshineclasses.net',
+    role: 'TEACHER',
+    phone: '9999900012',
+    password: 'Teacher@123',
+    passwordHash: 'Teacher@123',
+    status: 'ACTIVE',
+    active: true,
+    mustChangePassword: false
+  },
+  {
+    id: 'u-teacher-3',
+    username: 'neha.singh',
+    name: 'Neha Singh',
+    email: 'neha.teacher@sunshineclasses.net',
+    role: 'TEACHER',
+    phone: '9999900013',
+    password: 'Teacher@123',
+    passwordHash: 'Teacher@123',
+    status: 'ACTIVE',
+    active: true,
+    mustChangePassword: false
+  },
+  // Test Students
+  {
+    id: 'u-student-1',
     username: 'student',
     name: 'Rahul Verma',
-    email: 'student@sunshineclasses.net',
+    email: 'rahul.verma@sunshineclasses.net',
     role: 'STUDENT',
     phone: '9999900005',
+    password: 'Student@123',
+    passwordHash: 'Student@123',
+    status: 'ACTIVE',
+    active: true,
+    mustChangePassword: false
+  },
+  {
+    id: 'u-student-2',
+    username: 'ananya.sharma',
+    name: 'Ananya Sharma',
+    email: 'ananya.sharma@sunshineclasses.net',
+    role: 'STUDENT',
+    phone: '9999900021',
+    password: 'Student@123',
+    passwordHash: 'Student@123',
+    status: 'ACTIVE',
+    active: true,
+    mustChangePassword: false
+  },
+  {
+    id: 'u-student-3',
+    username: 'aryan.patel',
+    name: 'Aryan Patel',
+    email: 'aryan.patel@sunshineclasses.net',
+    role: 'STUDENT',
+    phone: '9999900031',
     password: 'Student@123',
     passwordHash: 'Student@123',
     status: 'ACTIVE',
@@ -720,16 +854,29 @@ export const SEED_USERS: User[] = [
 export const SEED_ADMISSIONS: Admission[] = [];
 
 export const SEED_ATTENDANCE: Attendance[] = [
-  // Attendance history for s1 (Rahul)
+  // Attendance history for s1 (Rahul Verma)
   { id: 'at1', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', date: '2026-06-24', status: 'PRESENT', markedBy: 'Priyanshu Gupta' },
   { id: 'at2', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', date: '2026-06-25', status: 'PRESENT', markedBy: 'Priyanshu Gupta' },
   { id: 'at3', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', date: '2026-06-26', status: 'LATE', markedBy: 'Priyanshu Gupta' },
-  { id: 'at4', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', date: '2026-06-27', status: 'PRESENT', markedBy: 'Priyanshu Gupta' }
+  { id: 'at4', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', date: '2026-06-27', status: 'PRESENT', markedBy: 'Priyanshu Gupta' },
+  // Attendance history for s2 (Ananya Sharma)
+  { id: 'at5', studentId: 's2', studentName: 'Ananya Sharma', class: 'Class 9', date: '2026-06-24', status: 'PRESENT', markedBy: 'Neha Singh' },
+  { id: 'at6', studentId: 's2', studentName: 'Ananya Sharma', class: 'Class 9', date: '2026-06-25', status: 'PRESENT', markedBy: 'Neha Singh' },
+  { id: 'at7', studentId: 's2', studentName: 'Ananya Sharma', class: 'Class 9', date: '2026-06-26', status: 'PRESENT', markedBy: 'Neha Singh' },
+  { id: 'at8', studentId: 's2', studentName: 'Ananya Sharma', class: 'Class 9', date: '2026-06-27', status: 'PRESENT', markedBy: 'Neha Singh' },
+  // Attendance history for s3 (Aryan Patel)
+  { id: 'at9', studentId: 's3', studentName: 'Aryan Patel', class: 'Class 8', date: '2026-06-25', status: 'PRESENT', markedBy: 'Amit Sharma' },
+  { id: 'at10', studentId: 's3', studentName: 'Aryan Patel', class: 'Class 8', date: '2026-06-26', status: 'ABSENT', markedBy: 'Amit Sharma' },
+  { id: 'at11', studentId: 's3', studentName: 'Aryan Patel', class: 'Class 8', date: '2026-06-27', status: 'PRESENT', markedBy: 'Amit Sharma' }
 ];
 
 export const SEED_FEE_STATUS: FeeStatus[] = [
-  { id: 'fs1', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', month: 'June 2026', totalFee: 1200, discount: 0, scholarship: 0, paidFee: 0, pendingFee: 1200, status: 'PENDING', dueDate: '2026-06-10' },
-  { id: 'fs2', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', month: 'July 2026', totalFee: 1200, discount: 0, scholarship: 0, paidFee: 0, pendingFee: 1200, status: 'PENDING', dueDate: '2026-07-10' }
+  { id: 'fs1', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', month: 'June 2026', totalFee: 1500, discount: 0, scholarship: 0, paidFee: 1500, pendingFee: 0, status: 'PAID', dueDate: '2026-06-10' },
+  { id: 'fs2', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', month: 'July 2026', totalFee: 1500, discount: 0, scholarship: 0, paidFee: 0, pendingFee: 1500, status: 'PENDING', dueDate: '2026-07-10' },
+  { id: 'fs3', studentId: 's2', studentName: 'Ananya Sharma', class: 'Class 9', month: 'June 2026', totalFee: 1200, discount: 0, scholarship: 0, paidFee: 1200, pendingFee: 0, status: 'PAID', dueDate: '2026-06-10' },
+  { id: 'fs4', studentId: 's2', studentName: 'Ananya Sharma', class: 'Class 9', month: 'July 2026', totalFee: 1200, discount: 0, scholarship: 0, paidFee: 0, pendingFee: 1200, status: 'PENDING', dueDate: '2026-07-10' },
+  { id: 'fs5', studentId: 's3', studentName: 'Aryan Patel', class: 'Class 8', month: 'June 2026', totalFee: 1000, discount: 0, scholarship: 0, paidFee: 1000, pendingFee: 0, status: 'PAID', dueDate: '2026-06-10' },
+  { id: 'fs6', studentId: 's3', studentName: 'Aryan Patel', class: 'Class 8', month: 'July 2026', totalFee: 1000, discount: 0, scholarship: 0, paidFee: 0, pendingFee: 1000, status: 'PENDING', dueDate: '2026-07-10' }
 ];
 
 export const SEED_FEE_RECEIPTS: FeeReceipt[] = [];
@@ -737,23 +884,32 @@ export const SEED_FEE_RECEIPTS: FeeReceipt[] = [];
 export const SEED_TESTS: Test[] = [
   { id: 'tst1', title: 'Mathematics Chapter 1 & 2', class: 'Class 10', subject: 'Mathematics', chapter: 'Real Numbers & Polynomials', totalMarks: 50, date: '2026-06-15', highestMarks: 49, averageMarks: 38 },
   { id: 'tst2', title: 'Science Mechanics Test', class: 'Class 10', subject: 'Science', chapter: 'Light Reflection & Refraction', totalMarks: 30, date: '2026-06-20', highestMarks: 28, averageMarks: 22 },
-  { id: 'tst3', title: 'English Grammar Assessment', class: 'Class 10', subject: 'English', chapter: 'Tenses & Active-Passive Voice', totalMarks: 25, date: '2026-06-22', highestMarks: 24, averageMarks: 18 }
+  { id: 'tst3', title: 'English Grammar Assessment', class: 'Class 10', subject: 'English', chapter: 'Tenses & Active-Passive Voice', totalMarks: 25, date: '2026-06-22', highestMarks: 24, averageMarks: 18 },
+  { id: 'tst4', title: 'Class 9 Algebra & Linear Equations', class: 'Class 9', subject: 'Mathematics', chapter: 'Linear Equations in Two Variables', totalMarks: 40, date: '2026-06-18', highestMarks: 39, averageMarks: 31 },
+  { id: 'tst5', title: 'Class 8 Force & Pressure Assessment', class: 'Class 8', subject: 'Science', chapter: 'Force and Pressure', totalMarks: 30, date: '2026-06-19', highestMarks: 29, averageMarks: 24 }
 ];
 
 export const SEED_STUDENT_MARKS: StudentMark[] = [
   // Math Test (tst1) results
   { id: 'm1', testId: 'tst1', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', marksObtained: 46, remarks: 'Excellent logical skills. Keep it up!', rank: 1 },
   // Science Test (tst2) results
-  { id: 'm4', testId: 'tst2', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', marksObtained: 25, remarks: 'Good score, revise ray diagrams', rank: 1 }
+  { id: 'm2', testId: 'tst2', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', marksObtained: 27, remarks: 'Good score, revise ray diagrams', rank: 1 },
+  // Class 9 Math Test (tst4)
+  { id: 'm3', testId: 'tst4', studentId: 's2', studentName: 'Ananya Sharma', class: 'Class 9', marksObtained: 38, remarks: 'Top performance in algebra!', rank: 1 },
+  // Class 8 Science Test (tst5)
+  { id: 'm4', testId: 'tst5', studentId: 's3', studentName: 'Aryan Patel', class: 'Class 8', marksObtained: 28, remarks: 'Very clear conceptual understanding.', rank: 1 }
 ];
 
 export const SEED_HOMEWORK: Homework[] = [
   { id: 'hw1', title: 'Quadratic Equations Exercise 4.2', description: 'Solve all questions from Exercise 4.2 of NCERT textbook and show steps clearly in your notebook.', class: 'Class 10', subject: 'Mathematics', date: '2026-06-25', dueDate: '2026-06-28', teacherId: 't1', teacherName: 'Priyanshu Gupta' },
-  { id: 'hw2', title: 'Chemical Reactions Balancing', description: 'Balance the 15 equations provided in the sheet. Upload a clean photograph or PDF of the completed work.', class: 'Class 10', subject: 'Science', date: '2026-06-26', dueDate: '2026-06-29', teacherId: 't1', teacherName: 'Priyanshu Gupta' }
+  { id: 'hw2', title: 'Chemical Reactions Balancing', description: 'Balance the 15 equations provided in the sheet. Upload a clean photograph or PDF of the completed work.', class: 'Class 10', subject: 'Science', date: '2026-06-26', dueDate: '2026-06-29', teacherId: 't2', teacherName: 'Amit Sharma' },
+  { id: 'hw3', title: 'Class 9 Coordinate Geometry Practice', description: 'Complete questions 1 to 8 from textbook section 3.2.', class: 'Class 9', subject: 'Mathematics', date: '2026-06-25', dueDate: '2026-06-28', teacherId: 't1', teacherName: 'Priyanshu Gupta' },
+  { id: 'hw4', title: 'Class 8 Cell Structure Diagram & Notes', description: 'Draw labeled diagrams of Plant Cell vs Animal Cell.', class: 'Class 8', subject: 'Science', date: '2026-06-26', dueDate: '2026-06-29', teacherId: 't2', teacherName: 'Amit Sharma' }
 ];
 
 export const SEED_HOMEWORK_SUBMISSIONS: HomeworkSubmission[] = [
-  { id: 'hs1', homeworkId: 'hw1', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', submissionDate: '2026-06-27', textAnswer: 'Completed all 10 questions of Exercise 4.2. Roots calculated correctly.', status: 'SUBMITTED' }
+  { id: 'hs1', homeworkId: 'hw1', studentId: 's1', studentName: 'Rahul Verma', class: 'Class 10', submissionDate: '2026-06-27', textAnswer: 'Completed all 10 questions of Exercise 4.2. Roots calculated correctly.', status: 'SUBMITTED' },
+  { id: 'hs2', homeworkId: 'hw3', studentId: 's2', studentName: 'Ananya Sharma', class: 'Class 9', submissionDate: '2026-06-27', textAnswer: 'Plotted all coordinate points on graph paper and verified quadrants.', status: 'SUBMITTED' }
 ];
 
 export const SEED_BLOGS: BlogPost[] = [
