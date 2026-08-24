@@ -1,37 +1,38 @@
-# Multi-stage production build for Vite + React application on Nginx (Railway optimized)
-# Stage 1: Build Vite React static assets
+# Multi-stage production build for Sunshine Classes ERP on Railway
+# Stage 1: Build client and server bundles
 FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Leverage Docker layer caching for dependencies
+# Copy package dependency manifests
 COPY package*.json ./
-RUN npm ci
 
-# Copy source code and build production Vite static bundle
+# Install dependencies (fallback to npm install --legacy-peer-deps if lockfile differences exist)
+RUN npm ci || npm install --legacy-peer-deps
+
+# Copy entire source tree
 COPY . .
-RUN npm run build:client
 
-# Stage 2: Serve static files with high-performance Nginx
-FROM nginx:alpine AS runner
+# Build Vite client assets + compiled backend (dist/server.cjs)
+RUN npm run build
 
-# Install envsubst (included in gettext) for dynamic PORT injection
-RUN apk add --no-cache gettext
+# Stage 2: Production runtime image
+FROM node:22-alpine AS runner
 
-# Remove default nginx static assets and configuration
-RUN rm -rf /usr/share/nginx/html/* /etc/nginx/conf.d/default.conf
+WORKDIR /app
 
-# Copy Vite production output from builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
+ENV NODE_ENV=production
+ENV PORT=3000
 
-# Copy custom Nginx template
-COPY nginx.conf.template /etc/nginx/templates/default.conf.template
+# Copy package files and install only production dependencies
+COPY package*.json ./
+RUN npm ci --omit=dev || npm install --omit=dev --legacy-peer-deps
 
-# Default fallback PORT (Railway dynamically injects $PORT at container runtime)
-ENV PORT=80
+# Copy built distribution files from builder stage
+COPY --from=builder /app/dist ./dist
 
-# Expose HTTP port
-EXPOSE 80
+# Expose default container port (Railway will dynamically bind PORT at runtime)
+EXPOSE 3000
 
-# Substitute $PORT into default.conf and start Nginx in foreground
-CMD ["/bin/sh", "-c", "envsubst '${PORT}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
+# Start compiled CommonJS full-stack server
+CMD ["node", "dist/server.cjs"]
