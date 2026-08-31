@@ -174,7 +174,18 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
       params.append('page', page.toString());
       params.append('limit', limit.toString());
 
-      const response = await fetch(`/api/students?${params.toString()}`);
+      const token = typeof window !== 'undefined' 
+        ? sessionStorage.getItem('sunshine_access_token') || localStorage.getItem('sunshine_access_token') || ''
+        : '';
+
+      const response = await fetch(`/api/students?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        credentials: 'include'
+      });
       const data = await response.json();
 
       if (!response.ok || !data.success) {

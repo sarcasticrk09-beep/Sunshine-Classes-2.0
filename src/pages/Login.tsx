@@ -660,6 +660,68 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
             <span>{googleLoginStep}</span>
           </div>
         )}
+
+        {/* Demo Credentials Quick-Fill Helper */}
+        <div id="demo-credentials-helper" className="mt-6 pt-4 border-t border-slate-100">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Quick Demo Logins</span>
+            <span className="text-[9px] text-slate-400 font-medium">Click to fill</span>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              id="chip-login-founder"
+              type="button"
+              onClick={() => {
+                setEmail('founder@sunshineclasses.net');
+                setPassword('Founder@Sunshine2026');
+                setError(null);
+              }}
+              className="px-2.5 py-1.5 bg-slate-50 hover:bg-amber-50 hover:border-amber-200 border border-slate-100 rounded-xl text-left transition-colors cursor-pointer"
+            >
+              <div className="text-[11px] font-bold text-slate-700">Founder</div>
+              <div className="text-[9px] text-slate-400 truncate">founder@sunshineclasses.net</div>
+            </button>
+            <button
+              id="chip-login-admin"
+              type="button"
+              onClick={() => {
+                setEmail('admin@sunshineclasses.net');
+                setPassword('Admin@123');
+                setError(null);
+              }}
+              className="px-2.5 py-1.5 bg-slate-50 hover:bg-brand-blue/5 hover:border-brand-blue/20 border border-slate-100 rounded-xl text-left transition-colors cursor-pointer"
+            >
+              <div className="text-[11px] font-bold text-slate-700">Admin</div>
+              <div className="text-[9px] text-slate-400 truncate">admin@sunshineclasses.net</div>
+            </button>
+            <button
+              id="chip-login-teacher"
+              type="button"
+              onClick={() => {
+                setEmail('priyanshu.teacher@sunshineclasses.net');
+                setPassword('Teacher@123');
+                setError(null);
+              }}
+              className="px-2.5 py-1.5 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-200 border border-slate-100 rounded-xl text-left transition-colors cursor-pointer"
+            >
+              <div className="text-[11px] font-bold text-slate-700">Teacher</div>
+              <div className="text-[9px] text-slate-400 truncate">teacher / Teacher@123</div>
+            </button>
+            <button
+              id="chip-login-student"
+              type="button"
+              onClick={() => {
+                setEmail('rahul.verma@sunshineclasses.net');
+                setPassword('Student@123');
+                setError(null);
+              }}
+              className="px-2.5 py-1.5 bg-slate-50 hover:bg-purple-50 hover:border-purple-200 border border-slate-100 rounded-xl text-left transition-colors cursor-pointer"
+            >
+              <div className="text-[11px] font-bold text-slate-700">Student</div>
+              <div className="text-[9px] text-slate-400 truncate">student / Student@123</div>
+            </button>
+          </div>
+        </div>
       </>
     )}
       </div>

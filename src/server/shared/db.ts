@@ -1,12 +1,37 @@
 import { createClient } from '@supabase/supabase-js';
+import {
+  SEED_USERS,
+  SEED_STUDENTS,
+  SEED_TEACHERS,
+  SEED_BATCHES,
+  SEED_CLASSES,
+  SEED_COURSES,
+  SEED_STUDENT_SUBSCRIPTIONS,
+  SEED_SUBSCRIPTION_PAYMENTS,
+  SEED_SUBSCRIPTION_RECEIPTS
+} from '../../data';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
 
 export const serverSupabase = createClient(supabaseUrl, supabaseKey);
 
-// In-memory backing cache for fast access & offline resilience
-const memoryStore: Record<string, Record<string, any>> = {};
+// In-memory backing cache for fast access & offline resilience, pre-seeded with institute data
+const memoryStore: Record<string, Record<string, any>> = {
+  users: Object.fromEntries(SEED_USERS.map(u => [u.id, u])),
+  students: Object.fromEntries(SEED_STUDENTS.map(s => [s.id, s])),
+  teachers: Object.fromEntries(SEED_TEACHERS.map(t => [t.id, t])),
+  batches: Object.fromEntries(SEED_BATCHES.map(b => [b.id, b])),
+  classes: Object.fromEntries(SEED_CLASSES.map(c => [c.id, c])),
+  courses: Object.fromEntries(SEED_COURSES.map(c => [c.id, c])),
+  subscriptions: Object.fromEntries(SEED_STUDENT_SUBSCRIPTIONS.map(s => [s.id, s])),
+  payments: Object.fromEntries(SEED_SUBSCRIPTION_PAYMENTS.map(p => [p.id, p])),
+  receipts: Object.fromEntries(SEED_SUBSCRIPTION_RECEIPTS.map(r => [r.id, r])),
+  admissions: {},
+  audit_logs: {},
+  fee_receipts: {},
+  attendance: {}
+};
 
 export const adminDb = {
   collection: (colName: string) => collection(null, colName),

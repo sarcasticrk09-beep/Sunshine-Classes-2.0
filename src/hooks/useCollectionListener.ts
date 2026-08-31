@@ -16,10 +16,10 @@ const listenerHeartbeats: Record<string, number> = {};
 /**
  * Hook to manage Connection Watchdog.
  */
-export function useFirestoreConnectionWatchdog(checkIntervalMs: number = 30000) {
+export function useFirestoreConnectionWatchdog(_checkIntervalMs: number = 30000) {
   const [reconnectSignal, setReconnectSignal] = useState<number>(0);
-  const [isHealthy, setIsHealthy] = useState<boolean>(true);
-  const [lastCheck, setLastCheck] = useState<number>(Date.now());
+  const [isHealthy, setIsHealthy] = useState<boolean>(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const lastCheckRef = useRef<number>(Date.now());
 
   const recordHeartbeat = useCallback((collectionName: string) => {
     listenerHeartbeats[collectionName] = Date.now();
@@ -31,27 +31,29 @@ export function useFirestoreConnectionWatchdog(checkIntervalMs: number = 30000) 
 
   useEffect(() => {
     const handleOnline = () => {
+      setIsHealthy(true);
+      lastCheckRef.current = Date.now();
       triggerReconnect();
     };
 
-    window.addEventListener('online', handleOnline);
+    const handleOffline = () => {
+      setIsHealthy(false);
+      lastCheckRef.current = Date.now();
+    };
 
-    const interval = setInterval(() => {
-      const now = Date.now();
-      setLastCheck(now);
-      setIsHealthy(navigator.onLine);
-    }, checkIntervalMs);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
 
     return () => {
       window.removeEventListener('online', handleOnline);
-      clearInterval(interval);
+      window.removeEventListener('offline', handleOffline);
     };
-  }, [checkIntervalMs, triggerReconnect]);
+  }, [triggerReconnect]);
 
   return {
     reconnectSignal,
     isHealthy,
-    lastCheck,
+    lastCheck: lastCheckRef.current,
     recordHeartbeat,
     triggerReconnect,
   };
@@ -70,6 +72,7 @@ export function useCollectionListener<T = any>({
 }: UseCollectionListenerOptions<T>) {
   const onDataRef = useRef(onData);
   const onHeartbeatRef = useRef(onHeartbeat);
+  const debounceTimerRef = useRef<any>(null);
 
   useEffect(() => {
     onDataRef.current = onData;
@@ -91,7 +94,7 @@ export function useCollectionListener<T = any>({
       }
     };
 
-    // Load initial data
+    // Load initial data once on mount / reconnect
     SyncService.list<T>(collectionName).then((items) => {
       if (!isSubscribed) return;
       updateHeartbeat();
@@ -105,27 +108,36 @@ export function useCollectionListener<T = any>({
       }
     }).catch(() => {});
 
-    // Subscribe to ongoing collection changes
+    // Subscribe to ongoing collection changes with debouncing to prevent thrashing
     const unsubscribe = SyncService.subscribe((col, _docId, _data) => {
       if (!isSubscribed) return;
       if (col === collectionName) {
         updateHeartbeat();
-        SyncService.list<T>(collectionName).then((items) => {
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
+        debounceTimerRef.current = setTimeout(() => {
           if (!isSubscribed) return;
-          if (items && items.length > 0) {
-            onDataRef.current(items);
-            if (storageKey) {
-              try {
-                localStorage.setItem(storageKey, JSON.stringify(items));
-              } catch (e) {}
+          SyncService.list<T>(collectionName).then((items) => {
+            if (!isSubscribed) return;
+            if (items && items.length > 0) {
+              onDataRef.current(items);
+              if (storageKey) {
+                try {
+                  localStorage.setItem(storageKey, JSON.stringify(items));
+                } catch (e) {}
+              }
             }
-          }
-        }).catch(() => {});
+          }).catch(() => {});
+        }, 200);
       }
     });
 
     return () => {
       isSubscribed = false;
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
       unsubscribe();
     };
   }, [collectionName, enabled, storageKey, reconnectSignal]);

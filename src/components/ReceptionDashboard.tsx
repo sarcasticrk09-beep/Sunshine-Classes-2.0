@@ -37,7 +37,7 @@ import { WhatsAppCommunication } from './WhatsAppCommunication';
 import { getCurrentAndNextMonths, isFeeDueSoon } from '../lib/feeUtils';
 import { generateReceiptPdf } from '../lib/pdfGenerator';
 import AdmissionsModule from './admissions/AdmissionsModule';
-import { getCachedIdToken } from '../lib/firebase';
+import { getCachedIdToken } from '../lib/supabase';
 
 interface ReceptionDashboardProps {
   students: Student[];

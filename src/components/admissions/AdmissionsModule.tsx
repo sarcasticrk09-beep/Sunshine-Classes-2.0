@@ -147,9 +147,16 @@ export default function AdmissionsModule() {
       if (selectedClass) queryParams.append('className', selectedClass);
       if (selectedStatus) queryParams.append('status', selectedStatus);
 
+      const token = typeof window !== 'undefined' 
+        ? sessionStorage.getItem('sunshine_access_token') || localStorage.getItem('sunshine_access_token') || ''
+        : '';
+
       const res = await fetch(`/api/admissions?${queryParams.toString()}`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         credentials: 'include'
       });
 
@@ -200,9 +207,16 @@ export default function AdmissionsModule() {
     setFormError(null);
 
     try {
+      const token = typeof window !== 'undefined' 
+        ? sessionStorage.getItem('sunshine_access_token') || localStorage.getItem('sunshine_access_token') || ''
+        : '';
+
       const res = await fetch('/api/admissions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         credentials: 'include',
         body: JSON.stringify(formData)
       });
@@ -269,9 +283,16 @@ export default function AdmissionsModule() {
     setFormError(null);
 
     try {
+      const token = typeof window !== 'undefined' 
+        ? sessionStorage.getItem('sunshine_access_token') || localStorage.getItem('sunshine_access_token') || ''
+        : '';
+
       const res = await fetch(`/api/admissions/${showEditModal.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         credentials: 'include',
         body: JSON.stringify(showEditModal)
       });
@@ -300,9 +321,16 @@ export default function AdmissionsModule() {
 
     setFormSubmitting(true);
     try {
+      const token = typeof window !== 'undefined' 
+        ? sessionStorage.getItem('sunshine_access_token') || localStorage.getItem('sunshine_access_token') || ''
+        : '';
+
       const res = await fetch(`/api/admissions/${showDeleteModal.id}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         credentials: 'include'
       });
 

@@ -1,4 +1,4 @@
-import { googleSignInForGmail, getCachedAccessToken, setCachedAccessToken, clearCachedAccessToken, auth } from '../lib/firebase';
+import { googleSignInForGmail, getCachedAccessToken, setCachedAccessToken, clearCachedAccessToken, auth } from '../lib/supabase';
 
 export interface GmailProfile {
   emailAddress: string;

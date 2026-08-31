@@ -236,27 +236,38 @@ class SyncServiceClass {
       colCache.set(docId, data);
     }
 
-    // Also update localStorage mirror
+    // Mirror mutation to localStorage so local persistence stays completely synchronized
     try {
       if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem(`sunshine_${collectionName}`);
+        const storageKey = `sunshine_${collectionName}`;
+        const stored = localStorage.getItem(storageKey);
         if (stored) {
-          const list = JSON.parse(stored);
-          if (Array.isArray(list)) {
-            const index = list.findIndex((item: any) => (item.id || item.studentId || item.rollNo) === docId);
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            const index = parsed.findIndex((item: any) => 
+              (item.id || item.studentId || item.rollNo || item.userId || item.teacherId || item.receiptNumber) === docId
+            );
             if (data === null) {
-              if (index > -1) list.splice(index, 1);
+              if (index > -1) parsed.splice(index, 1);
             } else if (index > -1) {
-              list[index] = { ...list[index], ...data };
+              parsed[index] = { ...parsed[index], ...data };
             } else {
-              list.push(data);
+              parsed.push(data);
             }
-            localStorage.setItem(`sunshine_${collectionName}`, JSON.stringify(list));
+            localStorage.setItem(storageKey, JSON.stringify(parsed));
+          } else if (parsed && typeof parsed === 'object') {
+            if (data === null) {
+              localStorage.removeItem(storageKey);
+            } else {
+              localStorage.setItem(storageKey, JSON.stringify({ ...parsed, ...data }));
+            }
           }
+        } else if (data !== null) {
+          localStorage.setItem(storageKey, JSON.stringify([data]));
         }
       }
     } catch (e) {
-      // Ignore storage errors
+      // Non-blocking storage mirror error
     }
 
     this.listeners.forEach(fn => {
@@ -290,12 +301,14 @@ class SyncServiceClass {
         }
 
         if (!data) {
-          this.notifyListeners(collectionName, docId, null);
           return null;
         }
 
         const clean = fromPostgresRow(collectionName, data) as T;
-        this.notifyListeners(collectionName, docId, clean);
+        if (!this.cache.has(collectionName)) {
+          this.cache.set(collectionName, new Map());
+        }
+        this.cache.get(collectionName)!.set(docId, clean);
         return clean;
       } catch (err) {
         console.error(`[SyncService.get - Supabase] Error for ${collectionName}/${docId}:`, err);
@@ -315,11 +328,9 @@ class SyncServiceClass {
           if (Array.isArray(parsed)) {
             const found = parsed.find((item: any) => (item.id || item.studentId || item.rollNo) === docId);
             if (found) {
-              this.notifyListeners(collectionName, docId, found);
               return found as T;
             }
           } else if (parsed && typeof parsed === 'object') {
-            this.notifyListeners(collectionName, docId, parsed);
             return parsed as T;
           }
         }
@@ -348,9 +359,14 @@ class SyncServiceClass {
           return [];
         }
 
+        if (!this.cache.has(collectionName)) {
+          this.cache.set(collectionName, new Map());
+        }
+        const colCache = this.cache.get(collectionName)!;
+
         return data.map(row => {
           const clean = fromPostgresRow(collectionName, row) as T;
-          this.notifyListeners(collectionName, row.id, clean);
+          colCache.set(row.id, clean);
           return clean;
         });
       } catch (err) {
@@ -369,10 +385,6 @@ class SyncServiceClass {
         if (stored) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed)) {
-            parsed.forEach((item: any) => {
-              const id = item.id || item.studentId || item.rollNo || item.userId || String(Date.now());
-              this.notifyListeners(collectionName, id, item);
-            });
             return parsed as T[];
           }
         }

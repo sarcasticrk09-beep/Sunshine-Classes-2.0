@@ -74,7 +74,7 @@ import { ContentStudio } from './ContentStudio';
 import { Student, Teacher, User, UserRole, UserAccountStatus, Course, Batch, ClassEntity, ClassTiming, TimingSlotLabel, Topper, StudyMaterial, FounderMember, InstituteStrength, FeeStatus, FeeReceipt, AuditLog, AppNotification, StudentSubscription, SubscriptionPayment, SubscriptionReceipt, SubscriptionNotification, SubscriptionConfig, Admission, Attendance, Test, StudentMark, Homework, HomeworkSubmission, BlogPost, Testimonial, GalleryItem, Inquiry, TimetableEntry, EmailTemplatesConfig, WhatsAppTemplatesConfig, DepartedStudent, EmailLog, UPIPayment } from '../types';
 import { interpolateTemplate, getFeeForClass } from '../data';
 import { sendWhatsAppMessage, interpolateWhatsAppTemplate } from '../lib/whatsappService';
-import { googleSignIn, getCachedAccessToken, clearCachedAccessToken, db, getCachedIdToken } from '../lib/firebase';
+import { googleSignIn, getCachedAccessToken, clearCachedAccessToken, db, getCachedIdToken } from '../lib/supabase';
 import { SyncService } from '../services/SyncService';
 import { studentService } from '../services/studentService';
 import { noticesService } from '../services/firestoreDbService';
@@ -509,24 +509,18 @@ export default function AdminDashboard({
     }
   };
 
-  // --- START OF FIREBASE CONFIGURATION REFERENCES ---
+  // --- START OF SUPABASE CONFIGURATION REFERENCES ---
   const metaEnv = (import.meta as any).env || {};
-  const [firebaseConfigApiKey, setFirebaseConfigApiKey] = useState<string>(() => localStorage.getItem('fb_cfg_apiKey') || metaEnv.VITE_FIREBASE_API_KEY || '');
-  const [firebaseConfigAuthDomain, setFirebaseConfigAuthDomain] = useState<string>(() => localStorage.getItem('fb_cfg_authDomain') || metaEnv.VITE_FIREBASE_AUTH_DOMAIN || '');
-  const [firebaseConfigProjectId, setFirebaseConfigProjectId] = useState<string>(() => localStorage.getItem('fb_cfg_projectId') || metaEnv.VITE_FIREBASE_PROJECT_ID || '');
-  const [firebaseConfigStorageBucket, setFirebaseConfigStorageBucket] = useState<string>(() => localStorage.getItem('fb_cfg_storageBucket') || metaEnv.VITE_FIREBASE_STORAGE_BUCKET || '');
-  const [firebaseConfigMessagingSenderId, setFirebaseConfigMessagingSenderId] = useState<string>(() => localStorage.getItem('fb_cfg_messagingSenderId') || metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || '');
-  const [firebaseConfigAppId, setFirebaseConfigAppId] = useState<string>(() => localStorage.getItem('fb_cfg_appId') || metaEnv.VITE_FIREBASE_APP_ID || '');
+  const [supabaseConfigUrl, setSupabaseConfigUrl] = useState<string>(() => localStorage.getItem('sunshine_supabase_url') || metaEnv.VITE_SUPABASE_URL || '');
+  const [supabaseConfigAnonKey, setSupabaseConfigAnonKey] = useState<string>(() => localStorage.getItem('sunshine_supabase_anon_key') || metaEnv.VITE_SUPABASE_ANON_KEY || '');
+  const [supabaseConfigStorageBucket, setSupabaseConfigStorageBucket] = useState<string>(() => localStorage.getItem('sunshine_supabase_bucket') || 'sunshine-media');
 
-  const handleSaveFirebaseConfig = (e: React.FormEvent) => {
+  const handleSaveSupabaseConfig = (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('fb_cfg_apiKey', firebaseConfigApiKey);
-    localStorage.setItem('fb_cfg_authDomain', firebaseConfigAuthDomain);
-    localStorage.setItem('fb_cfg_projectId', firebaseConfigProjectId);
-    localStorage.setItem('fb_cfg_storageBucket', firebaseConfigStorageBucket);
-    localStorage.setItem('fb_cfg_messagingSenderId', firebaseConfigMessagingSenderId);
-    localStorage.setItem('fb_cfg_appId', firebaseConfigAppId);
-    alert('Success: Firebase Configuration references have been updated and synchronized with the ERP framework!');
+    localStorage.setItem('sunshine_supabase_url', supabaseConfigUrl.trim());
+    localStorage.setItem('sunshine_supabase_anon_key', supabaseConfigAnonKey.trim());
+    localStorage.setItem('sunshine_supabase_bucket', supabaseConfigStorageBucket.trim());
+    alert('Success: Supabase Database, Authentication, and Storage configuration updated successfully!');
   };
 
   // --- BACKUP & RESTORE STATES & SIMULATION ---
@@ -15054,85 +15048,58 @@ ${data.log}`
               )}
 
               {settingsSubTab === 'integrations' && (
-                /* Firebase Configuration References Management Card */
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4" id="firebase-references-manager">
+                /* Supabase Configuration References Management Card */
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4" id="supabase-references-manager">
                 <div>
                   <h3 className="font-display font-bold text-base text-slate-800 flex items-center gap-2">
-                    <Database size={18} className="text-orange-500" /> Firebase Configuration References
+                    <Database size={18} className="text-emerald-600" /> Supabase Database & Auth Settings
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Manage the Firebase initialization endpoints and app parameters used by the client-side authentication gateway.
+                    Manage the Supabase API endpoints, Anonymous Keys, and Cloud Storage bucket for authentication, database synchronization, and media storage.
                   </p>
                 </div>
 
-                <form onSubmit={handleSaveFirebaseConfig} className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">API Key Reference</label>
+                <form onSubmit={handleSaveSupabaseConfig} className="grid gap-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Supabase Project URL</label>
                     <input
                       type="text"
-                      id="fb-api-key-input"
-                      value={firebaseConfigApiKey}
-                      onChange={(e) => setFirebaseConfigApiKey(e.target.value)}
+                      id="supabase-url-input"
+                      value={supabaseConfigUrl}
+                      onChange={(e) => setSupabaseConfigUrl(e.target.value)}
+                      placeholder="https://your-project.supabase.co"
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-mono text-slate-800 focus:bg-white focus:outline-none"
                     />
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Auth Domain Reference</label>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Supabase Anon Key (Public Key)</label>
                     <input
-                      type="text"
-                      id="fb-auth-domain-input"
-                      value={firebaseConfigAuthDomain}
-                      onChange={(e) => setFirebaseConfigAuthDomain(e.target.value)}
+                      type="password"
+                      id="supabase-anon-key-input"
+                      value={supabaseConfigAnonKey}
+                      onChange={(e) => setSupabaseConfigAnonKey(e.target.value)}
+                      placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-mono text-slate-800 focus:bg-white focus:outline-none"
                     />
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Project ID Reference</label>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Storage Bucket Name</label>
                     <input
                       type="text"
-                      id="fb-project-id-input"
-                      value={firebaseConfigProjectId}
-                      onChange={(e) => setFirebaseConfigProjectId(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-mono text-slate-800 focus:bg-white focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Storage Bucket Reference</label>
-                    <input
-                      type="text"
-                      id="fb-storage-bucket-input"
-                      value={firebaseConfigStorageBucket}
-                      onChange={(e) => setFirebaseConfigStorageBucket(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-mono text-slate-800 focus:bg-white focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Messaging Sender ID</label>
-                    <input
-                      type="text"
-                      id="fb-sender-id-input"
-                      value={firebaseConfigMessagingSenderId}
-                      onChange={(e) => setFirebaseConfigMessagingSenderId(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-mono text-slate-800 focus:bg-white focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">App ID Reference</label>
-                    <input
-                      type="text"
-                      id="fb-app-id-input"
-                      value={firebaseConfigAppId}
-                      onChange={(e) => setFirebaseConfigAppId(e.target.value)}
+                      id="supabase-storage-bucket-input"
+                      value={supabaseConfigStorageBucket}
+                      onChange={(e) => setSupabaseConfigStorageBucket(e.target.value)}
+                      placeholder="sunshine-media"
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-mono text-slate-800 focus:bg-white focus:outline-none"
                     />
                   </div>
                   <div className="sm:col-span-2 flex justify-end">
                     <button
                       type="submit"
-                      id="btn-save-fb-config"
-                      className="rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs px-5 py-2.5 shadow cursor-pointer transition-all"
+                      id="btn-save-supabase-config"
+                      className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-2.5 shadow cursor-pointer transition-all flex items-center gap-2"
                     >
-                      Save Firebase Configuration References
+                      <Check size={14} /> Save Supabase Configuration
                     </button>
                   </div>
                 </form>

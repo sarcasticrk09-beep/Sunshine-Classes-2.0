@@ -4,7 +4,8 @@ export function registerServiceWorker() {
   }
 
   // In development environments or iframe sandboxes, unregister existing service workers to prevent caching bugs
-  if (!import.meta.env.PROD || window.self !== window.top) {
+  const metaEnv = (import.meta as any).env || {};
+  if (!metaEnv.PROD || window.self !== window.top) {
     navigator.serviceWorker.getRegistrations().then((registrations) => {
       for (const reg of registrations) {
         reg.unregister().catch(() => {});

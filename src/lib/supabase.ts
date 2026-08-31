@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { SyncService } from '../services/SyncService';
 
 const metaEnv = (import.meta as any).env || {};
 
@@ -14,9 +15,10 @@ export const supabaseAnonKey = envAnonKey || localAnonKey;
 
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
 
-let supabaseClient: any = null;
+// ============================================================================
+// Cookie and Token Session Helpers
+// ============================================================================
 
-// Helper to determine if running under HTTPS (e.g. Railway, Cloud Run, custom domain)
 function isSecureContext(): boolean {
   if (typeof window === 'undefined') return false;
   return window.location.protocol === 'https:';
@@ -88,6 +90,12 @@ export const clearCachedAccessToken = (): void => {
   setCachedIdToken(null);
 };
 
+// ============================================================================
+// Supabase Client Initialization
+// ============================================================================
+
+let supabaseClient: any = null;
+
 if (isSupabaseConfigured) {
   try {
     supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -135,6 +143,18 @@ if (isSupabaseConfigured) {
           signOut: async () => ({ error: null }),
           updateUser: async () => ({ data: { user: null }, error: new Error('Supabase is not configured.') }),
           getUser: async () => ({ data: { user: null }, error: null }),
+          signInWithOAuth: async () => ({ data: null, error: new Error('Supabase OAuth is not configured.') })
+        };
+      }
+      if (prop === 'storage') {
+        return {
+          from: (_bucket: string) => ({
+            upload: async () => ({ data: null, error: new Error('Supabase Storage is not configured.') }),
+            getPublicUrl: (path: string) => ({ data: { publicUrl: path } }),
+            download: async () => ({ data: null, error: new Error('Supabase Storage is not configured.') }),
+            remove: async () => ({ data: null, error: null }),
+            list: async () => ({ data: [], error: null })
+          })
         };
       }
 
@@ -159,3 +179,255 @@ if (isSupabaseConfigured) {
 
 export const supabase = supabaseClient;
 
+// ============================================================================
+// Supabase Authentication Wrappers & Compatibility Handlers
+// ============================================================================
+
+export const browserLocalPersistence = 'LOCAL';
+export const browserSessionPersistence = 'SESSION';
+export const inMemoryPersistence = 'NONE';
+export const indexedDBLocalPersistence = 'INDEXEDDB';
+
+let currentPersistenceMode: string = browserLocalPersistence;
+
+export async function setPersistence(_authObj: any, persistence: string): Promise<void> {
+  currentPersistenceMode = persistence;
+  if (typeof window !== 'undefined' && persistence === browserSessionPersistence) {
+    localStorage.removeItem('sunshine_access_token');
+  }
+}
+
+type AuthStateListener = (user: any) => void;
+const authListeners: Set<AuthStateListener> = new Set();
+
+export function onAuthStateChanged(_authObj: any, callback: AuthStateListener): () => void {
+  authListeners.add(callback);
+  if (typeof window !== 'undefined') {
+    try {
+      const activeSession = sessionStorage.getItem('sunshine_active_session') || localStorage.getItem('sunshine_active_session');
+      if (activeSession) {
+        const parsed = JSON.parse(activeSession);
+        callback(parsed?.user || null);
+      } else {
+        callback(null);
+      }
+    } catch {
+      callback(null);
+    }
+  }
+  return () => {
+    authListeners.delete(callback);
+  };
+}
+
+export function notifyAuthStateChange(user: any): void {
+  authListeners.forEach((listener) => {
+    try {
+      listener(user);
+    } catch (e) {
+      console.warn('[Supabase Auth] Listener callback error:', e);
+    }
+  });
+}
+
+export const auth = {
+  currentUser: null as any,
+  signOut: async () => {
+    clearCachedAccessToken();
+    notifyAuthStateChange(null);
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {}
+  }
+};
+
+export function getAuth() {
+  return auth;
+}
+
+export const db = {} as any;
+
+export async function googleSignIn(): Promise<any> {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google'
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function googleSignInForGmail(): Promise<{ user: { email?: string }; accessToken: string }> {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      scopes: 'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly'
+    }
+  });
+  if (error) throw error;
+  const token = (data as any)?.session?.provider_token || (data as any)?.session?.access_token || '';
+  const email = (data as any)?.session?.user?.email || '';
+  if (token) {
+    setCachedAccessToken(token);
+  }
+  return { user: { email }, accessToken: token };
+}
+
+// ============================================================================
+// Supabase Unified Storage Operations
+// ============================================================================
+
+export interface SupabaseStorageUploadOptions {
+  bucket?: string;
+  folder?: string;
+  upsert?: boolean;
+  contentType?: string;
+}
+
+export interface SupabaseStorageUploadResult {
+  url: string;
+  path: string;
+  bucket: string;
+  name: string;
+  size?: number;
+  type?: string;
+}
+
+const DEFAULT_STORAGE_BUCKET = 'sunshine-media';
+
+/**
+ * Upload a file, image, or document to Supabase Storage
+ */
+export async function uploadToSupabaseStorage(
+  file: File | Blob,
+  fileName: string,
+  options: SupabaseStorageUploadOptions = {}
+): Promise<SupabaseStorageUploadResult> {
+  const bucket = options.bucket || DEFAULT_STORAGE_BUCKET;
+  const folder = options.folder ? `${options.folder.replace(/\/+$/, '')}/` : '';
+  const cleanName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const filePath = `${folder}${Date.now()}_${cleanName}`;
+
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase.storage.from(bucket).upload(filePath, file, {
+        upsert: options.upsert !== undefined ? options.upsert : true,
+        contentType: options.contentType || (file instanceof File ? file.type : 'application/octet-stream')
+      });
+
+      if (error) {
+        console.warn(`[Supabase Storage] Upload error to bucket "${bucket}":`, error.message);
+        throw error;
+      }
+
+      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(data?.path || filePath);
+      return {
+        url: urlData.publicUrl,
+        path: data?.path || filePath,
+        bucket,
+        name: cleanName,
+        size: (file as any).size,
+        type: (file as any).type
+      };
+    } catch (e: any) {
+      console.warn('[Supabase Storage] Falling back to base64 DataURL:', e.message);
+    }
+  }
+
+  // Graceful fallback to DataURL for offline / unconfigured environments
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      resolve({
+        url: dataUrl,
+        path: filePath,
+        bucket,
+        name: cleanName,
+        size: (file as any).size,
+        type: (file as any).type
+      });
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Retrieve public URL for a file in Supabase Storage
+ */
+export function getSupabaseStoragePublicUrl(path: string, bucket: string = DEFAULT_STORAGE_BUCKET): string {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
+    return path;
+  }
+  if (!isSupabaseConfigured) return path;
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+  return data?.publicUrl || path;
+}
+
+/**
+ * Delete a file from Supabase Storage
+ */
+export async function deleteFromSupabaseStorage(path: string, bucket: string = DEFAULT_STORAGE_BUCKET): Promise<boolean> {
+  if (!isSupabaseConfigured || !path) return true;
+  try {
+    const { error } = await supabase.storage.from(bucket).remove([path]);
+    return !error;
+  } catch (e) {
+    console.warn('[Supabase Storage] Delete error:', e);
+    return false;
+  }
+}
+
+/**
+ * List files in a Supabase Storage bucket/folder
+ */
+export async function listSupabaseStorageFiles(folder: string = '', bucket: string = DEFAULT_STORAGE_BUCKET): Promise<any[]> {
+  if (!isSupabaseConfigured) return [];
+  try {
+    const { data, error } = await supabase.storage.from(bucket).list(folder);
+    if (error) throw error;
+    return data || [];
+  } catch (e) {
+    console.warn('[Supabase Storage] List error:', e);
+    return [];
+  }
+}
+
+// ============================================================================
+// Generic Document & Collection Persistence Helpers via SyncService
+// ============================================================================
+
+export async function fetchCollection<T>(collectionName: string): Promise<T[]> {
+  return await SyncService.list<T>(collectionName);
+}
+
+export async function saveDocument(collectionName: string, id: string, data: any): Promise<void> {
+  await SyncService.set(collectionName, id, data, { merge: true });
+}
+
+export async function addDocument(collectionName: string, data: any): Promise<string> {
+  const newId = data.id || `doc-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+  await SyncService.set(collectionName, newId, { ...data, id: newId });
+  return newId;
+}
+
+export async function seedDatabaseIfEmpty(
+  collectionName: string, 
+  seedData: any[]
+): Promise<boolean> {
+  try {
+    const list = await SyncService.list(collectionName);
+    if (list.length === 0 && seedData.length > 0) {
+      for (const item of seedData) {
+        const id = item.id || `seed-${Math.random().toString(36).substr(2, 9)}`;
+        await SyncService.set(collectionName, id, item);
+      }
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error(`Error seeding collection ${collectionName}:`, error);
+    return false;
+  }
+}
+
+export const seedFirestoreIfEmpty = seedDatabaseIfEmpty;

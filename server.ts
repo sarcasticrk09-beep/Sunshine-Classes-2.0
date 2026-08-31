@@ -336,6 +336,27 @@ async function startServer() {
     }
   });
 
+  app.get("/api/health/supabase", async (req, res) => {
+    try {
+      const snap = await adminDb.collection("students").get();
+      res.status(200).json({
+        status: "OK",
+        databaseConnected: true,
+        databaseProvider: "Supabase",
+        documentsFound: snap.docs.length,
+        timestamp: new Date().toISOString()
+      });
+    } catch (err: any) {
+      console.error("[Supabase Health Check Error]:", err.message);
+      res.status(500).json({
+        status: "ERROR",
+        databaseConnected: false,
+        error: err.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
   // Dynamic XML Sitemap for Sunshine Classes SEO
   app.get("/sitemap.xml", (req, res) => {
     const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
@@ -3505,7 +3526,7 @@ Sunshine Classes — *Excellence in Education* ☀️`;
   }
 
   const ensureSeedUsersExist = async () => {
-    console.log("[Firebase Init] Running background seed users assertion...");
+    console.log("[Supabase Init] Running background seed users assertion...");
     try {
       const authInstance = getAdminAuth();
       for (const user of SEED_USERS) {
@@ -3519,17 +3540,17 @@ Sunshine Classes — *Excellence in Education* ☀️`;
           authUserRecord = await authInstance.getUserByEmail(user.email);
           exists = true;
           uid = authUserRecord.uid;
-          console.log(`[Firebase Init] Seed user email "${user.email}" already exists with UID: ${uid}`);
+          console.log(`[Supabase Init] Seed user email "${user.email}" already exists with UID: ${uid}`);
         } catch (authErr: any) {
           if (authErr.code !== 'auth/user-not-found') {
-            console.warn(`[Firebase Init] Error checking user "${user.email}":`, authErr.message);
+            console.warn(`[Supabase Init] Error checking user "${user.email}":`, authErr.message);
           }
         }
 
         if (!exists) {
           try {
             const rawPassword = user.password || 'Sunshine@123';
-            console.log(`[Firebase Init] Creating seed user "${user.username}" (${user.email}) in Firebase Auth...`);
+            console.log(`[Supabase Init] Creating seed user "${user.username}" (${user.email}) in Supabase Auth...`);
             authUserRecord = await authInstance.createUser({
               email: user.email,
               password: rawPassword,
@@ -3537,21 +3558,21 @@ Sunshine Classes — *Excellence in Education* ☀️`;
               emailVerified: true
             });
             uid = authUserRecord.uid;
-            console.log(`[Firebase Init] Created seed user "${user.username}" successfully with UID: ${uid}`);
+            console.log(`[Supabase Init] Created seed user "${user.username}" successfully with UID: ${uid}`);
           } catch (createErr: any) {
-            console.error(`[Firebase Init] Failed to create seed user "${user.email}" in Firebase Auth:`, createErr.message);
+            console.error(`[Supabase Init] Failed to create seed user "${user.email}" in Supabase Auth:`, createErr.message);
             continue;
           }
         }
 
-        // Ensure matching Firestore profile document exists
+        // Ensure matching Supabase profile document exists
         try {
           const docRef = adminDb.collection("users").doc(uid);
           const docSnap = await docRef.get();
           const docExists = typeof docSnap.exists === "function" ? docSnap.exists() : Boolean(docSnap.exists);
           
           if (!docExists) {
-            console.log(`[Firebase Init] Firestore profile missing for UID "${uid}". Creating profile...`);
+            console.log(`[Supabase Init] Database profile missing for UID "${uid}". Creating profile...`);
             const newProfile = {
               id: uid,
               uid: uid,
@@ -3576,13 +3597,13 @@ Sunshine Classes — *Excellence in Education* ☀️`;
               uid: uid
             }, { merge: true });
           }
-        } catch (firestoreErr: any) {
-          console.error(`[Firebase Init] Failed to synchronize Firestore profile for "${user.email}":`, firestoreErr.message);
+        } catch (dbErr: any) {
+          console.error(`[Supabase Init] Failed to synchronize profile for "${user.email}":`, dbErr.message);
         }
       }
-      console.log("[Firebase Init] Seed users assertion completed successfully.");
+      console.log("[Supabase Init] Seed users assertion completed successfully.");
     } catch (err: any) {
-      console.error("[Firebase Init] Error in ensureSeedUsersExist:", err.message);
+      console.error("[Supabase Init] Error in ensureSeedUsersExist:", err.message);
     }
   };
 
@@ -3592,10 +3613,10 @@ Sunshine Classes — *Excellence in Education* ☀️`;
 
   if (!isProduction || process.env.FORCE_SEED_USERS === "true") {
     ensureSeedUsersExist().catch((err) => {
-      console.warn("[Firebase Init] Non-blocking seed users assertion error:", err.message);
+      console.warn("[Supabase Init] Non-blocking seed users assertion error:", err.message);
     });
   } else {
-    console.log("[Firebase Init] Production environment detected. Skipping automatic seed users assertion.");
+    console.log("[Supabase Init] Production environment detected. Skipping automatic seed users assertion.");
   }
 }
 

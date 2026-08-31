@@ -14,7 +14,7 @@ import {
   GmailProfile, 
   GmailMessageSummary 
 } from '../services/gmailService';
-import { getCachedAccessToken, clearCachedAccessToken } from '../lib/firebase';
+import { getCachedAccessToken, clearCachedAccessToken } from '../lib/supabase';
 import { Student, Teacher } from '../types';
 
 interface GmailHubProps {

@@ -109,7 +109,7 @@ import { PrivacyPolicyPage } from './components/legal/PrivacyPolicyPage';
 import { TermsConditionsPage } from './components/legal/TermsConditionsPage';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
 
-import { db, getCachedIdToken } from './lib/firebase';
+import { db, getCachedIdToken } from './lib/supabase';
 import { SyncService } from './services/SyncService';
 import { interpolateWhatsAppTemplate, sendWhatsAppMessage } from './lib/whatsappService';
 import {
