@@ -77,7 +77,7 @@ import { sendWhatsAppMessage, interpolateWhatsAppTemplate } from '../lib/whatsap
 import { googleSignIn, getCachedAccessToken, clearCachedAccessToken, db, getCachedIdToken } from '../lib/supabase';
 import { SyncService } from '../services/SyncService';
 import { studentService } from '../services/studentService';
-import { noticesService } from '../services/firestoreDbService';
+import { noticesService } from '../services/dbService';
 import { CloudinaryUpload } from './CloudinaryUpload';
 import { StudentDirectory } from './StudentDirectory';
 import { WhatsAppCommunication } from './WhatsAppCommunication';
@@ -727,7 +727,7 @@ export default function AdminDashboard({
           };
           onHealState('audit_logs', [newLog, ...auditLogs]);
 
-          alert(`Success: User @${user.username} deleted from Firebase Auth & Firestore.`);
+          alert(`Success: User @${user.username} deleted.`);
         }
       } catch (err: any) {
         console.error("Error deleting user:", err);
@@ -1640,7 +1640,7 @@ export default function AdminDashboard({
       return;
     }
 
-    if (!confirm("⚠️ Proceed with Self-Healing?\n\nThis will automatically patch data types, assign fallback defaults, and cryptographically harden weak logins back into Firestore. Continue?")) {
+    if (!confirm("⚠️ Proceed with Self-Healing?\n\nThis will automatically patch data types, assign fallback defaults, and cryptographically harden weak logins back into database. Continue?")) {
       return;
     }
 
@@ -1868,7 +1868,7 @@ export default function AdminDashboard({
       }
     }
 
-    logs.push(`[${new Date().toLocaleTimeString()}] All corrections successfully completed! Synchronizing Cloud Firestore...`);
+    logs.push(`[${new Date().toLocaleTimeString()}] All corrections successfully completed! Synchronizing Cloud Database...`);
     setHealLog(prev => [...prev, ...logs]);
 
     // Re-check
@@ -2741,10 +2741,10 @@ export default function AdminDashboard({
       const updatedStudents = students.map(s => s.id === editingStudent.id ? updatedStudent : s);
       onHealState('students', updatedStudents);
 
-      alert(`Success: Student "${editStdName}" profile was updated in Firestore and synchronized successfully.`);
+      alert(`Success: Student "${editStdName}" profile was updated in database and synchronized successfully.`);
       setIsProfileEditMode(false); // return to clean read-only view
     } catch (err: any) {
-      console.error("Error updating student profile in Firestore:", err);
+      console.error("Error updating student profile in database:", err);
       alert(`Error saving student details: ${err.message || err}`);
     }
   };
@@ -7563,7 +7563,7 @@ ${data.log}`
                             onConfirm: () => {
                               if (onClearTestData) {
                                 onClearTestData();
-                                alert("🧹 Clean slate initialized! All test student records have been successfully purged from Local Cache & Cloud Firestore. You are ready to run your real Google Sheets import.");
+                                alert("🧹 Clean slate initialized! All test student records have been successfully purged from Local Cache & Cloud Database. You are ready to run your real Google Sheets import.");
                               }
                             }
                           });
@@ -12239,7 +12239,7 @@ ${data.log}`
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-                      Real-time Firestore sync active
+                      Real-time Cloud Database sync active
                     </div>
                   </div>
                 </div>
@@ -13993,7 +13993,7 @@ ${data.log}`
                       <ShieldAlert size={14} className="text-rose-600" /> Absolute Database Purge & Hard-Reset
                     </h4>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      Wipe all tables, collections, fake student records, fake teachers, and fake admins from the live Firestore database and browser cache. Restores the database to exactly the 6 clean, official accounts.
+                      Wipe all tables, collections, fake student records, fake teachers, and fake admins from the live database and browser cache. Restores the database to exactly the 6 clean, official accounts.
                     </p>
                   </div>
 
@@ -14849,17 +14849,17 @@ ${data.log}`
                       <div id="google-unauthorized-domain-warning" className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 space-y-3 shadow-3xs">
                         <div className="flex items-center gap-2 font-bold">
                           <AlertCircle size={16} className="text-rose-600 shrink-0" />
-                          <span>Firebase Auth "Unauthorized Domain" Error!</span>
+                          <span>Google Authentication Domain Configuration</span>
                         </div>
                         <p className="leading-relaxed text-[11px] text-rose-700">
-                          Your Firebase project security rules restrict authentication to whitelisted domains. Since your app is deployed to a dynamic Cloud Run container URL, you must authorize this server domain in your Firebase Console.
+                          Your Google OAuth configuration restricts authentication to whitelisted domains. Since your app is deployed to a dynamic Cloud Run container URL, you may authorize this server domain in your Google Cloud or Supabase Console.
                         </p>
                         <div className="bg-white p-3 rounded-lg border border-rose-150 space-y-2 text-slate-700">
-                          <span className="font-bold text-[11.5px] text-slate-800 block">🔧 Whitelist Instructions:</span>
+                          <span className="font-bold text-[11.5px] text-slate-800 block">🔧 Configuration Instructions:</span>
                           <ol className="list-decimal pl-4 space-y-1 text-[11px] text-slate-600 leading-normal">
-                            <li>Open your <a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-bold hover:underline">Firebase Console</a></li>
-                            <li>Go to <strong>Authentication</strong> &rarr; <strong>Settings</strong> &rarr; <strong>Authorized domains</strong></li>
-                            <li>Click <strong>Add domain</strong> and paste your active domain:</li>
+                            <li>Open your <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-bold hover:underline">Google Cloud Console</a> or Supabase Dashboard</li>
+                            <li>Go to <strong>Authentication</strong> &rarr; <strong>URL Configuration / Authorized domains</strong></li>
+                            <li>Add your active domain:</li>
                           </ol>
                           <div className="mt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 bg-slate-50 p-2 rounded-md border">
                             <code className="text-[11px] font-mono font-bold text-slate-800 bg-white border px-2 py-0.5 rounded select-all">{window.location.hostname}</code>
@@ -15023,17 +15023,17 @@ ${data.log}`
                           Force-Align Owner & Administrative Profiles
                         </h5>
                         <p className="text-[10px] text-slate-500 leading-relaxed max-w-xl">
-                          Wipes and replaces legacy testing/development email addresses across all administrative accounts (Local cache and Cloud Firestore) to point to the official Sunshine Classes email: <code className="font-mono bg-amber-100 px-1 py-0.5 rounded text-amber-900">sunshineclassespihani@gmail.com</code>.
+                          Wipes and replaces legacy testing/development email addresses across all administrative accounts (Local cache and Cloud Database) to point to the official Sunshine Classes email: <code className="font-mono bg-amber-100 px-1 py-0.5 rounded text-amber-900">sunshineclassespihani@gmail.com</code>.
                         </p>
                       </div>
 
                       <button
                         type="button"
                         onClick={() => {
-                          if (confirm("🚨 Execute master scrubbing script? This will update all Admin, Teacher, and Staff stored profiles across LocalStorage and Cloud Firestore database to point to sunshineclassespihani@gmail.com, completely removing trace of any dev/test emails.")) {
+                          if (confirm("🚨 Execute master scrubbing script? This will update all Admin, Teacher, and Staff stored profiles across LocalStorage and Cloud Database to point to sunshineclassespihani@gmail.com, completely removing trace of any dev/test emails.")) {
                             if (onForceUpdateUserEmails) {
                               onForceUpdateUserEmails();
-                              alert("✨ Master Script Executed! Stored user profiles have been successfully force-aligned to sunshineclassespihani@gmail.com. Changes synced both to LocalCache & Cloud Firestore database.");
+                              alert("✨ Master Script Executed! Stored user profiles have been successfully force-aligned to sunshineclassespihani@gmail.com. Changes synced both to LocalCache & Cloud Database.");
                             }
                           }
                         }}
@@ -16378,7 +16378,7 @@ ${data.log}`
                     <Shield className="h-5 w-5 text-indigo-900" /> Cloud Database Integrity Monitor
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Real-time structural alignment analyzer & self-healing pipeline for Sunshine Classes Firestore
+                    Real-time structural alignment analyzer & self-healing pipeline for Sunshine Classes Database
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -16501,7 +16501,7 @@ ${data.log}`
                         </div>
                         <h5 className="text-sm font-extrabold text-slate-800">Database Structure Pristine</h5>
                         <p className="text-xs text-slate-400 max-w-sm">
-                          Excellent job! All checked Firestore documents match the expected schemas, unique identifiers are present, and data types are aligned.
+                          Excellent job! All checked database documents match the expected schemas, unique identifiers are present, and data types are aligned.
                         </p>
                       </div>
                     ) : (
@@ -16585,7 +16585,7 @@ ${data.log}`
 
                     <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 mt-4 text-[11px] text-slate-500 leading-relaxed">
                       <span className="font-bold text-slate-700 block mb-1">What does Self-Heal do?</span>
-                      The diagnostic engine repairs structural alignment issues locally and syncs modifications back to Firebase Firestore instantly.
+                      The diagnostic engine repairs structural alignment issues locally and syncs modifications back to database instantly.
                     </div>
                   </div>
                 </div>
@@ -16651,18 +16651,17 @@ ${data.log}`
                 <div id="sheets-unauthorized-domain-warning" className="p-5 rounded-3xl bg-rose-50 border border-rose-200 text-xs text-rose-800 space-y-3 shadow-3xs">
                   <div className="flex items-center gap-2 font-bold">
                     <AlertCircle size={18} className="text-rose-600 shrink-0" />
-                    <span className="text-sm font-display font-bold">Firebase Authentication "Unauthorized Domain" Detected!</span>
+                    <span className="text-sm font-display font-bold">OAuth Domain Configuration Required</span>
                   </div>
                   <p className="leading-relaxed text-[11.5px] text-rose-700">
-                    Firebase blocks OAuth popups from domains that aren't whitelisted in your Firebase Console project settings. Because this application runs on a dynamic cloud hosting environment, you need to add your current active domain name to the authorization whitelist.
+                    OAuth popups require the current active domain to be added to authorized redirect URIs in your Google Cloud or Supabase authentication settings.
                   </p>
                   <div className="bg-white p-4 rounded-2xl border border-rose-150 space-y-2 text-slate-700">
-                    <span className="font-bold text-[11.5px] text-slate-800 block">🔧 How to Whitelist in 60 Seconds:</span>
+                    <span className="font-bold text-[11.5px] text-slate-800 block">🔧 How to Configure in 60 Seconds:</span>
                     <ol className="list-decimal pl-4 space-y-1.5 text-[11px] text-slate-600 leading-normal">
-                      <li>Go to the <a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-bold hover:underline">Firebase Console</a>.</li>
-                      <li>Select your project, click <strong>Authentication</strong> on the left panel, and select the <strong>Settings</strong> tab.</li>
-                      <li>Under the <strong>Authorized domains</strong> list, click <strong>Add domain</strong>.</li>
-                      <li>Paste the active domain copy-able below and save!</li>
+                      <li>Go to the <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-bold hover:underline">Supabase Dashboard</a> or Google Cloud Console.</li>
+                      <li>Select your project, click <strong>Authentication</strong>, and select <strong>URL Configuration</strong>.</li>
+                      <li>Add your active domain to redirect URLs and save!</li>
                     </ol>
                     <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                       <div>
@@ -18558,7 +18557,7 @@ ${data.log}`
                       }
                     }
 
-                    // Call Firebase Admin API via server route to update user password & active/disabled status
+                    // Call Admin API via server route to update user password & active/disabled status
                     try {
                       const payload: any = {
                         uid: resettingUser.userId,
@@ -18576,12 +18575,12 @@ ${data.log}`
                       });
                       const data = await res.json();
                       if (!res.ok) {
-                        throw new Error(data.error || "Failed to sync user account properties with Firebase Auth.");
+                        throw new Error(data.error || "Failed to sync user account properties with Auth.");
                       }
-                      console.log("[Admin Manage User] Firebase Auth updated successfully for UID:", resettingUser.userId);
+                      console.log("[Admin Manage User] Auth updated successfully for UID:", resettingUser.userId);
                     } catch (err: any) {
                       console.error("[Admin Manage User Error]:", err);
-                      alert(`❌ Warning: Failed to update user's Firebase Auth account.\n\nError: ${err.message || err}`);
+                      alert(`❌ Warning: Failed to update user's account.\n\nError: ${err.message || err}`);
                       return;
                     }
 

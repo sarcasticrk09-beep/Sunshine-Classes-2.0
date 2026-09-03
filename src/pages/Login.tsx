@@ -131,17 +131,17 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
     setGoogleLoginStep('Google Sign-In Initiated');
     console.log('[Google Sign-In] Google Sign-In Initiated');
     try {
-      setGoogleLoginStep('Contacting Google/Firebase authentication server...');
-      console.log('[Google Sign-In] Contacting Firebase Auth (signInWithPopup/signInWithRedirect)');
+      setGoogleLoginStep('Contacting Google authentication server...');
+      console.log('[Google Sign-In] Contacting Supabase Auth');
       
       const success = await googleLogin();
       
       if (success) {
-        setGoogleLoginStep('Firebase User UID obtained. Verification successful.');
-        console.log('[Google Sign-In] Firebase User UID obtained');
+        setGoogleLoginStep('User session verified successfully.');
+        console.log('[Google Sign-In] Supabase session verified');
         setTimeout(() => {
-          setGoogleLoginStep('Firestore user doc checked. Access granted.');
-          console.log('[Google Sign-In] Firestore user doc checked');
+          setGoogleLoginStep('User profile checked. Access granted.');
+          console.log('[Google Sign-In] User profile checked');
         }, 500);
       } else {
         setGoogleLoginStep('');

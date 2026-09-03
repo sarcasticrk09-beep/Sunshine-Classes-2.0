@@ -267,7 +267,7 @@ export class AdmissionService {
       timestamp: isoString
     };
 
-    // 9. Execute Atomic Firestore Transaction
+    // 9. Execute Atomic Database Transaction
     try {
       await runTransaction(db, async (transaction) => {
         transaction.set(doc(db, 'users', userId), userDoc);

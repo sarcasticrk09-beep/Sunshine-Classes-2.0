@@ -282,7 +282,7 @@ export const EnrollmentHealthDashboard: React.FC<EnrollmentHealthDashboardProps>
     setDryRunResult(null);
     setTimeout(() => {
       setIsDryRunning(false);
-      setDryRunResult("SUCCESS: Gateway server ping succeeded (200 OK). Firestore write transactions fully optimized with zero active locking hazards.");
+      setDryRunResult("SUCCESS: Gateway server ping succeeded (200 OK). Database write transactions fully optimized with zero active locking hazards.");
     }, 1200);
   };
 
@@ -974,7 +974,7 @@ export const EnrollmentHealthDashboard: React.FC<EnrollmentHealthDashboardProps>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-slate-400 bg-slate-950 px-2.5 py-1 rounded border border-slate-800 font-bold">
-              Real-time Firestore Listeners: Active
+              Real-time Database Listeners: Active
             </span>
           </div>
         </div>

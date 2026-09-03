@@ -32,7 +32,7 @@ export class EventPublisher {
   }
 
   /**
-   * Publishes a domain event inside an active Firestore Transaction.
+   * Publishes a domain event inside an active Database Transaction.
    */
   public static publishInTransaction(transaction: any, db: any, eventType: string, payload: any): string {
     const eventId = `ev-${eventType.toLowerCase()}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;

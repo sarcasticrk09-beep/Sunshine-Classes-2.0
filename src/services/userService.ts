@@ -1,8 +1,8 @@
-import { usersService } from './firestoreDbService';
+import { usersService } from './dbService';
 import { User } from '../types';
 
 /**
- * Unified User Service - Delegates to firestoreDbService as single repository source
+ * Unified User Service - Delegates to dbService as single repository source
  */
 export const userService = {
   async fetchUser(uid: string): Promise<any | null> {

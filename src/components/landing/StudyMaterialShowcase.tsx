@@ -171,32 +171,32 @@ export const StudyMaterialShowcase: React.FC<StudyMaterialShowcaseProps> = ({
         </div>
 
         {/* 4 Preview Cards */}
-        <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-6">
           {itemsToDisplay.map((item) => (
             <div
               key={item.id}
-              className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 flex flex-col justify-between space-y-4 hover:border-amber-400 transition-all shadow-xs hover:shadow-md group"
+              className="rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:p-5 flex flex-col justify-between space-y-2.5 sm:space-y-4 hover:border-amber-400 transition-all shadow-xs hover:shadow-md group"
             >
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="h-9 w-9 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-200 dark:border-amber-800">
-                    <FileText size={18} />
+                  <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-lg sm:rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-200 dark:border-amber-800">
+                    <FileText size={15} className="sm:w-[18px] sm:h-[18px]" />
                   </div>
-                  <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                  <span className="text-[8px] sm:text-[9px] font-black uppercase px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                     {item.class}
                   </span>
                 </div>
 
                 <div>
-                  <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">
-                    {item.subject} • {item.materialType || item.category || 'NOTES'}
+                  <span className="text-[9px] sm:text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">
+                    {item.subject}
                   </span>
-                  <h3 className="font-display font-black text-sm text-slate-900 dark:text-white mt-0.5 line-clamp-2 leading-snug">
+                  <h3 className="font-display font-black text-xs sm:text-sm text-slate-900 dark:text-white mt-0.5 line-clamp-2 leading-snug">
                     {item.title}
                   </h3>
                 </div>
 
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-snug line-clamp-3 font-medium">
+                <p className="hidden sm:block text-xs text-slate-500 dark:text-slate-400 leading-snug line-clamp-3 font-medium">
                   {item.desc || item.description}
                 </p>
               </div>
@@ -205,10 +205,10 @@ export const StudyMaterialShowcase: React.FC<StudyMaterialShowcaseProps> = ({
               <button
                 id={`btn-download-preview-${item.id}`}
                 onClick={onNavigateResources}
-                className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 hover:bg-amber-500 hover:text-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs py-2 transition-all cursor-pointer group-hover:border-amber-500"
+                className="w-full flex items-center justify-center gap-1 sm:gap-1.5 rounded-lg sm:rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 hover:bg-amber-500 hover:text-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-[10px] sm:text-xs py-1.5 sm:py-2 transition-all cursor-pointer group-hover:border-amber-500"
               >
-                <Download size={13} />
-                <span>Download Free PDF</span>
+                <Download size={11} className="sm:w-3.5 sm:h-3.5" />
+                <span>Free PDF</span>
               </button>
             </div>
           ))}

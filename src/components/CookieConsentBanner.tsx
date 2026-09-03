@@ -44,7 +44,7 @@ export const CookieConsentBanner: React.FC = () => {
       id="cookie-consent-banner"
       role="region"
       aria-label="Cookie preferences and privacy consent"
-      className="fixed bottom-16 sm:bottom-6 left-3 right-3 sm:left-auto sm:right-6 sm:max-w-md z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-4 sm:p-5 transition-all duration-300 text-slate-800 dark:text-slate-200 animate-in fade-in slide-in-from-bottom-5"
+      className="fixed bottom-[116px] sm:bottom-6 left-3 right-3 sm:left-auto sm:right-6 sm:max-w-md z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-4 sm:p-5 transition-all duration-300 text-slate-800 dark:text-slate-200 animate-in fade-in slide-in-from-bottom-5"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">

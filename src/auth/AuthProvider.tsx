@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured, setCachedIdToken, getCachedIdToken } from '../lib/supabase';
-import { auditLogsService } from '../services/firestoreDbService';
+import { auditLogsService } from '../services/dbService';
 import { AuthContext } from './AuthContext';
 import { User, UserRole, AuditLog } from '../types';
 import { SEED_USERS } from '../data';

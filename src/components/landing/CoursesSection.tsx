@@ -41,7 +41,7 @@ export const CoursesSection: React.FC<CoursesSectionProps> = ({
     .slice(0, 4);
 
   return (
-    <section id="courses-preview" className="py-8 sm:py-16 bg-white dark:bg-slate-900 border-b border-slate-200/60 dark:border-slate-800/60">
+    <section id="courses-preview" className="py-6 sm:py-16 bg-white dark:bg-slate-900 border-b border-slate-200/60 dark:border-slate-800/60">
       <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 space-y-6 sm:space-y-12">
         
         {/* Section Header */}
@@ -59,7 +59,7 @@ export const CoursesSection: React.FC<CoursesSectionProps> = ({
         </div>
 
         {/* Concise Featured 3-4 Cards Grid */}
-        <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-6">
           {featuredPrograms.map((course) => (
             <CourseCard
               key={course.id}

@@ -1,5 +1,5 @@
 import { SyncService } from "./SyncService";
-import { auditLogsService } from "./firestoreDbService";
+import { auditLogsService } from "./dbService";
 
 // ========================================================
 // 1. WhatsApp Types and Interfaces

@@ -14,9 +14,9 @@ interface UseCollectionListenerOptions<T> {
 const listenerHeartbeats: Record<string, number> = {};
 
 /**
- * Hook to manage Connection Watchdog.
+ * Hook to manage Database Connection Watchdog (Supabase / Network).
  */
-export function useFirestoreConnectionWatchdog(_checkIntervalMs: number = 30000) {
+export function useDbConnectionWatchdog(_checkIntervalMs: number = 30000) {
   const [reconnectSignal, setReconnectSignal] = useState<number>(0);
   const [isHealthy, setIsHealthy] = useState<boolean>(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
   const lastCheckRef = useRef<number>(Date.now());

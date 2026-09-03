@@ -45,7 +45,7 @@ export class AuditService {
   }
 
   /**
-   * Logs an audit record inside an active Firestore Transaction.
+   * Logs an audit record inside an active Database Transaction.
    */
   public static logInTransaction(
     transaction: any,

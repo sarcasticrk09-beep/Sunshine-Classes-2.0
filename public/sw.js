@@ -40,8 +40,8 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // Skip non-GET requests or external API/Firestore calls
-  if (req.method !== 'GET' || url.pathname.startsWith('/api/') || url.hostname.includes('firestore') || url.hostname.includes('google')) {
+  // Skip non-GET requests or external API/Supabase calls
+  if (req.method !== 'GET' || url.pathname.startsWith('/api/') || url.hostname.includes('supabase') || url.hostname.includes('google')) {
     return;
   }
 

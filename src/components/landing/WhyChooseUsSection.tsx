@@ -70,21 +70,21 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsSectionProps> = ({ strength
         </div>
 
         {/* Dynamic Cards Grid */}
-        <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-6">
           {items.map((item, idx) => (
             <div
               key={item.id || idx}
               id={`why-choose-card-${item.id || idx}`}
-              className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-6 space-y-3 sm:space-y-4 hover:border-amber-400/80 dark:hover:border-amber-500/60 transition-all duration-300 shadow-xs hover:shadow-md group flex flex-col justify-between relative overflow-hidden"
+              className="rounded-xl sm:rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:p-6 space-y-2 sm:space-y-4 hover:border-amber-400/80 dark:hover:border-amber-500/60 transition-all duration-300 shadow-xs hover:shadow-md group flex flex-col justify-between relative overflow-hidden"
             >
-              <div className="space-y-2.5 sm:space-y-3">
+              <div className="space-y-1.5 sm:space-y-3">
                 {/* Top Badge & Icon */}
-                <div className="flex items-center justify-between gap-2">
-                  <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform shrink-0">
-                    {getIconComponent(item.iconName)}
+                <div className="flex items-center justify-between gap-1.5 sm:gap-2">
+                  <div className="h-8 w-8 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform shrink-0">
+                    <div className="scale-75 sm:scale-100">{getIconComponent(item.iconName)}</div>
                   </div>
                   {item.badge && (
-                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-full px-2.5 py-0.5 shrink-0">
+                    <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-full px-1.5 py-0.5 sm:px-2.5 sm:py-0.5 shrink-0 truncate max-w-[80px] sm:max-w-none">
                       {item.badge}
                     </span>
                   )}
@@ -92,18 +92,18 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsSectionProps> = ({ strength
 
                 {/* Title & Description */}
                 <div>
-                  <h3 className="font-display font-black text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                  <h3 className="font-display font-black text-xs sm:text-base text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors leading-tight">
                     {item.title}
                   </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mt-1 font-medium">
+                  <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400 leading-snug mt-0.5 sm:mt-1 font-medium line-clamp-3 sm:line-clamp-none">
                     {item.description}
                   </p>
                 </div>
               </div>
 
               {/* Bottom Subtle Indicator */}
-              <div className="pt-2.5 sm:pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-amber-600 dark:text-amber-400">
-                <CheckCircle size={13} className="shrink-0 text-amber-500" />
+              <div className="pt-2 sm:pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center gap-1 sm:gap-1.5 text-[9px] sm:text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                <CheckCircle size={11} className="shrink-0 text-amber-500 sm:w-[13px] sm:h-[13px]" />
                 <span>Sunshine Standard</span>
               </div>
             </div>

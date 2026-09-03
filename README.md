@@ -18,8 +18,8 @@ The application operates as a full-stack Node.js + Express application hosting a
 | **Icons** | Lucide React | Modern vector icon pack |
 | **Charts** | Recharts & D3 | Financial analytics, attendance graphs |
 | **Backend** | Express + Node.js (v20+) | Secure REST APIs and asset delivery |
-| **Database** | Firebase Firestore (v10+) | Durable, real-time cloud persistence (migrating to Supabase) |
-| **Auth** | Firebase Auth / Supabase Auth | Identity provider & role management |
+| **Database** | Supabase (PostgreSQL) | Durable, real-time cloud persistence |
+| **Auth** | Supabase Auth / JWT | Identity provider & role management |
 | **Storage** | Cloudinary / Supabase Storage | Document uploads & webcam portraits |
 
 ---
@@ -77,7 +77,7 @@ npm install
 ```
 
 ### 3. Environment Variables
-Copy the template and populate it with your local development keys (Firebase, Cloudinary, Twilio, and SMTP):
+Copy the template and populate it with your local development keys (Supabase, Cloudinary, Twilio, and SMTP):
 ```bash
 cp .env.example .env
 ```
@@ -105,5 +105,5 @@ npm run start
 
 All state changes on client reads/writes are guarded by:
 1. **Role-Based Access Control (RBAC)**: Defined inside `/src/types.ts` and gated inside `/src/App.tsx`.
-2. **Database Security Rules**: Enforced at the cloud level (e.g., Firestore rules and Postgres RLS).
+2. **Database Security Rules**: Enforced at the cloud level (e.g., Supabase Postgres RLS policies).
 3. **Cryptographic Credentials**: Enforced via `simpleSecureHash` with `sha256_` prefix strings on client/server.

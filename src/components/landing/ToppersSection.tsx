@@ -57,7 +57,7 @@ export const ToppersSection: React.FC<ToppersSectionProps> = ({
   const itemsToDisplay = (featuredToppers.length > 0 ? featuredToppers : publishedToppers).slice(0, 3);
 
   return (
-    <section id="results-preview" className="py-8 sm:py-16 bg-slate-50/80 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800/60">
+    <section id="results-preview" className="py-6 sm:py-16 bg-slate-50/80 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800/60">
       <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 space-y-6 sm:space-y-12">
         
         {/* Section Header */}
@@ -75,7 +75,7 @@ export const ToppersSection: React.FC<ToppersSectionProps> = ({
         </div>
 
         {/* Toppers Cards Grid */}
-        <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-6 max-w-5xl mx-auto">
           {itemsToDisplay.map((top, idx) => (
             <TopperCard
               key={top.id || `home-topper-${idx}`}

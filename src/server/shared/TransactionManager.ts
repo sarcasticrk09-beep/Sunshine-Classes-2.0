@@ -2,7 +2,7 @@ import { runTransaction } from './db';
 
 export class TransactionManager {
   /**
-   * Safely runs a Firestore transaction, tracking performance metrics and implementing robust logging.
+   * Safely runs a database transaction, tracking performance metrics and implementing robust logging.
    */
   public static async run<T>(
     db: any,

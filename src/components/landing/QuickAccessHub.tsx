@@ -88,20 +88,20 @@ export const QuickAccessHub: React.FC<QuickAccessHubProps> = ({ onNavigateSectio
         </div>
 
         {/* 6 Hub Cards Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
           {hubCards.map((card) => (
             <button
               key={card.id}
               id={`hub-card-${card.id}`}
               onClick={card.action}
-              className="group rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 p-3 sm:p-4 text-left flex flex-col justify-between hover:border-amber-500 dark:hover:border-amber-400 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 shadow-xs hover:shadow-md cursor-pointer min-h-[145px] sm:min-h-[160px]"
+              className="group rounded-xl sm:rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 p-2.5 sm:p-4 text-left flex flex-col justify-between hover:border-amber-500 dark:hover:border-amber-400 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 shadow-xs hover:shadow-md cursor-pointer min-h-[110px] sm:min-h-[160px]"
             >
-              <div className="space-y-2 sm:space-y-3">
+              <div className="space-y-1.5 sm:space-y-3">
                 
                 {/* Top Row: Icon */}
                 <div className="flex items-center justify-between">
-                  <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform shrink-0">
-                    {card.icon}
+                  <div className="h-7 w-7 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform shrink-0">
+                    <div className="scale-80 sm:scale-100">{card.icon}</div>
                   </div>
                 </div>
 
@@ -113,7 +113,7 @@ export const QuickAccessHub: React.FC<QuickAccessHubProps> = ({ onNavigateSectio
                   <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 block mt-0.5">
                     {card.subtitle}
                   </span>
-                  <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-tight line-clamp-2">
+                  <p className="hidden sm:block text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-tight line-clamp-2">
                     {card.description}
                   </p>
                 </div>
@@ -121,9 +121,9 @@ export const QuickAccessHub: React.FC<QuickAccessHubProps> = ({ onNavigateSectio
               </div>
 
               {/* Bottom Action Hint */}
-              <div className="pt-1.5 flex items-center justify-between border-t border-slate-200/40 dark:border-slate-800 text-[10px] font-extrabold text-amber-600 dark:text-amber-400">
+              <div className="pt-1 sm:pt-1.5 flex items-center justify-between border-t border-slate-200/40 dark:border-slate-800 text-[9px] sm:text-[10px] font-extrabold text-amber-600 dark:text-amber-400">
                 <span>Explore</span>
-                <ArrowRight size={11} className="group-hover:translate-x-1 transition-transform" />
+                <ArrowRight size={10} className="group-hover:translate-x-1 transition-transform sm:w-3 sm:h-3" />
               </div>
 
             </button>

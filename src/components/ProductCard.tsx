@@ -52,7 +52,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       {/* Product Image Stage */}
       <div 
         onClick={handleViewDetails}
-        className="w-full h-52 bg-slate-100 dark:bg-slate-850 overflow-hidden relative cursor-pointer flex items-center justify-center p-4 group-hover:opacity-95 transition-opacity"
+        className="w-full h-28 sm:h-52 bg-slate-100 dark:bg-slate-850 overflow-hidden relative cursor-pointer flex items-center justify-center p-2 sm:p-4 group-hover:opacity-95 transition-opacity"
       >
         <img 
           src={product.featuredImage || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&q=80&w=800'} 
@@ -63,23 +63,23 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
         {/* Class Badge */}
         {product.class && (
-          <span className="absolute bottom-2.5 right-2.5 bg-slate-900/80 backdrop-blur-md text-amber-300 text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">
+          <span className="absolute bottom-1.5 right-1.5 sm:bottom-2.5 sm:right-2.5 bg-slate-900/80 backdrop-blur-md text-amber-300 text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded uppercase tracking-wider">
             {product.class}
           </span>
         )}
       </div>
 
       {/* Card Body */}
-      <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
-        <div className="space-y-2">
+      <div className="p-2.5 sm:p-5 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3">
+        <div className="space-y-1.5 sm:space-y-2">
           
           {/* Category & Publisher Header */}
-          <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-            <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold">
-              {isBook ? <BookOpen size={13} /> : <Package size={13} />}
-              <span>{product.categoryName}</span>
+          <div className="flex items-center justify-between text-[10px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <span className="inline-flex items-center gap-1 sm:gap-1.5 text-amber-600 dark:text-amber-400 font-bold">
+              {isBook ? <BookOpen size={12} className="sm:w-3.5 sm:h-3.5" /> : <Package size={12} className="sm:w-3.5 sm:h-3.5" />}
+              <span className="truncate max-w-[80px] sm:max-w-none">{product.categoryName}</span>
             </span>
-            <span className="truncate max-w-[120px] text-right font-medium text-slate-400">
+            <span className="truncate max-w-[70px] sm:max-w-[120px] text-right font-medium text-slate-400">
               {brandOrPublisher}
             </span>
           </div>
@@ -87,14 +87,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           {/* Title */}
           <h3 
             onClick={handleViewDetails}
-            className="font-bold text-slate-900 dark:text-white text-base leading-snug line-clamp-2 hover:text-amber-600 dark:hover:text-amber-400 transition-colors cursor-pointer"
+            className="font-bold text-slate-900 dark:text-white text-xs sm:text-base leading-snug line-clamp-2 hover:text-amber-600 dark:hover:text-amber-400 transition-colors cursor-pointer"
           >
             {product.title}
           </h3>
 
           {/* Subject & Class Metadata if available */}
           {(product.subject || product.class) && (
-            <div className="flex flex-wrap gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+            <div className="hidden sm:flex flex-wrap gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
               {product.subject && (
                 <span className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-md">
                   {product.subject}
@@ -104,32 +104,34 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           )}
 
           {/* Pricing & Stock Status */}
-          <div className="flex items-center justify-between pt-1">
-            <div className="flex items-baseline gap-2">
-              <span className="text-lg font-black font-display text-amber-600 dark:text-amber-400">
+          <div className="flex items-center justify-between pt-0.5 sm:pt-1">
+            <div className="flex items-baseline gap-1 sm:gap-2">
+              <span className="text-sm sm:text-lg font-black font-display text-amber-600 dark:text-amber-400">
                 ₹{product.price ?? 299}
               </span>
               {product.originalPrice && product.originalPrice > (product.price || 0) && (
-                <span className="text-xs text-slate-400 line-through">
+                <span className="text-[10px] sm:text-xs text-slate-400 line-through">
                   ₹{product.originalPrice}
                 </span>
               )}
             </div>
 
             {/* Availability */}
-            {formatStockStatus(product.stockStatus)}
+            <div className="scale-90 sm:scale-100 origin-right">
+              {formatStockStatus(product.stockStatus)}
+            </div>
           </div>
 
           {/* Short Description */}
           {product.shortDescription && (
-            <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
+            <p className="hidden sm:block text-xs text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
               {product.shortDescription}
             </p>
           )}
 
           {/* Faculty Recommendation note if present */}
           {product.whySunshineRecommends && (
-            <div className="bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/40 rounded-xl p-2.5 text-[11px] text-amber-900 dark:text-amber-200 flex items-start gap-1.5 leading-snug">
+            <div className="hidden sm:flex bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/40 rounded-xl p-2.5 text-[11px] text-amber-900 dark:text-amber-200 items-start gap-1.5 leading-snug">
               <ShieldCheck size={14} className="text-amber-600 shrink-0 mt-0.5" />
               <span className="line-clamp-2 font-medium">
                 <strong className="font-bold">Faculty Note:</strong> {product.whySunshineRecommends}
@@ -140,14 +142,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </div>
 
         {/* Footer Action Button */}
-        <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
+        <div className="pt-2 sm:pt-3 border-t border-slate-100 dark:border-slate-800">
           <button
             id={`btn-view-product-${product.id}`}
             onClick={handleViewDetails}
-            className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-amber-500 dark:bg-slate-800 dark:hover:bg-amber-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+            className="w-full py-1.5 sm:py-2.5 px-2 sm:px-4 rounded-lg sm:rounded-xl bg-slate-900 hover:bg-amber-500 dark:bg-slate-800 dark:hover:bg-amber-500 text-white font-bold text-[10px] sm:text-xs transition-all flex items-center justify-center gap-1 sm:gap-1.5 shadow-xs cursor-pointer"
           >
-            <span>View Product Details</span>
-            <ArrowRight size={13} />
+            <span>View Details</span>
+            <ArrowRight size={12} className="sm:w-3.5 sm:h-3.5" />
           </button>
         </div>
       </div>

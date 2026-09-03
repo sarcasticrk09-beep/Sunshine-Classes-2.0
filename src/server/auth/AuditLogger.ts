@@ -1,8 +1,8 @@
 export class AuditLogger {
-  private static saveToFirestoreFn?: (logItem: any) => Promise<void>;
+  private static saveToDbFn?: (logItem: any) => Promise<void>;
 
-  public static setFirestoreLogger(fn: (logItem: any) => Promise<void>) {
-    this.saveToFirestoreFn = fn;
+  public static setDatabaseLogger(fn: (logItem: any) => Promise<void>) {
+    this.saveToDbFn = fn;
   }
 
   public static async log(
@@ -15,9 +15,9 @@ export class AuditLogger {
     const timestamp = new Date().toISOString();
     console.log(`[ERP AUDIT LOG] [${timestamp}] [${status}] User: ${username} | Action: ${action} | Details: ${details}`);
 
-    if (this.saveToFirestoreFn) {
+    if (this.saveToDbFn) {
       try {
-        await this.saveToFirestoreFn({
+        await this.saveToDbFn({
           id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
           userId: userId || username || 'SYSTEM',
           username: username || 'system',
@@ -27,7 +27,7 @@ export class AuditLogger {
           timestamp
         });
       } catch (err: any) {
-        console.warn('[AuditLogger] Failed to persist audit log to Firestore:', err?.message);
+        console.warn('[AuditLogger] Failed to persist audit log to database:', err?.message);
       }
     }
   }

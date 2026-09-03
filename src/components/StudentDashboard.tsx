@@ -1202,16 +1202,16 @@ export default function StudentDashboard({
               {activeTab === 'overview' && (
                 <div className="space-y-6">
                   {/* Analytics Quick Cards */}
-                  <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-4">
                     {/* Card 1: Attendance */}
-                    <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-[#E3F2FD]/30 via-white to-white p-5 shadow-xs flex items-center gap-4 transition-all duration-200 hover:scale-[1.02] hover:shadow-md hover:border-blue-200">
-                      <div className="rounded-2xl bg-gradient-to-br from-[#0D47A1] to-[#1565C0] p-3 text-white shadow-md shadow-blue-500/10">
-                        <Calendar size={22} className="text-white" />
+                    <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-[#E3F2FD]/30 via-white to-white p-3.5 sm:p-5 shadow-xs flex items-center gap-3 sm:gap-4 transition-all duration-200 hover:scale-[1.02] hover:shadow-md hover:border-blue-200">
+                      <div className="rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#0D47A1] to-[#1565C0] p-2.5 sm:p-3 text-white shadow-md shadow-blue-500/10 shrink-0">
+                        <Calendar size={18} className="sm:w-[22px] sm:h-[22px] text-white" />
                       </div>
-                      <div className="flex-1">
-                        <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest block mb-0.5">My Attendance Ratio</span>
-                        <span className="font-display text-2xl font-black text-slate-900 tracking-tight">{calculatedAttendancePct}%</span>
-                        <div className="flex items-center gap-1 mt-1">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[9px] sm:text-[10px] text-slate-400 font-black uppercase tracking-widest block mb-0.5">My Attendance Ratio</span>
+                        <span className="font-display text-xl sm:text-2xl font-black text-slate-900 tracking-tight">{calculatedAttendancePct}%</span>
+                        <div className="flex items-center gap-1 mt-0.5 sm:mt-1">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                           <span className="text-[10px] text-emerald-600 font-black">Highly Consistent</span>
                         </div>
@@ -1219,31 +1219,31 @@ export default function StudentDashboard({
                     </div>
                     
                     {/* Card 2: Average Grade */}
-                    <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-[#EDE7F6]/30 via-white to-white p-5 shadow-xs flex items-center gap-4 transition-all duration-200 hover:scale-[1.02] hover:shadow-md hover:border-indigo-200">
-                      <div className="rounded-2xl bg-gradient-to-br from-[#311B92] to-[#4527A0] p-3 text-white shadow-md shadow-indigo-500/10">
-                        <Award size={22} className="text-amber-300 animate-pulse" />
+                    <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-[#EDE7F6]/30 via-white to-white p-3.5 sm:p-5 shadow-xs flex items-center gap-3 sm:gap-4 transition-all duration-200 hover:scale-[1.02] hover:shadow-md hover:border-indigo-200">
+                      <div className="rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#311B92] to-[#4527A0] p-2.5 sm:p-3 text-white shadow-md shadow-indigo-500/10 shrink-0">
+                        <Award size={18} className="sm:w-[22px] sm:h-[22px] text-amber-300 animate-pulse" />
                       </div>
-                      <div className="flex-1">
-                        <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest block mb-0.5">Academic Standing</span>
-                        <span className="font-display text-2xl font-black text-slate-900 tracking-tight">88.4%</span>
-                        <div className="flex items-center gap-1 mt-1">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[9px] sm:text-[10px] text-slate-400 font-black uppercase tracking-widest block mb-0.5">Academic Standing</span>
+                        <span className="font-display text-xl sm:text-2xl font-black text-slate-900 tracking-tight">88.4%</span>
+                        <div className="flex items-center gap-1 mt-0.5 sm:mt-1">
                           <span className="text-[10px] text-indigo-600 font-black">⭐ Top 10 Percentile</span>
                         </div>
                       </div>
                     </div>
 
                     {/* Card 3: Subscription */}
-                    <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-[#FFF8E1]/30 via-white to-white p-5 shadow-xs flex items-center gap-4 transition-all duration-200 hover:scale-[1.02] hover:shadow-md hover:border-amber-200">
-                      <div className={`rounded-2xl p-3 text-white shadow-md ${
+                    <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-gradient-to-br from-[#FFF8E1]/30 via-white to-white p-3.5 sm:p-5 shadow-xs flex items-center gap-3 sm:gap-4 transition-all duration-200 hover:scale-[1.02] hover:shadow-md hover:border-amber-200">
+                      <div className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-3 text-white shadow-md shrink-0 ${
                         mySubscription?.status === 'ACTIVE' 
                           ? 'bg-gradient-to-br from-emerald-600 to-teal-700 shadow-emerald-500/10' 
                           : 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-amber-500/10'
                       }`}>
-                        <CreditCard size={22} className="text-white" />
+                        <CreditCard size={18} className="sm:w-[22px] sm:h-[22px] text-white" />
                       </div>
-                      <div className="flex-1">
-                        <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest block mb-0.5">Course Subscription</span>
-                        <span className={`font-display text-xs font-black block uppercase tracking-wide ${
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[9px] sm:text-[10px] text-slate-400 font-black uppercase tracking-widest block mb-0.5">Course Subscription</span>
+                        <span className={`font-display text-xs font-black block uppercase tracking-wide truncate ${
                           mySubscription?.status === 'ACTIVE' ? 'text-emerald-600' :
                           mySubscription?.status === 'DUE_SOON' ? 'text-amber-600 animate-pulse' : 'text-rose-600 font-extrabold'
                         }`}>

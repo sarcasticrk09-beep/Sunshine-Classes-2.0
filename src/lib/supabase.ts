@@ -430,4 +430,3 @@ export async function seedDatabaseIfEmpty(
   }
 }
 
-export const seedFirestoreIfEmpty = seedDatabaseIfEmpty;

@@ -118,9 +118,9 @@ import {
   useAdmissionsListener,
   useFeeStatusesListener,
   useUsersListener,
-  useFirestoreConnectionWatchdog,
+  useDbConnectionWatchdog,
 } from './hooks/useCollectionListener';
-import { initializeAndSeedFirestore, forceResetDatabase } from './services/initDbService';
+import { initializeAndSeedDatabase, forceResetDatabase } from './services/initDbService';
 
 import { LogIn, Shield, Users, BookOpen, UserCheck, Key, LogOut, X, Sun, Moon, Eye, EyeOff, Cloud, CloudOff, RefreshCw, Bell, BellRing, Check, CheckCheck, AlertCircle, Mail, MessageSquare, Crown, Share2, MessageCircle, Copy } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -600,7 +600,7 @@ export default function App() {
     alert('Security Shield Locked: This system is permanently configured in Production Security Shield mode to protect student and staff data privacy. Backdoors and development bypasses have been disabled.');
   };
 
-  // Sync to LocalStorage & Firestore helper with highly optimized debounce logic to avoid consecutive write overhead and lagging
+  // Sync to LocalStorage & Database helper with highly optimized debounce logic to avoid consecutive write overhead and lagging
   const syncState = async (key: string, data: any) => {
     let sanitizedData = data;
     if (key === 'users' && Array.isArray(data)) {
@@ -610,7 +610,7 @@ export default function App() {
     // 1. Instantly write to localStorage for zero-latency client state
     localStorage.setItem(`sunshine_${key}`, JSON.stringify(sanitizedData));
 
-    // 2. Queue the write to Firestore in a debounced background batch
+    // 2. Queue the write to database in a debounced background batch
     pendingSyncs[key] = sanitizedData;
 
     if (syncTimeoutId) {
@@ -781,25 +781,25 @@ export default function App() {
     return updatedNotifs;
   };
 
-  // Load from Cloud Database (Firestore) in the background with zero startup lag
+  // Load from Cloud Database in the background with zero startup lag
   useEffect(() => {
     const loadStateAndData = async () => {
       try {
         // Trigger one-time force reset of database to purge fake students & setup 6 real accounts
         const resetDone = localStorage.getItem('sunshine_v2_db_reset_done_v5');
         if (resetDone !== 'true') {
-          console.log('[Firestore] Running initial clean database reset...');
+          console.log('[Database] Running initial clean database reset...');
           try {
             await forceResetDatabase();
             localStorage.setItem('sunshine_v2_db_reset_done_v5', 'true');
           } catch (resetErr) {
-            console.error('[Firestore] Failed database reset:', resetErr);
+            console.error('[Database] Failed database reset:', resetErr);
           }
         }
 
         // Trigger normalized database seeding check
-        initializeAndSeedFirestore().catch(err => {
-          console.warn('[Firestore Init] Non-blocking initial seeding check:', err);
+        initializeAndSeedDatabase().catch(err => {
+          console.warn('[Database Init] Non-blocking initial seeding check:', err);
         });
 
         const loadOrSeedCloud = async <T,>(key: string, seed: T): Promise<T> => {
@@ -1294,7 +1294,7 @@ export default function App() {
       });
     }
 
-    // Encrypt/hash passwords on-load from Firestore to ensure 100% security policy compliance
+    // Encrypt/hash passwords on-load from database to ensure 100% security policy compliance
     migratedLoadedUsers = migratedLoadedUsers.map(u => {
       let pwd = u.password;
       let plainPass = (u as any).plainPassword;
@@ -1430,7 +1430,7 @@ export default function App() {
     setUpiPayments(loadedUpiPayments || []);
     setCloudOnline(true);
       } catch (err: any) {
-        console.warn("[Cloud Firestore] Background synchronization completed with local fallback state:", err);
+        console.warn("[Cloud Database] Background synchronization completed with local fallback state:", err);
         setCloudOnline(false);
       } finally {
         setCloudLoading(false);
@@ -1439,8 +1439,8 @@ export default function App() {
     loadStateAndData();
   }, []);
 
-  // Firestore Connection Watchdog to monitor listener health and auto-recover on stalls
-  const { reconnectSignal } = useFirestoreConnectionWatchdog(30000);
+  // Database Connection Watchdog to monitor listener health and auto-recover on stalls
+  const { reconnectSignal } = useDbConnectionWatchdog(30000);
 
   // Real-time collection listeners with automatic connection recovery and proper cleanup
   useStudentsListener(setStudents, reconnectSignal);
@@ -2938,7 +2938,7 @@ Sunshine Classes`;
       userId: currentUser?.id || 'admin',
       username: currentUser?.username || 'admin',
       action: 'FORCE_UPDATE_EMAILS',
-      details: "Triggered master scrubbing script to force-update all administrative user and staff emails from older domains to 'sunshineclassespihani@gmail.com' in local cache and Cloud Firestore.",
+      details: "Triggered master scrubbing script to force-update all administrative user and staff emails from older domains to 'sunshineclassespihani@gmail.com' in local cache and Cloud Database.",
       timestamp: new Date().toISOString()
     };
     const updatedAudits = [newLog, ...auditLogs];
@@ -3086,7 +3086,7 @@ Sunshine Classes`;
 
   // Switch Quick Roles from demo panel
   const handleSelectRole = (role: UserRole) => {
-    // Under Firebase Production Auth, roles are securely mapped from Firestore.
+    // Under Production Auth, roles are securely mapped from Supabase.
     // Quick switching is disabled in production to protect data isolation.
     alert("Role switching is disabled. Please log in using the appropriate credentials.");
   };

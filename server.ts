@@ -66,7 +66,7 @@ export const db = {} as any;
 // Ensure process env variables are available
 import "dotenv/config";
 
-// Global console filter to prevent Firestore connectivity warnings and stream cancellations from flooding server logs.
+// Global console filter to prevent connectivity warnings and stream cancellations from flooding server logs.
 const formatArg = (arg: any): string => {
   if (arg === null || arg === undefined) return "";
   if (arg instanceof Error) {
@@ -89,8 +89,6 @@ const formatArg = (arg: any): string => {
 const shouldIgnore = (args: any[]): boolean => {
   const msg = args.map(formatArg).join(" ");
   return (
-    msg.includes("@firebase/firestore") ||
-    msg.includes("Could not reach Cloud Firestore") ||
     msg.includes("code=unavailable") ||
     msg.includes("Disconnecting idle stream") ||
     msg.includes("Timed out waiting for new targets") ||
@@ -315,7 +313,7 @@ async function startServer() {
   app.get("/api/health", (req, res) => {
     res.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
   });
-  app.get("/api/health/firestore", async (req, res) => {
+  app.get("/api/health/database", async (req, res) => {
     try {
       const snap = await adminDb.collection("students").get();
       res.status(200).json({
@@ -441,7 +439,7 @@ async function startServer() {
     error?: string;
   }> = [];
 
-  // Load initial logs on startup from Firestore asynchronously
+  // Load initial logs on startup from database asynchronously
   try {
     getDocs(collection(db, 'telemetry_logs')).then((snap: any) => {
       if (!snap.empty) {
@@ -471,7 +469,7 @@ async function startServer() {
     timestamp: string;
   }> = [];
 
-  // Load initial support tickets on startup from Firestore asynchronously
+  // Load initial support tickets on startup from database asynchronously
   try {
     getDocs(collection(db, 'support_tickets')).then((snap: any) => {
       if (!snap.empty) {
@@ -503,7 +501,7 @@ async function startServer() {
     }
     console.log(`[Enrollment Service - ${type}] ${message}`, error ? `| Error: ${error}` : "");
 
-    // Persist to Firestore
+    // Persist to database
     try {
       await setDoc(doc(db, 'telemetry_logs', logItem.id), logItem, { merge: true });
     } catch (dbErr: any) {
@@ -583,7 +581,7 @@ async function startServer() {
     notifId: string,
     auditLogId: string
   ) {
-    console.log(`[Rollback] Initiating compensating transaction to revert all Firestore changes for studentId: ${studentId}...`);
+    console.log(`[Rollback] Initiating compensating transaction to revert all database changes for studentId: ${studentId}...`);
     try {
       await runTransaction(db, async (transaction) => {
         if (studentId) transaction.delete(doc(db, 'students', studentId));
@@ -598,11 +596,11 @@ async function startServer() {
           if (fId) transaction.delete(doc(db, 'fee_statuses', fId));
         }
       });
-      console.log(`[Rollback] Compensating transaction successfully reverted Firestore changes for studentId: ${studentId}.`);
-      await logEnrollmentEvent("INFO", `Rollback successful: Reverted Firestore records for studentId: ${studentId} after Auth failure.`);
+      console.log(`[Rollback] Compensating transaction successfully reverted database changes for studentId: ${studentId}.`);
+      await logEnrollmentEvent("INFO", `Rollback successful: Reverted database records for studentId: ${studentId} after Auth failure.`);
     } catch (rollbackErr: any) {
-      console.error(`[Rollback Critical Error] Failed to revert Firestore changes:`, rollbackErr);
-      await logEnrollmentEvent("ERROR", `Rollback failed: Could not revert Firestore records for studentId: ${studentId}. Manual database cleanup required!`, null, rollbackErr.message);
+      console.error(`[Rollback Critical Error] Failed to revert database changes:`, rollbackErr);
+      await logEnrollmentEvent("ERROR", `Rollback failed: Could not revert database records for studentId: ${studentId}. Manual database cleanup required!`, null, rollbackErr.message);
     }
   }
 
@@ -720,7 +718,7 @@ async function startServer() {
       const sAddress = address?.trim();
 
       // 3. Database Write via Transaction Block (Guarantees atomic execution and duplicate detection)
-      console.log("[Enrollment Endpoint] Committing transaction to Firestore...");
+      console.log("[Enrollment Endpoint] Committing transaction to database...");
 
       // Fetch current snapshots for duplicate check & ID generation
       const [admissionsSnap, studentsSnap, usersSnap] = await Promise.all([
@@ -857,7 +855,7 @@ async function startServer() {
           transaction.set(doc(db, 'audit_logs', newAuditLog.id), newAuditLog);
         });
       } catch (txErr: any) {
-        logEnrollmentEvent("ERROR", "Firestore Transaction failed during enrollment", null, txErr.message);
+        logEnrollmentEvent("ERROR", "Database Transaction failed during enrollment", null, txErr.message);
         throw txErr;
       }
 
@@ -910,7 +908,7 @@ async function startServer() {
       const failedCount = admissionsList.filter((a: any) => a.status === 'REJECTED').length;
       const pendingCount = admissionsList.filter((a: any) => a.status === 'PENDING').length;
 
-      const dbErrors = auditLogs.filter((l: any) => l.action === 'DB_ERROR' || l.details?.toLowerCase().includes("database error") || l.details?.toLowerCase().includes("firestore")).length;
+      const dbErrors = auditLogs.filter((l: any) => l.action === 'DB_ERROR' || l.details?.toLowerCase().includes("database error")).length;
       const apiErrors = enrollmentLogs.filter(l => l.type === 'ERROR').length;
 
       return res.status(200).json({
@@ -959,7 +957,7 @@ async function startServer() {
         supportTickets.pop();
       }
 
-      // Persist to Firestore collection
+      // Persist to database collection
       await setDoc(doc(db, 'support_tickets', ticket.id), ticket, { merge: true });
 
       logEnrollmentEvent("WARNING", `New enrollment failure report received from ${ticket.studentName} for class ${ticket.className}.`, { ticketId: ticket.id });
@@ -1181,10 +1179,10 @@ async function startServer() {
         transaction.set(doc(db, 'audit_logs', newAuditLog.id), newAuditLog);
       });
 
-      // Post-write immediate read verification from Firestore
+      // Post-write immediate read verification from database
       const readBackStudent = await getDoc(doc(db, 'students', studentId));
       if (!readBackStudent.exists()) {
-        throw new Error(`Firestore read-back verification failed: Created student document ${studentId} could not be read back after commit.`);
+        throw new Error(`Database read-back verification failed: Created student document ${studentId} could not be read back after commit.`);
       }
 
       logEnrollmentEvent("INFO", `Recovery successful for ID: ${enrollmentId} in ${Date.now() - startTime}ms`);
@@ -1425,10 +1423,10 @@ async function startServer() {
         transaction.set(doc(db, 'audit_logs', newAuditLog.id), newAuditLog);
       });
 
-      // Post-write immediate read verification from Firestore
+      // Post-write immediate read verification from database
       const readBackStudentAdm = await getDoc(doc(db, 'students', studentId));
       if (!readBackStudentAdm.exists()) {
-        throw new Error(`Firestore read-back verification failed: Student document ${studentId} could not be read back after admission approval.`);
+        throw new Error(`Database read-back verification failed: Student document ${studentId} could not be read back after admission approval.`);
       }
 
       logEnrollmentEvent("INFO", `Admission approval transaction completed for ${admissionId} in ${Date.now() - startTime}ms.`);
@@ -1676,10 +1674,10 @@ async function startServer() {
         transaction.set(doc(db, 'audit_logs', newAuditLog.id), newAuditLog);
       });
 
-      // Post-write immediate read-back verification from Firestore
+      // Post-write immediate read-back verification from database
       const readBackStudentManual = await getDoc(doc(db, 'students', studentId));
       if (!readBackStudentManual.exists()) {
-        throw new Error(`Firestore read-back verification failed: Created student document ${studentId} could not be read back after transaction commit.`);
+        throw new Error(`Database read-back verification failed: Created student document ${studentId} could not be read back after transaction commit.`);
       }
 
       logEnrollmentEvent("INFO", `Admin manual registration completed successfully in ${Date.now() - startTime}ms. Roll No: ${rollNo}`);
@@ -1959,7 +1957,7 @@ async function startServer() {
     }
   });
 
-  // Helper to get users array from Firestore
+  // Helper to get users array from database
   const getERPUsersList = async () => {
     try {
       const snap = await getDocs(collection(db, 'users'));
@@ -1968,7 +1966,7 @@ async function startServer() {
         // Check if we have any valid seeded admin user
         const hasSuperAdmin = list.some((u: any) => u.username?.toLowerCase() === 'superadmin' && (u.passwordHash || u.password));
         if (hasSuperAdmin) {
-          // Filter out the empty usr-superadmin-001 user from initializeAndSeedFirestore to avoid username conflict if any
+          // Filter out the empty usr-superadmin-001 user from initializeAndSeedDatabase to avoid username conflict if any
           return list.filter((u: any) => !(u.id === 'usr-superadmin-001' && u.username === 'admin' && !u.password && !u.passwordHash));
         }
       }
@@ -1980,12 +1978,12 @@ async function startServer() {
       }
       return fallbackUsers;
     } catch (e) {
-      console.error("[getERPUsersList] Firestore read error:", e);
+      console.error("[getERPUsersList] Database read error:", e);
     }
     return SEED_USERS;
   };
 
-  // Helper to save users array to Firestore
+  // Helper to save users array to database
   const saveERPUsersList = async (usersList: any[]) => {
     for (const u of usersList) {
       if (u && u.id) {
@@ -1994,12 +1992,12 @@ async function startServer() {
     }
   };
 
-  // Set up AuditLogger Firestore writer
-  AuditLogger.setFirestoreLogger(async (logItem: any) => {
+  // Set up AuditLogger database writer
+  AuditLogger.setDatabaseLogger(async (logItem: any) => {
     try {
       await setDoc(doc(db, 'audit_logs', logItem.id), logItem, { merge: true });
     } catch (e: any) {
-      console.warn('[AuditLogger Firestore] Warning:', e?.message);
+      console.warn('[AuditLogger Database] Warning:', e?.message);
     }
   });
 
@@ -2382,17 +2380,17 @@ async function startServer() {
 
       const email = reqEmail?.trim() || resolveEmailLocal(cleanUsername);
 
-      // Check if user already exists in Firebase Auth
+      // Check if user already exists in Auth
       let existingUser: any = null;
       try {
         existingUser = await getAdminAuth().getUserByEmail(email);
       } catch (e) {}
 
       if (existingUser) {
-        return res.status(400).json({ error: `User with email/username "${email}" is already registered in Firebase Authentication.` });
+        return res.status(400).json({ error: `User with email/username "${email}" is already registered.` });
       }
 
-      // Create user in Firebase Auth
+      // Create user in Auth
       const authRecord = await getAdminAuth().createUser({
         email,
         password,
@@ -2414,10 +2412,10 @@ async function startServer() {
         updatedAt: new Date().toISOString()
       };
 
-      // Set user profile document in Firestore 'users' collection
+      // Set user profile document in database 'users' collection
       await adminDb.collection("users").doc(newUserId).set(newUser);
 
-      AuditLogger.log("CREATE_USER", "Admin", `Created Firebase Auth account & Firestore profile for user ${username} (${role})`);
+      AuditLogger.log("CREATE_USER", "Admin", `Created Auth account & database profile for user ${username} (${role})`);
 
       return res.status(200).json({
         success: true,
@@ -2454,18 +2452,18 @@ async function startServer() {
         updatedAt: new Date().toISOString()
       };
 
-      const firebaseUpdate: any = {};
+      const authUpdate: any = {};
 
       if (displayName) {
         updateData.name = displayName;
-        firebaseUpdate.displayName = displayName;
+        authUpdate.displayName = displayName;
       }
       if (email) {
         updateData.email = email;
-        firebaseUpdate.email = email;
+        authUpdate.email = email;
       }
       if (password) {
-        firebaseUpdate.password = password;
+        authUpdate.password = password;
         updateData.mustChangePassword = true;
         updateData.forcePasswordChange = true;
       }
@@ -2473,10 +2471,10 @@ async function startServer() {
       let accountActive = user.active ?? true;
       if (typeof disabled === "boolean") {
         accountActive = !disabled;
-        firebaseUpdate.disabled = disabled;
+        authUpdate.disabled = disabled;
       } else if (typeof active === "boolean") {
         accountActive = active;
-        firebaseUpdate.disabled = !active;
+        authUpdate.disabled = !active;
       }
 
       updateData.active = accountActive;
@@ -2484,12 +2482,12 @@ async function startServer() {
         updateData.isLocked = isLocked;
       }
 
-      // Update in Firebase Authentication
-      if (Object.keys(firebaseUpdate).length > 0) {
-        await getAdminAuth().updateUser(uid, firebaseUpdate);
+      // Update in Authentication
+      if (Object.keys(authUpdate).length > 0) {
+        await getAdminAuth().updateUser(uid, authUpdate);
       }
 
-      // Update in Firestore
+      // Update in database
       await adminDb.collection("users").doc(uid).set(updateData, { merge: true });
 
       AuditLogger.log("UPDATE_USER", "Admin", `Updated user ${user.username || uid}. Active: ${accountActive}, Password Reset: ${!!password}`);
@@ -2509,14 +2507,14 @@ async function startServer() {
         return res.status(400).json({ error: "User ID is required." });
       }
 
-      // Delete from Firebase Auth
+      // Delete from Auth
       try {
         await getAdminAuth().deleteUser(uid);
       } catch (authErr: any) {
         console.warn(`[Admin Delete User] Warn: Auth deletion bypassed or failed:`, authErr.message);
       }
 
-      // Delete from Firestore
+      // Delete from database
       await adminDb.collection("users").doc(uid).delete();
 
       AuditLogger.log("DELETE_USER", "Admin", `Deleted user account ID: ${uid}`);
@@ -2538,7 +2536,7 @@ async function startServer() {
         disabledUsers: users.filter((u: any) => u.active === false).length,
         missingPasswordHash: users.filter((u: any) => !u.passwordHash && !u.password).length,
         missingInAuth: [] as any[],
-        orphanedFirestoreUsers: [] as any[],
+        orphanedDatabaseUsers: [] as any[],
         duplicateUIDs: [] as any[],
         duplicateEmails: [] as any[]
       };
@@ -3058,7 +3056,7 @@ How can I help you towards your academic success today? Feel free to ask!`;
       return res.status(400).json({ error: "Recipient phone number ('to') and 'message' are required." });
     }
 
-    // Resolve credentials from payload, or fall back to Firestore config
+    // Resolve credentials from payload, or fall back to database config
     let activeProvider = provider;
     let activeApiKey = apiKey;
     let activePhoneId = phoneNumber;
@@ -3068,7 +3066,7 @@ How can I help you towards your academic success today? Feel free to ask!`;
 
     try {
       if (!activeProvider || activeProvider === "NONE") {
-        // Fetch config from Firestore if not provided or set to NONE in payload
+        // Fetch config from database if not provided or set to NONE in payload
         try {
           const configSnap = await getDocs(collection(db, "subscription_config"));
           const config = !configSnap.empty ? configSnap.docs[0].data() : {};
@@ -3171,7 +3169,7 @@ How can I help you towards your academic success today? Feel free to ask!`;
         wasDispatched = true;
       }
 
-      // Log into audit_logs in Firestore
+      // Log into audit_logs in database
       try {
         const newLog = {
           id: `log-wa-out-${Date.now()}`,
@@ -3264,7 +3262,7 @@ How can I help you towards your academic success today? Feel free to ask!`;
 
       console.log(`[Inbound Message] From: ${senderNumber}, Body: "${messageText}"`);
 
-      // 3. Fetch list of registered students and their fee records from Firestore
+      // 3. Fetch list of registered students and their fee records from database
       const [stSnap, feeSnap, subSnap] = await Promise.all([
         getDocs(collection(db, "students")),
         getDocs(collection(db, "fee_statuses")),
@@ -3387,7 +3385,7 @@ Sunshine Classes — *Excellence in Education* ☀️`;
         }
       }
 
-      // 4. Fetch the Active WhatsApp Provider configuration credentials from Firestore
+      // 4. Fetch the Active WhatsApp Provider configuration credentials from database
       const configSnap = await getDocs(collection(db, "subscription_config"));
       const config = !configSnap.empty ? configSnap.docs[0].data() : {};
 

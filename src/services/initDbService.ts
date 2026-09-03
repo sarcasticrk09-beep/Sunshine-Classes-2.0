@@ -56,7 +56,7 @@ export const SEEDED_CLASSES = [
   { classId: "class-10", className: "Class 10", displayOrder: 10, monthlyFee: 1500, isActive: true }
 ];
 
-export async function initializeAndSeedFirestore(): Promise<MigrationReport> {
+export async function initializeAndSeedDatabase(): Promise<MigrationReport> {
   const timestamp = new Date().toISOString();
   const collectionsCreated: string[] = [
     "users",
@@ -204,7 +204,7 @@ export async function initializeAndSeedFirestore(): Promise<MigrationReport> {
         performedBy: "SYSTEM_MIGRATION",
         username: "SYSTEM_MIGRATION",
         targetId: "SYSTEM",
-        details: "Firestore database architecture seeded successfully with Class 1-10, SUPER_ADMIN user, and permission settings.",
+        details: "Database architecture seeded successfully with Class 1-10, SUPER_ADMIN user, and permission settings.",
         timestamp
       });
     } catch (e) {
@@ -218,13 +218,13 @@ export async function initializeAndSeedFirestore(): Promise<MigrationReport> {
       seededUsers: seededUsersList,
       seededSettings: seededSettingsList,
       status: "SUCCESS",
-      message: "Firestore architecture migrated and verified successfully with read-after-write verification."
+      message: "Database architecture migrated and verified successfully with read-after-write verification."
     };
 
-    console.log("[Migration] Firestore Architecture Seeded:", report);
+    console.log("[Migration] Database Architecture Seeded:", report);
     return report;
   } catch (err: any) {
-    console.error("[Migration Error] Failed to seed Firestore architecture:", err);
+    console.error("[Migration Error] Failed to seed database architecture:", err);
     return {
       timestamp,
       collectionsCreated,

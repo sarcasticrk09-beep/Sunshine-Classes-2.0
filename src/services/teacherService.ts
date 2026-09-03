@@ -1,8 +1,8 @@
-import { teachersService } from './firestoreDbService';
+import { teachersService } from './dbService';
 import { Teacher } from '../types';
 
 /**
- * Unified Teacher Service - Delegates to firestoreDbService as single repository source
+ * Unified Teacher Service - Delegates to dbService as single repository source
  */
 export const teacherService = {
   async fetchTeachers(): Promise<Teacher[]> {

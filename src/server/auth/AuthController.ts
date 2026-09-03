@@ -29,7 +29,7 @@ export class AuthController {
         // Fallback to local search
       }
 
-      // 1b. Search users collection in memory / firestore adapter
+      // 1b. Search users collection in memory / database adapter
       if (!matchedUser) {
         try {
           const userDocs = await getDocs(collection(null, 'users'));

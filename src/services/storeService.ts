@@ -843,7 +843,7 @@ export function subscribeStoreProducts(onUpdate: (products: StoreProduct[]) => v
 }
 
 // Seed Store to Supabase
-export async function seedStoreToFirestore() {
+export async function seedStoreToDatabase() {
   if (!isSupabaseConfigured) return;
   try {
     for (const prod of DEFAULT_STORE_PRODUCTS) {

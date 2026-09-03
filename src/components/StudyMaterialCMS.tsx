@@ -164,7 +164,7 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
   const isReceptionist = currentUser.role === 'RECEPTIONIST';
   const canUpload = isSuperAdminOrAdmin || isTeacher;
 
-  // Load materials from Firestore on mount
+  // Load materials from database on mount
   useEffect(() => {
     loadMaterials();
   }, []);

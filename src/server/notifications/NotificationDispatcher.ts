@@ -95,7 +95,7 @@ export class NotificationDispatcher {
       await setDoc(doc(db, 'notification_logs', notificationId), logDoc);
       await EventPublisher.publish(db, 'NotificationQueued', logDoc);
     } catch (dbErr) {
-      console.warn('[NotificationDispatcher] Firestore write error (Quota/DB fallback):', dbErr);
+      console.warn('[NotificationDispatcher] Database write error (Quota/DB fallback):', dbErr);
     }
 
     // 4. Dispatch immediately via WhatsApp Provider
@@ -133,7 +133,7 @@ export class NotificationDispatcher {
           );
         }
       } catch (logErr) {
-        console.warn('[NotificationDispatcher] Failed to update post-send Firestore log:', logErr);
+        console.warn('[NotificationDispatcher] Failed to update post-send database log:', logErr);
       }
     } else {
       logDoc.status = 'FAILED';

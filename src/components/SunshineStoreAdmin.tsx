@@ -532,7 +532,7 @@ export const SunshineStoreAdmin: React.FC = () => {
       updatedAt: new Date().toISOString()
     };
 
-    // Update Local + Firestore
+    // Update Local + Database
     const updatedList = isNew ? [completeProduct, ...products] : products.map(p => p.id === prodId ? completeProduct : p);
     saveLocalStoreProducts(updatedList);
     setProducts(updatedList);

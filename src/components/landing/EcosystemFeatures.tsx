@@ -47,16 +47,16 @@ export const EcosystemFeatures: React.FC = () => {
   ];
 
   return (
-    <section className="py-10 sm:py-16 bg-slate-50/80 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800/60">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8 sm:space-y-12">
+    <section className="py-6 sm:py-16 bg-slate-50/80 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800/60">
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 space-y-6 sm:space-y-12">
         
         {/* Section Header */}
-        <div className="text-center max-w-2xl mx-auto space-y-2">
-          <span className="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1.5">
-            <Sparkles size={14} />
+        <div className="text-center max-w-2xl mx-auto space-y-1.5 sm:space-y-2">
+          <span className="text-[11px] sm:text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1.5">
+            <Sparkles size={13} />
             <span>Why Choose Sunshine Classes</span>
           </span>
-          <h2 className="font-display text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
+          <h2 className="font-display text-xl sm:text-3xl font-black text-slate-900 dark:text-white">
             Built for Academic Excellence & Board Success
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
@@ -65,20 +65,20 @@ export const EcosystemFeatures: React.FC = () => {
         </div>
 
         {/* 6 Features Grid */}
-        <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-6">
           {features.map((feat, idx) => (
             <div
               key={idx}
-              className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-3 hover:border-amber-400 dark:hover:border-amber-500/60 transition-all hover:shadow-md group flex flex-col justify-between"
+              className="rounded-xl sm:rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:p-5 space-y-2 sm:space-y-3 hover:border-amber-400 dark:hover:border-amber-500/60 transition-all hover:shadow-md group flex flex-col justify-between"
             >
-              <div className="space-y-3">
-                <div className="h-11 w-11 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
-                  {feat.icon}
+              <div className="space-y-2 sm:space-y-3">
+                <div className="h-8 w-8 sm:h-11 sm:w-11 rounded-lg sm:rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                  <div className="scale-75 sm:scale-100">{feat.icon}</div>
                 </div>
-                <h3 className="font-display font-black text-base text-slate-900 dark:text-white">
+                <h3 className="font-display font-black text-xs sm:text-base text-slate-900 dark:text-white leading-tight">
                   {feat.title}
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+                <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 leading-snug line-clamp-3 sm:line-clamp-none font-medium">
                   {feat.description}
                 </p>
               </div>

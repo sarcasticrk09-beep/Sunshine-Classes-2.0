@@ -45,7 +45,7 @@ export class TimelineService {
   }
 
   /**
-   * Records a timeline event inside an active Firestore Transaction.
+   * Records a timeline event inside an active Database Transaction.
    */
   public static recordInTransaction(
     transaction: any,

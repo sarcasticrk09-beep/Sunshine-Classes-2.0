@@ -19,7 +19,7 @@ export function validatePhone(phone: string | undefined): boolean {
   return cleaned.length >= 10;
 }
 
-export function toFirestoreTimestamp(dateInput?: string | Date | number): any {
+export function toDbTimestamp(dateInput?: string | Date | number): any {
   if (!dateInput) return new Date().toISOString();
   if (dateInput instanceof Date) return dateInput.toISOString();
   if (typeof dateInput === 'number') return new Date(dateInput).toISOString();

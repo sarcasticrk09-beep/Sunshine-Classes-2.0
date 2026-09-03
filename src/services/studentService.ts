@@ -1,8 +1,8 @@
-import { studentsService } from './firestoreDbService';
+import { studentsService } from './dbService';
 import { Student } from '../types';
 
 /**
- * Unified Student Service - Delegates to firestoreDbService as single repository source
+ * Unified Student Service - Delegates to dbService as single repository source
  */
 export const studentService = {
   async fetchStudents(): Promise<Student[]> {

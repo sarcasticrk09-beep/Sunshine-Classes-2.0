@@ -37,9 +37,72 @@ export const Footer: React.FC<FooterProps> = ({ setActiveSection }) => {
   };
 
   return (
-    <footer className="bg-slate-900 text-slate-300 pt-16 pb-24 xl:pb-16 border-t border-slate-800">
+    <footer className="bg-slate-900 text-slate-300 pt-12 pb-24 xl:pb-16 border-t border-slate-800">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-12">
         
+        {/* Dedicated Bottom Contact Strip to Connect */}
+        <div 
+          id="footer-bottom-contact-strip"
+          className="rounded-2xl bg-gradient-to-r from-amber-500/15 via-slate-800/90 to-blue-500/15 border border-slate-700/80 p-5 sm:p-7 shadow-xl"
+        >
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+            
+            {/* Left: Contact Info & Badge */}
+            <div className="space-y-2 max-w-xl text-left">
+              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[10px] font-black uppercase tracking-wider">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                <span>Admission & Support Desk</span>
+              </div>
+              <h3 className="font-display font-black text-lg sm:text-xl text-white tracking-tight">
+                Connect with Sunshine Classes Pihani
+              </h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Have questions regarding batch timings, syllabus, study material, or fee concessions? Reach our counselors directly or visit our campus opposite Subhash Park.
+              </p>
+            </div>
+
+            {/* Right: Connect Action Buttons Strip */}
+            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+              
+              {/* Voice Call */}
+              <a
+                id="btn-footer-contact-call"
+                href="tel:+918707738284"
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-4 py-3 shadow-md transition-all cursor-pointer min-h-[44px]"
+                title="Call Admission Desk"
+              >
+                <Phone size={16} className="text-slate-950" />
+                <span>Call 8707738284</span>
+              </a>
+
+              {/* WhatsApp Hotline */}
+              <a
+                id="btn-footer-contact-whatsapp"
+                href="https://wa.me/919161586254?text=Hello!%20I%20want%20to%20connect%20with%20Sunshine%20Classes."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs px-4 py-3 shadow-md transition-all cursor-pointer min-h-[44px]"
+                title="Chat on WhatsApp"
+              >
+                <WhatsAppIcon size={16} className="text-white" />
+                <span>WhatsApp 9161586254</span>
+              </a>
+
+              {/* Inquire / Helpdesk Page */}
+              <button
+                id="btn-footer-contact-inquire"
+                onClick={() => handleNavClick('contact')}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs px-4 py-3 transition-all cursor-pointer min-h-[44px]"
+              >
+                <MapPin size={16} className="text-amber-400" />
+                <span>Campus / Helpdesk</span>
+              </button>
+
+            </div>
+
+          </div>
+        </div>
+
         {/* Main Footer Grid */}
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5 text-xs">
           
