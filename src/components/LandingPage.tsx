@@ -936,67 +936,75 @@ export default function LandingPage({
         )}
       </main>
 
-      {/* Floating Quick Action Contacts */}
+      {/* Floating Quick Action Contacts (Desktop Only - Mobile accesses connect via bottom nav to prevent screen overlap) */}
       <div 
         id="sticky-bottom-contact-strip"
-        className="fixed bottom-[62px] xl:bottom-6 left-2 sm:left-6 z-40 flex items-center gap-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-1.5 rounded-full shadow-2xl border border-amber-500/40 dark:border-amber-500/30"
+        className="hidden xl:flex fixed bottom-6 left-6 z-40 items-center gap-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-1.5 rounded-full shadow-2xl border border-amber-500/40 dark:border-amber-500/30"
       >
-        <div className="hidden xs:flex items-center gap-1 pl-2 pr-0.5 text-[11px] font-black uppercase text-amber-600 dark:text-amber-400">
+        {/* Connect Badge - Visible on tablet/desktop */}
+        <div className="hidden md:flex items-center gap-1 pl-2 pr-0.5 text-[11px] font-black uppercase text-amber-600 dark:text-amber-400">
           <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <span>Connect</span>
         </div>
 
+        {/* 1-Tap Voice Call */}
         <a
           id="btn-sticky-call"
           href="tel:8707738284"
-          className="flex h-9 items-center gap-1.5 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 px-3 text-xs font-black transition-all shadow-xs cursor-pointer min-h-[36px]"
+          className="flex h-9 items-center justify-center gap-1.5 rounded-full bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-950 px-2.5 sm:px-3 text-xs font-black transition-all shadow-xs cursor-pointer min-h-[36px]"
           title="Call Admission Desk (8707738284)"
+          aria-label="Call Admission Desk at 8707738284"
         >
-          <Phone size={13} className="text-slate-950" /> 
+          <Phone size={13} className="text-slate-950 shrink-0" /> 
           <span>Call <span className="hidden sm:inline">8707738284</span></span>
         </a>
         
+        {/* 1-Tap WhatsApp */}
         <a
           id="btn-sticky-whatsapp"
           href="https://wa.me/919161586254?text=Hello!%20I%20am%20interested%20in%20Sunshine%20Classes."
           target="_blank"
           rel="noopener noreferrer"
-          className="flex h-9 items-center gap-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white px-3 text-xs font-black transition-all shadow-xs cursor-pointer min-h-[36px]"
+          className="flex h-9 items-center justify-center gap-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white px-2.5 sm:px-3 text-xs font-black transition-all shadow-xs cursor-pointer min-h-[36px]"
           title="Chat on WhatsApp (9161586254)"
+          aria-label="Chat on WhatsApp at 9161586254"
         >
-          <WhatsAppIcon size={14} className="text-white" />
+          <WhatsAppIcon size={14} className="text-white shrink-0" />
           <span>WhatsApp</span>
         </a>
 
+        {/* Campus Location - Tablet & Desktop */}
         <a
           id="btn-sticky-location"
           href="https://maps.app.goo.gl/Z7BuSwoBFkvghk5e8"
           target="_blank"
           rel="noopener noreferrer"
-          className="hidden sm:flex h-9 items-center gap-1.5 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 text-xs font-bold transition-all shadow-xs cursor-pointer border border-slate-200 dark:border-slate-700"
+          className="hidden md:flex h-9 items-center gap-1.5 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 text-xs font-bold transition-all shadow-xs cursor-pointer border border-slate-200 dark:border-slate-700"
           title="Campus Location (Pihani)"
         >
           <MapPin size={13} className="text-amber-500" />
           <span>Campus</span>
         </a>
 
+        {/* Facebook - Desktop */}
         <a
           id="btn-sticky-facebook"
           href="https://facebook.com/sunshineclassespihani"
           target="_blank"
           rel="noopener noreferrer"
-          className="hidden md:flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-xs cursor-pointer"
+          className="hidden lg:flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-xs cursor-pointer"
           title="Visit Facebook Page"
         >
           <Facebook size={14} />
         </a>
 
+        {/* Instagram - Desktop */}
         <a
           id="btn-sticky-instagram"
           href="https://instagram.com/sunshineclassespihani"
           target="_blank"
           rel="noopener noreferrer"
-          className="hidden md:flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 hover:opacity-90 text-white transition-all shadow-xs cursor-pointer"
+          className="hidden lg:flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 hover:opacity-90 text-white transition-all shadow-xs cursor-pointer"
           title="Follow on Instagram"
         >
           <Instagram size={14} />

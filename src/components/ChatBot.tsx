@@ -93,13 +93,13 @@ export default function ChatBot() {
     <>
       {/* Floating Action Button */}
       {!isOpen && (
-        <div className="fixed bottom-20 xl:bottom-6 right-4 sm:right-6 z-50 flex flex-col gap-3">
+        <div className="fixed bottom-[68px] xl:bottom-6 right-3 sm:right-6 z-50 flex flex-col gap-3">
           <motion.button
             id="btn-chatbot-toggle"
             onClick={() => setIsOpen(!isOpen)}
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.95 }}
-            className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-brand-orange text-white shadow-2xl hover:bg-amber-500 focus:outline-none focus:ring-4 focus:ring-amber-300 cursor-pointer"
+            className="flex h-11 w-11 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-brand-orange text-white shadow-2xl hover:bg-amber-500 focus:outline-none focus:ring-4 focus:ring-amber-300 cursor-pointer"
             title="Ask AI Assistant"
           >
             <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -115,7 +115,7 @@ export default function ChatBot() {
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.9 }}
-            className="fixed right-4 sm:right-6 bottom-20 xl:bottom-6 z-50 flex h-[480px] sm:h-[500px] w-[calc(100vw-2rem)] max-w-[360px] md:max-w-[400px] flex-col rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl"
+            className="fixed right-3 sm:right-6 bottom-[68px] xl:bottom-6 z-50 flex h-[460px] sm:h-[500px] w-[calc(100vw-1.5rem)] max-w-[360px] md:max-w-[400px] flex-col rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl"
           >
             {/* Header */}
             <div className="flex items-center justify-between rounded-t-2xl bg-brand-blue px-4 py-3 text-white">

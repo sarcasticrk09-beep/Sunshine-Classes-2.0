@@ -43,39 +43,52 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigateSection }) =
               Empowering students with experienced teachers, personalized guidance, structured test series, free NCERT study material, and campus book depot at Sunshine Store in Pihani, Hardoi.
             </p>
 
-            {/* Three CTA Buttons */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-1 sm:pt-2">
+            {/* Hero Action System: Clean 1+2 layout on mobile, inline row on desktop */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 pt-1 sm:pt-2 w-full max-w-xl">
               
-              {/* CTA 1: Enroll Now */}
+              {/* Primary Action: Enroll Now */}
               <button
                 id="btn-hero-enroll-now"
                 onClick={() => onNavigateSection('admissions')}
-                className="flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs sm:text-sm px-5 sm:px-6 py-3 sm:py-3.5 shadow-md hover:shadow-amber-500/20 active:scale-[0.98] transition-all cursor-pointer min-h-[44px] sm:min-h-[46px] focus:outline-hidden focus:ring-2 focus:ring-amber-400"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-950 font-black text-xs sm:text-sm px-5 sm:px-6 py-3 sm:py-3.5 shadow-md hover:shadow-amber-500/20 active:scale-[0.98] transition-all cursor-pointer min-h-[44px] sm:min-h-[46px] focus:outline-hidden focus:ring-2 focus:ring-amber-400"
               >
                 <GraduationCap size={18} className="shrink-0" />
-                <span>Enroll Now</span>
+                <span className="tracking-tight">Enroll Now</span>
                 <ArrowRight size={16} className="shrink-0" />
               </button>
 
-              {/* CTA 2: Browse Study Material */}
-              <button
-                id="btn-hero-browse-study-material"
-                onClick={() => navigate('/resources')}
-                className="flex items-center justify-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-extrabold text-xs sm:text-sm px-4 sm:px-5 py-3 sm:py-3.5 active:scale-[0.98] transition-all cursor-pointer min-h-[44px] sm:min-h-[46px] shadow-xs focus:outline-hidden focus:ring-2 focus:ring-amber-400"
-              >
-                <BookOpen size={18} className="text-emerald-500 shrink-0" />
-                <span>Browse Study Material</span>
-              </button>
+              {/* Secondary Actions: 2-column grid on mobile, inline on desktop */}
+              <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
+                
+                {/* Secondary 1: Study Material */}
+                <button
+                  id="btn-hero-browse-study-material"
+                  onClick={() => navigate('/resources')}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold text-xs sm:text-sm px-3 sm:px-5 py-2.5 sm:py-3.5 active:scale-[0.98] transition-all cursor-pointer min-h-[44px] sm:min-h-[46px] shadow-xs focus:outline-hidden focus:ring-2 focus:ring-amber-400"
+                  title="Browse Free Study Material & NCERT Notes"
+                >
+                  <BookOpen size={16} className="text-emerald-500 shrink-0" />
+                  <span className="truncate">
+                    <span className="sm:hidden">Study Notes</span>
+                    <span className="hidden sm:inline">Browse Study Material</span>
+                  </span>
+                </button>
 
-              {/* CTA 3: Visit Sunshine Store */}
-              <button
-                id="btn-hero-visit-sunshine-store"
-                onClick={() => navigate('/books')}
-                className="flex items-center justify-center gap-2 rounded-xl border border-amber-300 dark:border-amber-800/80 bg-amber-50/50 dark:bg-amber-950/30 hover:bg-amber-100/60 dark:hover:bg-amber-900/40 text-amber-900 dark:text-amber-300 font-extrabold text-xs sm:text-sm px-4 sm:px-5 py-3 sm:py-3.5 active:scale-[0.98] transition-all cursor-pointer min-h-[44px] sm:min-h-[46px] shadow-xs focus:outline-hidden focus:ring-2 focus:ring-amber-400"
-              >
-                <ShoppingBag size={18} className="text-amber-500 shrink-0" />
-                <span>Visit Sunshine Store</span>
-              </button>
+                {/* Secondary 2: Sunshine Store */}
+                <button
+                  id="btn-hero-visit-sunshine-store"
+                  onClick={() => navigate('/books')}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-amber-300 dark:border-amber-800/80 bg-amber-50/60 dark:bg-amber-950/30 hover:bg-amber-100/70 dark:hover:bg-amber-900/40 text-amber-950 dark:text-amber-300 font-bold text-xs sm:text-sm px-3 sm:px-5 py-2.5 sm:py-3.5 active:scale-[0.98] transition-all cursor-pointer min-h-[44px] sm:min-h-[46px] shadow-xs focus:outline-hidden focus:ring-2 focus:ring-amber-400"
+                  title="Visit Sunshine Store Book Depot"
+                >
+                  <ShoppingBag size={16} className="text-amber-500 shrink-0" />
+                  <span className="truncate">
+                    <span className="sm:hidden">Book Store</span>
+                    <span className="hidden sm:inline">Visit Sunshine Store</span>
+                  </span>
+                </button>
+
+              </div>
 
             </div>
 

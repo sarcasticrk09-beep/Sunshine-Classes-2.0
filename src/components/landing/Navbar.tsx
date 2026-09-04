@@ -693,8 +693,30 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={() => handleNavClick('contact')}
                 className="w-full text-left py-2.5 px-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center justify-between"
               >
-                <span>📞 Contact Us</span>
+                <span>📞 Contact & Campus Helpdesk</span>
               </button>
+
+              {/* Mobile Quick Connect Bar (Voice Call & WhatsApp) */}
+              <div className="grid grid-cols-2 gap-2 pt-0.5">
+                <a
+                  id="mobile-drawer-btn-call"
+                  href="tel:+918707738284"
+                  className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 text-slate-800 dark:text-slate-100 text-xs font-bold hover:bg-amber-100/60 transition-colors"
+                >
+                  <Phone size={14} className="text-amber-500" />
+                  <span>Call Desk</span>
+                </a>
+                <a
+                  id="mobile-drawer-btn-whatsapp"
+                  href="https://wa.me/919161586254?text=Hello!%20I%20want%20to%20inquire%20about%20Sunshine%20Classes%20tuitions."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 text-slate-800 dark:text-slate-100 text-xs font-bold hover:bg-emerald-100/60 transition-colors"
+                >
+                  <MessageCircle size={14} className="text-emerald-600" />
+                  <span>WhatsApp</span>
+                </a>
+              </div>
 
               {/* Bottom Drawer Actions */}
               <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-2">
