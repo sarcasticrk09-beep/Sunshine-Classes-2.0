@@ -75,7 +75,13 @@ export const trackAdmissionSubmit = (studentName: string, className: string) => 
   });
 };
 
-export function SEOHead() {
+export interface SEOHeadProps {
+  title?: string;
+  description?: string;
+  keywords?: string;
+}
+
+export function SEOHead({ title, description, keywords }: SEOHeadProps = {}) {
   const location = useLocation();
 
   // Route-specific SEO profiles
@@ -202,7 +208,12 @@ export function SEOHead() {
     }
   };
 
-  const config = getSEOConfig(location.pathname);
+  const baseConfig = getSEOConfig(location.pathname);
+  const config = {
+    title: title || baseConfig.title,
+    description: description || baseConfig.description,
+    keywords: keywords || baseConfig.keywords
+  };
   const siteUrl = ((import.meta as any).env.VITE_SITE_URL || window.location.origin).replace(/\/$/, "");
   const canonicalUrl = `${siteUrl}${location.pathname}`;
 

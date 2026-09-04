@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { SEOHead } from '../SEOHead';
 import { UNIVERSAL_COURSES } from '../../data/coursesData';
 import { 
@@ -100,6 +100,7 @@ export const AdmissionsPage: React.FC<AdmissionsPageProps> = ({
   resetForm
 }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
 
   const getAdmissionsSeo = () => {
@@ -262,6 +263,18 @@ export const AdmissionsPage: React.FC<AdmissionsPageProps> = ({
 
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-3 pt-2">
+                <button
+                  id="btn-open-full-admission-success-page"
+                  type="button"
+                  onClick={() => {
+                    navigate(`/admissions/success?id=${generatedAdmId}&name=${encodeURIComponent(admName)}&class=${encodeURIComponent(admClass)}&batch=${encodeURIComponent(admBatch)}&phone=${encodeURIComponent(admPhone)}&father=${encodeURIComponent(admFather)}`);
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center gap-2 cursor-pointer shadow-sm transition-all"
+                >
+                  <CheckCircle2 size={15} />
+                  <span>Open Official Slip Page →</span>
+                </button>
+
                 <button
                   id="btn-print-admission-slip"
                   type="button"

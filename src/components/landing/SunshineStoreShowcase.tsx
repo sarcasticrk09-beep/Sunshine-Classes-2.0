@@ -61,95 +61,72 @@ export const SunshineStoreShowcase: React.FC<SunshineStoreShowcaseProps> = ({
   const featuredItems = products.filter(p => p.isFeatured || p.isMostRecommended).slice(0, 4);
 
   return (
-    <section id="sunshine-store-preview" className="py-8 sm:py-16 bg-white dark:bg-slate-900 border-b border-slate-200/60 dark:border-slate-800/60">
-      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 space-y-6 sm:space-y-10">
+    <section id="sunshine-store-preview" className="py-4 sm:py-6 bg-white dark:bg-slate-900 border-b border-slate-200/60 dark:border-slate-800/60">
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 space-y-3 sm:space-y-4">
         
-        {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto space-y-2 sm:space-y-3">
-          <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 text-[11px] sm:text-xs font-black uppercase tracking-wider">
-            <ShoppingBag size={13} />
-            <span>Educational Marketplace</span>
+        {/* Section Header - Compact */}
+        <div className="flex items-center justify-between gap-2 pb-1 border-b border-slate-100 dark:border-slate-800/80">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 text-[10px] font-black uppercase tracking-wider mb-0.5">
+              <ShoppingBag size={11} />
+              <span>Student Store</span>
+            </div>
+            <h2 className="font-display text-base sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+              <span>🛒 Sunshine Store</span>
+            </h2>
           </div>
-          <h2 className="font-display text-xl sm:text-4xl font-black text-slate-900 dark:text-white">
-            🛒 Sunshine Store
-          </h2>
-          <p className="text-amber-600 dark:text-amber-400 font-bold text-xs sm:text-base font-display">
-            "Everything a Student Needs, All in One Place."
-          </p>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-2xl mx-auto">
-            Browse NCERT solution books, Arihant question banks, pocket formula booklets, geometry kits, and ergonomic study tools recommended by Sunshine faculty.
-          </p>
+
+          <button
+            id="btn-store-header-visit"
+            onClick={() => handleGoToStore()}
+            className="inline-flex items-center gap-1 text-xs font-black text-amber-600 dark:text-amber-400 hover:text-amber-500 cursor-pointer py-1 shrink-0"
+          >
+            <span>Visit Store ({products.length})</span>
+            <ArrowRight size={13} />
+          </button>
         </div>
 
-        {/* Categories Grid Bar */}
-        <div className="space-y-2 sm:space-y-3">
-          <h3 className="text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-slate-400 text-center">
-            Shop By Educational Category
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
-            {categories.map((cat) => {
-              const IconComp = getCategoryIcon(cat.id);
-              return (
-                <button
-                  key={cat.id}
-                  id={`btn-store-category-${cat.id}`}
-                  onClick={() => handleGoToStore(cat.id)}
-                  className="p-2 sm:p-3.5 rounded-xl sm:rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 hover:border-amber-400 hover:bg-amber-50/50 dark:hover:bg-amber-950/30 text-center transition-all group cursor-pointer flex flex-col items-center justify-center space-y-1 sm:space-y-2 shadow-xs"
-                >
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <IconComp size={16} className="sm:w-5 sm:h-5" />
-                  </div>
-                  <div>
-                    <span className="block text-[11px] sm:text-xs font-bold text-slate-900 dark:text-white line-clamp-1">
-                      {cat.name}
-                    </span>
-                    <span className="block text-[9px] sm:text-[10px] text-slate-400 font-medium line-clamp-1">
-                      {cat.description || 'Explore'}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Featured Products Showcase */}
-        {featuredItems.length > 0 && (
-          <div className="space-y-3 sm:space-y-4 pt-1 sm:pt-2">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm sm:text-lg font-bold font-display text-slate-900 dark:text-white flex items-center gap-1.5 sm:gap-2">
-                <Sparkles size={16} className="text-amber-500" />
-                <span>Faculty Recommended Student Essentials</span>
-              </h3>
+        {/* Categories Strip - Sleek single-row scroll on mobile, grid on desktop */}
+        <div className="flex overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden gap-1.5 pb-0.5 sm:grid sm:grid-cols-4 lg:grid-cols-8 sm:overflow-visible sm:pb-0">
+          {categories.map((cat) => {
+            const IconComp = getCategoryIcon(cat.id);
+            return (
               <button
-                onClick={() => handleGoToStore()}
-                className="text-[11px] sm:text-xs font-bold text-amber-600 hover:underline flex items-center gap-1 cursor-pointer shrink-0"
+                key={cat.id}
+                id={`btn-store-category-${cat.id}`}
+                onClick={() => handleGoToStore(cat.id)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 hover:border-amber-400 hover:bg-amber-50/50 dark:hover:bg-amber-950/30 text-left transition-all group cursor-pointer shrink-0 sm:flex-col sm:text-center sm:py-2 sm:px-1 shadow-xs"
               >
-                <span>View All</span>
-                <ArrowRight size={13} />
+                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <IconComp size={12} className="sm:w-3.5 sm:h-3.5" />
+                </div>
+                <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap sm:whitespace-normal line-clamp-1">
+                  {cat.name}
+                </span>
               </button>
+            );
+          })}
+        </div>
+
+        {/* Featured Products Showcase - Rail on Mobile, 4-Col Grid on Desktop */}
+        {featuredItems.length > 0 && (
+          <div className="space-y-2 pt-0.5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs sm:text-xs font-extrabold font-display text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                <Sparkles size={12} className="text-amber-500" />
+                <span>Recommended Books & Kits</span>
+              </h3>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-6">
+            <div className="flex overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden gap-2.5 pb-1 snap-x snap-mandatory sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:overflow-visible sm:pb-0">
               {featuredItems.map((p) => (
-                <ProductCard key={p.id} product={p} />
+                <div key={p.id} className="w-[170px] sm:w-auto shrink-0 snap-start flex flex-col">
+                  <ProductCard product={p} />
+                </div>
               ))}
             </div>
           </div>
         )}
-
-        {/* View All Store CTA */}
-        <div className="text-center pt-2">
-          <button
-            id="btn-homepage-visit-sunshine-store"
-            onClick={() => handleGoToStore()}
-            className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 hover:bg-amber-500 text-white font-extrabold text-xs px-8 py-3.5 shadow-lg transition-all cursor-pointer min-h-[44px]"
-          >
-            <ShoppingBag size={16} />
-            <span>Explore Full 🛒 Sunshine Store Catalog</span>
-            <ArrowRight size={15} />
-          </button>
-        </div>
 
       </div>
     </section>

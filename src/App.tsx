@@ -90,7 +90,7 @@ import StudentDashboard from './components/StudentDashboard';
 import TeacherDashboard from './components/TeacherDashboard';
 import ReceptionDashboard from './components/ReceptionDashboard';
 import AdminDashboard from './components/AdminDashboard';
-import ChatBot from './components/ChatBot';
+import { FloatingContactBar } from './components/FloatingContactBar';
 import SunshineLogo from './components/SunshineLogo';
 import { useAuth } from './auth/useAuth';
 import { Login } from './pages/Login';
@@ -105,6 +105,10 @@ import { PublicStorePage } from './pages/PublicStorePage';
 import { PublicProductDetailsPage } from './pages/PublicProductDetailsPage';
 import { SEOHead, trackAdmissionSubmit } from './components/SEOHead';
 import { NotFoundPage } from './components/NotFoundPage';
+import { ErrorPage } from './pages/ErrorPage';
+import { SuccessPage } from './pages/SuccessPage';
+import { PaymentFailurePage } from './pages/PaymentFailurePage';
+import { Unauthorized } from './pages/Unauthorized';
 import { PrivacyPolicyPage } from './components/legal/PrivacyPolicyPage';
 import { TermsConditionsPage } from './components/legal/TermsConditionsPage';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
@@ -122,7 +126,7 @@ import {
 } from './hooks/useCollectionListener';
 import { initializeAndSeedDatabase, forceResetDatabase } from './services/initDbService';
 
-import { LogIn, Shield, Users, BookOpen, UserCheck, Key, LogOut, X, Sun, Moon, Eye, EyeOff, Cloud, CloudOff, RefreshCw, Bell, BellRing, Check, CheckCheck, AlertCircle, Mail, MessageSquare, Crown, Share2, MessageCircle, Copy } from 'lucide-react';
+import { LogIn, Shield, Users, BookOpen, UserCheck, Key, LogOut, X, Sun, Moon, Eye, EyeOff, Cloud, CloudOff, RefreshCw, Bell, BellRing, Check, CheckCheck, AlertCircle, Mail, MessageSquare, Crown, Share2, MessageCircle, Copy, Phone } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export function simpleSecureHash(password: string): string {
@@ -3453,16 +3457,16 @@ Sunshine Classes`;
   const renderDashboardHeader = () => {
     if (!currentUser) return null;
     return (
-      <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-3 px-4 shadow-sm transition-colors">
-        <div className="mx-auto max-w-7xl flex justify-between items-center flex-wrap gap-4">
-          <div className="flex items-center gap-2 sm:gap-3">
+      <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-2.5 sm:py-3 px-3 sm:px-4 shadow-sm transition-colors">
+        <div className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-2.5 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap shrink-0">
             <button 
               id="header-erp-logo-btn"
               onClick={() => navigate('/')} 
               className="bg-transparent border-0 cursor-pointer p-0 text-left hover:opacity-90 transition-opacity"
               title="Sunshine Classes ERP Portal Home"
             >
-              <SunshineLogo size={36} showText={true} textSubTitle="Digital ERP Terminal" />
+              <SunshineLogo size={32} showText={true} textSubTitle="Digital ERP Terminal" />
             </button>
 
             {/* Share Portal Button */}
@@ -3471,7 +3475,7 @@ Sunshine Classes`;
                 type="button"
                 id="btn-share-portal"
                 onClick={() => setShowShareModal(!showShareModal)}
-                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200 dark:border-slate-700"
+                className="px-2 sm:px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200 dark:border-slate-700 shrink-0"
                 title="Share Sunshine Classes ERP Portal Link"
               >
                 <Share2 size={14} className="text-brand-blue" />
@@ -3491,7 +3495,7 @@ Sunshine Classes`;
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute left-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-2 z-50"
+                      className="absolute left-0 mt-2 w-52 sm:w-56 max-w-[calc(100vw-24px)] bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-2 z-50"
                     >
                       <div className="p-2 border-b border-slate-100 dark:border-slate-700 mb-1">
                         <p className="text-xs font-extrabold text-slate-800 dark:text-slate-100">Share ERP Portal</p>
@@ -3531,10 +3535,23 @@ Sunshine Classes`;
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center flex-wrap gap-1.5 sm:gap-2.5 md:gap-3 shrink-0">
+            {/* Quick Contact Helpdesk Button */}
+            <a
+              id="btn-header-contact-call"
+              href="tel:+918707738284"
+              className="flex items-center gap-1 text-[11px] sm:text-xs font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-300 dark:border-amber-800/60 rounded-xl px-2 sm:px-2.5 py-1.5 transition-all cursor-pointer shrink-0"
+              title="Call Helpdesk at 8707738284"
+              aria-label="Call Helpdesk at 8707738284"
+            >
+              <Phone size={12} className="shrink-0 stroke-[2.5]" />
+              <span className="hidden md:inline">8707738284</span>
+              <span className="md:hidden">Call</span>
+            </a>
+
             {/* Cloud Connection Status Badge */}
             <div 
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-extrabold tracking-wider uppercase transition-all duration-300 ${
+              className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-full border text-[10px] font-extrabold tracking-wider uppercase transition-all duration-300 shrink-0 ${
                 cloudOnline 
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30' 
                   : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30'
@@ -3542,24 +3559,24 @@ Sunshine Classes`;
               title={cloudOnline ? 'Successfully connected & synchronizing with Sunshine Cloud Database' : 'Cloud connection unavailable. Running in offline fallback mode with local caching.'}
             >
               {cloudOnline ? (
-                <Cloud className="h-3 w-3 text-emerald-500 animate-pulse" />
+                <Cloud className="h-3 w-3 text-emerald-500 animate-pulse shrink-0" />
               ) : (
-                <CloudOff className="h-3 w-3 text-amber-500" />
+                <CloudOff className="h-3 w-3 text-amber-500 shrink-0" />
               )}
-              {cloudOnline ? 'Cloud Sync' : 'Offline Mode'}
+              <span className="hidden xs:inline">{cloudOnline ? 'Cloud Sync' : 'Offline'}</span>
             </div>
 
-            <div className="text-right">
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-100 block">Logged as: {currentUser.name}</span>
+            <div className="text-right hidden md:block">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-100 block truncate max-w-[120px]">Logged as: {currentUser.name}</span>
               <span className="text-[10px] text-slate-400 dark:text-slate-400 font-bold uppercase tracking-wider block">Role: {currentUser.role}</span>
             </div>
 
             {/* Notifications Badge & Dropdown */}
-            <div className="relative">
+            <div className="relative shrink-0">
               <button
                 id="btn-header-notifications"
                 onClick={() => setShowNotificationsDropdown(!showNotificationsDropdown)}
-                className={`relative p-2 rounded-xl border border-slate-150 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all cursor-pointer flex items-center justify-center`}
+                className={`relative p-1.5 sm:p-2 rounded-xl border border-slate-150 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all cursor-pointer flex items-center justify-center min-h-[34px] min-w-[34px] sm:min-h-[38px] sm:min-w-[38px]`}
                 title="System Notifications"
               >
                 {notifications.filter(n => {
@@ -3714,27 +3731,30 @@ Sunshine Classes`;
             <button
               id="btn-toggle-theme-private"
               onClick={toggleTheme}
-              className="flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-300 hover:text-brand-orange dark:hover:text-brand-orange bg-slate-50 dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-950/50 border border-slate-150 dark:border-slate-700 rounded-xl px-3 py-1.5 transition-all cursor-pointer font-display"
+              className="flex items-center gap-1 text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-300 hover:text-brand-orange dark:hover:text-brand-orange bg-slate-50 dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-950/50 border border-slate-150 dark:border-slate-700 rounded-xl px-2 sm:px-3 py-1.5 transition-all cursor-pointer font-display shrink-0 min-h-[34px]"
               title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
             >
               {theme === 'light' ? <Moon size={13} /> : <Sun size={13} />}
-              {theme === 'light' ? 'Dark' : 'Light'}
+              <span className="hidden xs:inline">{theme === 'light' ? 'Dark' : 'Light'}</span>
             </button>
 
             <button
               id="btn-erp-profile-security-trigger"
               onClick={() => setShowUserProfileModal(true)}
-              className="flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-300 hover:text-indigo-600 bg-slate-50 dark:bg-slate-800 hover:bg-indigo-50 border border-slate-150 dark:border-slate-700 rounded-xl px-3 py-1.5 transition-all cursor-pointer font-display"
+              className="flex items-center gap-1 text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-300 hover:text-indigo-600 bg-slate-50 dark:bg-slate-800 hover:bg-indigo-50 border border-slate-150 dark:border-slate-700 rounded-xl px-2 sm:px-3 py-1.5 transition-all cursor-pointer font-display shrink-0 min-h-[34px]"
             >
-              <Key size={13} /> My Profile & Security
+              <Key size={13} />
+              <span className="hidden sm:inline">My Profile & Security</span>
+              <span className="sm:hidden">Profile</span>
             </button>
 
             <button
               id="btn-erp-logout"
               onClick={handleLogout}
-              className="flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-300 hover:text-brand-red bg-slate-50 dark:bg-slate-800 hover:bg-red-50 border border-slate-150 dark:border-slate-700 rounded-xl px-3 py-1.5 transition-all"
+              className="flex items-center gap-1 text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-300 hover:text-brand-red bg-slate-50 dark:bg-slate-800 hover:bg-red-50 border border-slate-150 dark:border-slate-700 rounded-xl px-2 sm:px-3 py-1.5 transition-all shrink-0 min-h-[34px]"
             >
-              <LogOut size={13} /> Log Out
+              <LogOut size={13} />
+              <span className="hidden xs:inline">Log Out</span>
             </button>
           </div>
         </div>
@@ -4050,14 +4070,57 @@ Sunshine Classes`;
           <Route path="/terms" element={<TermsConditionsPage />} />
           <Route path="/terms-and-conditions" element={<TermsConditionsPage />} />
 
+          {/* Universal Error & Success System Pages */}
+          <Route path="/error" element={<ErrorPage />} />
+          <Route path="/500" element={<ErrorPage defaultStatusCode="500" defaultTitle="Internal Server Error" />} />
+          <Route path="/success" element={<SuccessPage />} />
+
+          {/* Payment & Fee Status Outcome Pages */}
+          <Route path="/payment/success" element={<SuccessPage defaultType="payment" />} />
+          <Route path="/fees/success" element={<SuccessPage defaultType="payment" />} />
+          <Route path="/payment/failure" element={<PaymentFailurePage />} />
+          <Route path="/fees/failure" element={<PaymentFailurePage />} />
+
+          {/* Admission & Enrollment Outcome Pages */}
+          <Route path="/admissions/success" element={<SuccessPage defaultType="admission" />} />
+          <Route path="/enroll/success" element={<SuccessPage defaultType="admission" />} />
+          <Route 
+            path="/admissions/error" 
+            element={
+              <ErrorPage 
+                defaultStatusCode="ADMISSION_SUBMIT_FAILED"
+                defaultTitle="Admission Application Interrupted" 
+                defaultMessage="We were unable to register your student application due to a server connection timeout. Your drafted details have been preserved." 
+              />
+            } 
+          />
+
+          {/* Sunshine Store Order Outcome Pages */}
+          <Route path="/store/success" element={<SuccessPage defaultType="store" />} />
+          <Route path="/store/order/success" element={<SuccessPage defaultType="store" />} />
+          <Route 
+            path="/store/order/failure" 
+            element={
+              <ErrorPage 
+                defaultStatusCode="ORDER_NOT_COMPLETED"
+                defaultTitle="Store Order Request Interrupted" 
+                defaultMessage="Your book reservation could not be completed at this time. Please try again or visit our campus bookstore desk." 
+              />
+            } 
+          />
+
+          {/* Authentication & Clearance Restriction Pages */}
+          <Route path="/unauthorized" element={<Unauthorized />} />
+          <Route path="/403" element={<Unauthorized />} />
+
           {/* Explicit 404 and Catch-all Routing */}
           <Route path="/404" element={<NotFoundPage onNavigateToHome={() => navigate('/')} />} />
           <Route path="*" element={<NotFoundPage onNavigateToHome={() => navigate('/')} />} />
         </Routes>
       </div>
 
-      {/* Floating Chatbot */}
-      <ChatBot />
+      {/* Global Floating Quick Contact Strip (Direct Call, WhatsApp, Socials) */}
+      <FloatingContactBar />
 
       {/* Cookie Consent Banner */}
       <CookieConsentBanner />

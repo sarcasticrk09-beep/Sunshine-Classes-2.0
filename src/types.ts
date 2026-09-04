@@ -56,6 +56,7 @@ export interface Student {
   mobile: string;
   whatsapp: string;
   parentMobile: string;
+  parentEmail?: string;
   email: string;
   preferredBatch: string;
   preferredTiming: string;
@@ -94,6 +95,7 @@ export interface DepartedStudent {
 export interface Teacher {
   id: string;
   userId: string;
+  username?: string;
   name: string;
   email: string;
   phone: string;
@@ -185,6 +187,7 @@ export interface ClassEntity {
   name: string;
   code?: string;
   defaultMonthlyFee: number;
+  fee?: number;
   capacity: number;
   totalCapacity?: number;
   status: 'ACTIVE' | 'INACTIVE';
@@ -251,6 +254,9 @@ export interface SubscriptionReceipt {
   transactionId: string;
   paymentMethod: string;
   paymentDate: string;
+  date?: string;
+  month?: string;
+  receivedBy?: string;
 }
 
 export interface SubscriptionNotification {
@@ -337,6 +343,7 @@ export interface FeeReceipt {
   date?: string;
   transactionId?: string;
   receivedBy?: string;
+  notes?: string;
 
   // Collection Engine fields
   receiptNumber?: string;
@@ -608,10 +615,11 @@ export interface AuditLog {
 
 export interface AppNotification {
   id: string;
+  userId?: string;
   title: string;
   content: string;
   category: 'ANNOUNCEMENT' | 'EXAM' | 'FEE' | 'HOMEWORK' | 'HOLIDAY';
-  targetRole: 'ALL' | 'STUDENT' | 'TEACHER' | 'RECEPTIONIST';
+  targetRole: 'ALL' | 'STUDENT' | 'TEACHER' | 'RECEPTIONIST' | 'ADMIN' | 'SUPER_ADMIN';
   date: string;
   isRead?: boolean;
   targetBatch?: string;
@@ -884,6 +892,7 @@ export interface StoreProduct {
   fullDescription: string;
   featuredImage: string;
   gallery?: string[];
+  galleryImages?: string[];
   
   // Classification
   categoryId: string;
@@ -1020,6 +1029,7 @@ export interface StoreOrder {
   paymentStatus: 'PAID' | 'PENDING' | 'FAILED' | 'REFUNDED';
   orderStatus: 'NEW' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
   deliveryAddress?: string;
+  shippingAddress?: string;
   notes?: string;
   createdAt: string;
   updatedAt: string;

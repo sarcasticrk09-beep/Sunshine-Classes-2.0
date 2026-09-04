@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   User, 
   CheckCircle2, 
@@ -60,6 +61,7 @@ export const EnrollmentWizard: React.FC<EnrollmentWizardProps> = ({
   onCancel,
   onSuccessNavigate
 }) => {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -280,9 +282,20 @@ export const EnrollmentWizard: React.FC<EnrollmentWizardProps> = ({
         </div>
         <button
           type="button"
+          id="btn-goto-official-admission-success-page"
+          onClick={() => {
+            navigate(`/admissions/success?id=${existingApplication?.id || 'ADM-' + Math.floor(1000 + Math.random() * 9000)}&name=${encodeURIComponent(formData.studentName)}&class=${encodeURIComponent(formData.className)}&batch=${encodeURIComponent(formData.preferredBatch || 'Regular')}&phone=${encodeURIComponent(formData.mobile)}&father=${encodeURIComponent(formData.parentName || '')}`);
+          }}
+          className="mt-5 w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
+        >
+          <CheckCircle2 size={16} />
+          <span>Open Full Official Admission Slip Page →</span>
+        </button>
+        <button
+          type="button"
           id="btn-goto-student-dashboard"
           onClick={() => { if (onSuccessNavigate) onSuccessNavigate(); }}
-          className="mt-6 w-full py-3 bg-brand-blue text-white rounded-xl font-extrabold text-xs shadow-md hover:bg-brand-blue-hover transition-all cursor-pointer"
+          className="mt-2.5 w-full py-3 bg-brand-blue text-white rounded-xl font-extrabold text-xs shadow-md hover:bg-brand-blue-hover transition-all cursor-pointer"
         >
           View Admission Status on Dashboard →
         </button>
@@ -352,9 +365,21 @@ export const EnrollmentWizard: React.FC<EnrollmentWizardProps> = ({
       {/* Main Form Body */}
       <div className="p-6 md:p-8">
         {errorMessage && (
-          <div className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-100 flex items-center gap-3 text-xs text-rose-700 font-semibold">
-            <AlertCircle size={18} className="shrink-0 text-rose-500" />
-            <span>{errorMessage}</span>
+          <div className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-rose-700 font-semibold">
+            <div className="flex items-center gap-3">
+              <AlertCircle size={18} className="shrink-0 text-rose-500" />
+              <span>{errorMessage}</span>
+            </div>
+            <button
+              type="button"
+              id="btn-admission-error-recovery"
+              onClick={() => {
+                navigate(`/admissions/error?message=${encodeURIComponent(errorMessage)}`);
+              }}
+              className="text-xs font-bold text-rose-800 hover:text-rose-950 underline shrink-0 text-left cursor-pointer"
+            >
+              Open Diagnostic & Recovery Desk →
+            </button>
           </div>
         )}
 
@@ -676,21 +701,23 @@ export const EnrollmentWizard: React.FC<EnrollmentWizardProps> = ({
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
                 <label className="block text-xs font-bold text-slate-700 mb-2">Passport Student Photo</label>
                 <CloudinaryUpload
+                  id="upload-wizard-student-photo"
                   value={formData.photoUrl}
                   onChange={(url) => handleChange('photoUrl', url)}
-                  folder="sunshine_students"
+                  folder="students"
                 />
               </div>
 
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
                 <label className="block text-xs font-bold text-slate-700 mb-2">Birth Certificate / Aadhar Card Image</label>
                 <CloudinaryUpload
+                  id="upload-wizard-birth-cert"
                   value={formData.birthCertUrl || formData.documentUrl}
                   onChange={(url) => {
                     handleChange('birthCertUrl', url);
                     handleChange('documentUrl', url);
                   }}
-                  folder="sunshine_documents"
+                  folder="documents"
                 />
               </div>
 
@@ -709,9 +736,10 @@ export const EnrollmentWizard: React.FC<EnrollmentWizardProps> = ({
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
                 <label className="block text-xs font-bold text-slate-700 mb-2">Previous Class Marksheet / Report Card</label>
                 <CloudinaryUpload
+                  id="upload-wizard-marksheet"
                   value={formData.marksheetUrl}
                   onChange={(url) => handleChange('marksheetUrl', url)}
-                  folder="sunshine_marksheets"
+                  folder="documents"
                 />
               </div>
             </div>

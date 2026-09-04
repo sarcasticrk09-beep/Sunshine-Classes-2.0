@@ -2774,8 +2774,8 @@ export const SunshineStoreAdmin: React.FC = () => {
                     <label className="block font-bold mb-1">Keywords (Comma Separated)</label>
                     <input
                       type="text"
-                      value={editingProduct.keywords || ''}
-                      onChange={e => setEditingProduct({ ...editingProduct, keywords: e.target.value })}
+                      value={Array.isArray(editingProduct.keywords) ? editingProduct.keywords.join(', ') : (editingProduct.keywords || '')}
+                      onChange={e => setEditingProduct({ ...editingProduct, keywords: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
                       placeholder="cbse class 10, rd sharma, math reference..."
                       className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
                     />

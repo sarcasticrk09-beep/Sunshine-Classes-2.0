@@ -3933,7 +3933,7 @@ export default function StudentDashboard({
                           ) : (
                             <CloudinaryUpload
                               id="cloudinary-student-upi-proof"
-                              folder="fee_proofs"
+                              folder="documents"
                               onUploadSuccess={(url) => {
                                 setUpiProofUrl(url);
                                 alert("Transaction screenshot uploaded successfully!");

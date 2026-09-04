@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { motion } from 'motion/react';
 import {
   Search,
   Filter,
@@ -997,7 +998,7 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs font-medium">
-                {students.map(s => {
+                {students.map((s, idx) => {
                   const isSelected = selectedIds.includes(s.id);
                   const name = s.name || s.personalInfo?.name || 'Unnamed';
                   const roll = s.rollNo || s.rollNumber || '-';
@@ -1010,8 +1011,11 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
                   const photo = s.photoUrl || s.personalInfo?.photoUrl || '';
 
                   return (
-                    <tr
+                    <motion.tr
                       key={s.id}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2, delay: Math.min(idx * 0.02, 0.3) }}
                       className={`hover:bg-slate-50/80 transition-colors ${isSelected ? 'bg-indigo-50/40' : ''}`}
                     >
                       <td className="p-3.5 text-center">
@@ -1162,7 +1166,7 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
                           )}
                         </div>
                       </td>
-                    </tr>
+                    </motion.tr>
                   );
                 })}
               </tbody>

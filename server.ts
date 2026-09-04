@@ -300,9 +300,12 @@ async function startServer() {
   });
   app.use("/api/auth/login", loginLimiter);
 
-  // Custom request logging middleware
+  // Custom request logging middleware (logs API and primary endpoints; skips Vite internal source modules)
   app.use((req, res, next) => {
-    console.log(`[HTTP Request] ${req.method} ${req.url} - IP: ${req.ip} - User-Agent: ${req.get('user-agent') || 'none'}`);
+    const url = req.url || '';
+    if (!url.startsWith('/src/') && !url.startsWith('/@') && !url.startsWith('/node_modules/')) {
+      console.log(`[HTTP Request] ${req.method} ${url} - IP: ${req.ip} - User-Agent: ${req.get('user-agent') || 'none'}`);
+    }
     next();
   });
 

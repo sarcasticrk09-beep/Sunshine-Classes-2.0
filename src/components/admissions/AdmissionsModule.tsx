@@ -58,7 +58,7 @@ interface AdmissionRecord {
   preferredBatch?: string;
   preferredTiming?: string;
   assignedTeacher?: string;
-  status: 'APPROVED' | 'PENDING' | 'REJECTED' | 'WAITLISTED';
+  status: 'APPROVED' | 'PENDING' | 'REJECTED' | 'WAITLISTED' | 'NEED_MORE_INFO';
   date?: string;
   admissionDate?: string;
   createdAt?: string;

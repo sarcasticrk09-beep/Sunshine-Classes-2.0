@@ -5919,10 +5919,16 @@ ${data.log}`
                       <p className="text-[10px] text-slate-400 py-3 text-center">No student matches</p>
                     ) : (
                       <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                        {filteredStudents.slice(0, 5).map(student => {
+                        {filteredStudents.slice(0, 5).map((student, idx) => {
                           const batchName = student.preferredBatch || 'No Batch';
                           return (
-                            <div key={student.id} className="group p-2.5 rounded-xl bg-slate-50 hover:bg-indigo-50/50 border border-transparent hover:border-indigo-100 transition-all flex items-center justify-between gap-2">
+                            <motion.div
+                              key={student.id}
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.2, delay: idx * 0.04 }}
+                              className="group p-2.5 rounded-xl bg-slate-50 hover:bg-indigo-50/50 border border-transparent hover:border-indigo-100 transition-all flex items-center justify-between gap-2"
+                            >
                               <div className="min-w-0">
                                 <p className="text-xs font-bold text-slate-800 truncate">{student.name}</p>
                                 <p className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1.5 flex-wrap">
@@ -5944,7 +5950,7 @@ ${data.log}`
                               >
                                 View ERP
                               </button>
-                            </div>
+                            </motion.div>
                           );
                         })}
                         {filteredStudents.length > 5 && (
@@ -5979,8 +5985,14 @@ ${data.log}`
                       <p className="text-[10px] text-slate-400 py-3 text-center">No faculty matches</p>
                     ) : (
                       <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                        {filteredTeachers.slice(0, 5).map(teacher => (
-                          <div key={teacher.id} className="group p-2.5 rounded-xl bg-slate-50 hover:bg-indigo-50/50 border border-transparent hover:border-indigo-100 transition-all flex items-center justify-between gap-2">
+                        {filteredTeachers.slice(0, 5).map((teacher, idx) => (
+                          <motion.div
+                            key={teacher.id}
+                            initial={{ opacity: 0, y: 6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.2, delay: idx * 0.04 }}
+                            className="group p-2.5 rounded-xl bg-slate-50 hover:bg-indigo-50/50 border border-transparent hover:border-indigo-100 transition-all flex items-center justify-between gap-2"
+                          >
                             <div className="min-w-0">
                               <p className="text-xs font-bold text-slate-800 truncate">{teacher.name}</p>
                               <p className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1.5 flex-wrap">
@@ -6000,7 +6012,7 @@ ${data.log}`
                             >
                               View Card
                             </button>
-                          </div>
+                          </motion.div>
                         ))}
                         {filteredTeachers.length > 5 && (
                           <button
@@ -6034,10 +6046,16 @@ ${data.log}`
                       <p className="text-[10px] text-slate-400 py-3 text-center">No billing matches</p>
                     ) : (
                       <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                        {filteredFees.slice(0, 5).map(fee => {
+                        {filteredFees.slice(0, 5).map((fee, idx) => {
                           const isPaid = fee.status === 'PAID';
                           return (
-                            <div key={fee.id} className="group p-2.5 rounded-xl bg-slate-50 hover:bg-indigo-50/50 border border-transparent hover:border-indigo-100 transition-all flex items-center justify-between gap-2">
+                            <motion.div
+                              key={fee.id}
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.2, delay: idx * 0.04 }}
+                              className="group p-2.5 rounded-xl bg-slate-50 hover:bg-indigo-50/50 border border-transparent hover:border-indigo-100 transition-all flex items-center justify-between gap-2"
+                            >
                               <div className="min-w-0">
                                 <p className="text-xs font-bold text-slate-800 truncate">{fee.studentName}</p>
                                 <p className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1 flex-wrap">
@@ -6059,7 +6077,7 @@ ${data.log}`
                               >
                                 View Ledger
                               </button>
-                            </div>
+                            </motion.div>
                           );
                         })}
                         {filteredFees.length > 5 && (
@@ -6817,10 +6835,16 @@ ${data.log}`
                           <span className="text-[10px] text-slate-400 italic">Click any batch to audit roster</span>
                         </div>
                         <div className="divide-y divide-slate-150 max-h-64 overflow-y-auto">
-                          {processedStats.map(stat => {
+                          {processedStats.map((stat, idx) => {
                             const isAuditing = selectedAuditBatchName?.toLowerCase() === stat.name?.toLowerCase();
                             return (
-                              <div key={stat.id} className="transition-colors hover:bg-slate-50/40">
+                              <motion.div
+                                key={stat.id}
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.2, delay: Math.min(idx * 0.03, 0.3) }}
+                                className="transition-colors hover:bg-slate-50/40"
+                              >
                                 <button
                                   type="button"
                                   id={`btn-select-audit-${stat.id}`}
@@ -6904,7 +6928,7 @@ ${data.log}`
                                     </motion.div>
                                   )}
                                 </AnimatePresence>
-                              </div>
+                              </motion.div>
                             );
                           })}
                         </div>
@@ -6964,15 +6988,21 @@ ${data.log}`
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50 text-[11px] text-slate-700">
-                      {feeReceipts.map((rec) => (
-                        <tr key={rec.id} className="hover:bg-slate-50/50">
+                      {feeReceipts.map((rec, idx) => (
+                        <motion.tr
+                          key={rec.id}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2, delay: Math.min(idx * 0.03, 0.3) }}
+                          className="hover:bg-slate-50/50"
+                        >
                           <td className="p-2 font-semibold text-brand-blue font-mono">{rec.id}</td>
                           <td className="p-2 font-bold">{rec.studentName}</td>
                           <td className="p-2">{rec.month}</td>
                           <td className="p-2 font-bold text-emerald-600">₹{rec.amountPaid}</td>
                           <td className="p-2 text-slate-500 font-mono text-[9px]">{rec.paymentMethod}</td>
                           <td className="p-2 text-slate-400">{rec.receivedBy}</td>
-                        </tr>
+                        </motion.tr>
                       ))}
                       {feeReceipts.length === 0 && (
                         <tr>
@@ -7046,9 +7076,12 @@ ${data.log}`
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-2">
-                      {pendingAdmissions.map((adm) => (
-                        <div 
-                          key={adm.id} 
+                      {pendingAdmissions.map((adm, idx) => (
+                        <motion.div 
+                          key={adm.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.25, delay: Math.min(idx * 0.04, 0.4) }}
                           className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs hover:border-brand-blue/30 transition-all space-y-3 text-xs"
                         >
                           <div className="flex justify-between items-start gap-2">
@@ -7101,7 +7134,7 @@ ${data.log}`
                               Approve & Enroll
                             </button>
                           </div>
-                        </div>
+                        </motion.div>
                       ))}
                     </div>
                   </div>
@@ -7918,8 +7951,14 @@ ${data.log}`
                 <div className="space-y-4">
                   {teachers
                     .filter((t) => t.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                    .map((t) => (
-                      <div key={t.id} className="rounded-xl border border-slate-100 p-5 bg-slate-50/50 hover:bg-slate-50/80 transition-all flex flex-col md:flex-row justify-between md:items-center gap-4">
+                    .map((t, idx) => (
+                      <motion.div
+                        key={t.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.25, delay: Math.min(idx * 0.04, 0.4) }}
+                        className="rounded-xl border border-slate-100 p-5 bg-slate-50/50 hover:bg-slate-50/80 transition-all flex flex-col md:flex-row justify-between md:items-center gap-4"
+                      >
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
                             <h4 className="text-sm font-bold text-slate-800">{t.name}</h4>
@@ -8022,7 +8061,7 @@ ${data.log}`
                             <Trash2 size={14} />
                           </button>
                         </div>
-                      </div>
+                      </motion.div>
                     ))}
 
                   {teachers.filter((t) => t.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
@@ -8229,14 +8268,20 @@ ${data.log}`
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-                        {filteredUpiPayments.map((payment) => {
+                        {filteredUpiPayments.map((payment, idx) => {
                           const s = students.find(x => x.id === payment.studentId);
                           const teacherName = getStudentTeacherName(payment.studentId);
                           const matchedReceipt = feeReceipts.find(r => r.transactionId === payment.utr);
                           const payRefId = `FEE-${payment.studentId}-${payment.month.replace(/\s+/g, '-')}`;
 
                           return (
-                            <tr key={payment.id} className="hover:bg-slate-50/40 transition-all">
+                            <motion.tr
+                              key={payment.id}
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.2, delay: Math.min(idx * 0.03, 0.3) }}
+                              className="hover:bg-slate-50/40 transition-all"
+                            >
                               <td className="px-4 py-3.5">
                                 <div className="font-extrabold text-slate-900">{payment.studentName}</div>
                                 <div className="text-[10px] text-slate-400 font-mono mt-0.5">Roll No: {s?.rollNo || 'N/A'} • ID: {payment.studentId}</div>
@@ -8360,7 +8405,7 @@ ${data.log}`
                                   <span className="text-[10px] text-slate-400">No Actions</span>
                                 )}
                               </td>
-                            </tr>
+                            </motion.tr>
                           );
                         })}
 
@@ -9447,7 +9492,7 @@ ${data.log}`
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-                          {filteredFeeStatuses.map((entry) => {
+                          {filteredFeeStatuses.map((entry, idx) => {
                             const studentProfile = students.find(s => s.id === entry.studentId);
                             const rawPhone = studentProfile?.whatsapp || studentProfile?.parentMobile || studentProfile?.mobile || '';
                             const hasPending = entry.pendingFee > 0;
@@ -9463,7 +9508,12 @@ ${data.log}`
 
                             return (
                               <React.Fragment key={entry.id}>
-                                <tr className="hover:bg-slate-50/60 transition-colors">
+                                <motion.tr
+                                  initial={{ opacity: 0, y: 6 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ duration: 0.2, delay: Math.min(idx * 0.025, 0.3) }}
+                                  className="hover:bg-slate-50/60 transition-colors"
+                                >
                                  {/* Student name & Roll */}
                                  <td className="px-4 py-3.5 select-none">
                                    <div className="flex items-center gap-2">
@@ -9600,7 +9650,7 @@ ${data.log}`
                                     )}
                                   </div>
                                 </td>
-                              </tr>
+                              </motion.tr>
 
                               {/* Expandable historical payments panel */}
                               {expandedFeeRecordIds[entry.id] && (
@@ -10414,7 +10464,7 @@ ${data.log}`
                       }
                       return true;
                     })
-                    .map((classItem) => {
+                    .map((classItem, idx) => {
                       const classStudents = students.filter(
                         (s) => s.class === classItem.name || s.preferredBatch?.startsWith(classItem.name)
                       );
@@ -10422,8 +10472,11 @@ ${data.log}`
                       const fillPercentage = Math.min(100, Math.round((classStudents.length / totalClassCap) * 100));
 
                       return (
-                        <div
+                        <motion.div
                           key={classItem.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.25, delay: Math.min(idx * 0.04, 0.4) }}
                           className="rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden"
                         >
                           {/* Class Card Header */}
@@ -10602,7 +10655,7 @@ ${data.log}`
                               </div>
                             )}
                           </div>
-                        </div>
+                        </motion.div>
                       );
                     })
                 )}
@@ -11642,8 +11695,14 @@ ${data.log}`
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {studyMaterials.map((item) => (
-                        <tr key={item.id} className="hover:bg-slate-50 text-xs animate-fade-in">
+                      {studyMaterials.map((item, idx) => (
+                        <motion.tr
+                          key={item.id}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2, delay: Math.min(idx * 0.025, 0.3) }}
+                          className="hover:bg-slate-50 text-xs"
+                        >
                           <td className="p-3">
                             <h4 className="font-bold text-slate-800">{item.title}</h4>
                             <p className="text-[10px] text-slate-400 leading-snug">{item.desc}</p>
@@ -11678,7 +11737,7 @@ ${data.log}`
                               <Trash2 size={13} />
                             </button>
                           </td>
-                        </tr>
+                        </motion.tr>
                       ))}
                     </tbody>
                   </table>
@@ -12182,7 +12241,7 @@ ${data.log}`
                             </td>
                           </tr>
                         ) : (
-                          filteredAuthLogs.map((log) => {
+                          filteredAuthLogs.map((log, idx) => {
                             let actionBadgeClass = "bg-slate-100 text-slate-800 border-slate-200";
                             if (log.action.includes("FAILED_LOGIN")) {
                               actionBadgeClass = "bg-rose-100 text-rose-800 border-rose-200 font-bold";
@@ -12197,7 +12256,13 @@ ${data.log}`
                             }
 
                             return (
-                              <tr key={log.id} className="hover:bg-slate-50/40 transition-colors">
+                              <motion.tr
+                                key={log.id}
+                                initial={{ opacity: 0, y: 4 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.15, delay: Math.min(idx * 0.02, 0.25) }}
+                                className="hover:bg-slate-50/40 transition-colors"
+                              >
                                 <td className="p-3 font-mono text-[11px] font-bold text-indigo-950 shrink-0">{log.id}</td>
                                 <td className="p-3 text-[11px] font-mono text-slate-400">
                                   {new Date(log.timestamp).toLocaleString('en-US', {
@@ -12222,7 +12287,7 @@ ${data.log}`
                                   </span>
                                 </td>
                                 <td className="p-3 text-slate-600 text-xs font-semibold max-w-sm break-words">{log.details}</td>
-                              </tr>
+                              </motion.tr>
                             );
                           })
                         )}
@@ -12319,8 +12384,14 @@ ${data.log}`
                           </td>
                         </tr>
                       ) : (
-                        localUsers.map((user) => (
-                          <tr key={user.id} className="hover:bg-slate-50/50">
+                        localUsers.map((user, idx) => (
+                          <motion.tr
+                            key={user.id}
+                            initial={{ opacity: 0, y: 6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.2, delay: Math.min(idx * 0.025, 0.3) }}
+                            className="hover:bg-slate-50/50"
+                          >
                             <td className="p-3 font-mono font-bold text-indigo-900">{user.id}</td>
                             <td className="p-3 font-extrabold text-slate-800">{user.name}</td>
                             <td className="p-3 text-slate-600">@{user.username}</td>
@@ -12365,7 +12436,7 @@ ${data.log}`
                                 {user.emailVerified ? 'Set Unverified' : 'Force Verify'}
                               </button>
                             </td>
-                          </tr>
+                          </motion.tr>
                         ))
                       )}
                     </tbody>

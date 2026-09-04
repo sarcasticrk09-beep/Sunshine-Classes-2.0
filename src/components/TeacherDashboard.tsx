@@ -598,7 +598,13 @@ export default function TeacherDashboard({
                   {teacher.batches.map((bName, idx) => {
                     const matchedBatch = bName.includes('Morning') ? '07:00 AM - 09:30 AM' : '04:00 PM - 06:30 PM';
                     return (
-                      <div key={idx} className="rounded-xl border border-slate-100 p-4 flex justify-between items-center bg-slate-50/50 transition-all duration-200 hover:scale-[1.01] hover:bg-slate-100/60">
+                      <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.25, delay: idx * 0.05 }}
+                        className="rounded-xl border border-slate-100 p-4 flex justify-between items-center bg-slate-50/50 transition-all duration-200 hover:scale-[1.01] hover:bg-slate-100/60"
+                      >
                         <div>
                           <h4 className="text-xs font-bold text-slate-800">{bName}</h4>
                           <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
@@ -608,7 +614,7 @@ export default function TeacherDashboard({
                         <span className="inline-flex rounded bg-emerald-50 text-emerald-800 px-2.5 py-1 text-[10px] font-bold">
                           Daily Attendance OK
                         </span>
-                      </div>
+                      </motion.div>
                     );
                   })}
                 </div>
@@ -618,8 +624,14 @@ export default function TeacherDashboard({
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-300 hover:scale-[1.01] hover:shadow-md hover:border-slate-300">
                 <h3 className="font-display font-bold text-sm text-slate-800 mb-4">Recent Submissions Waiting Feedback</h3>
                 <div className="space-y-3">
-                  {relevantSubmissions.filter(s => s.status === 'SUBMITTED').slice(0, 2).map((sub) => (
-                    <div key={sub.id} className="flex justify-between items-center border-b border-slate-100 pb-3 last:border-0 last:pb-0">
+                  {relevantSubmissions.filter(s => s.status === 'SUBMITTED').slice(0, 2).map((sub, idx) => (
+                    <motion.div
+                      key={sub.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.25, delay: idx * 0.06 }}
+                      className="flex justify-between items-center border-b border-slate-100 pb-3 last:border-0 last:pb-0"
+                    >
                       <div>
                         <span className="text-[9px] font-bold text-slate-400 block">{sub.class} • {sub.studentName}</span>
                         <h4 className="text-xs font-bold text-slate-800">Completed Exercise Solution</h4>
@@ -634,7 +646,7 @@ export default function TeacherDashboard({
                       >
                         Grade Submission
                       </button>
-                    </div>
+                    </motion.div>
                   ))}
                   {relevantSubmissions.filter(s => s.status === 'SUBMITTED').length === 0 && (
                     <p className="text-xs text-slate-500 text-center py-4">Great job! All student homework copies have been reviewed.</p>
@@ -692,10 +704,16 @@ export default function TeacherDashboard({
                       {filteredStudents.length === 0 ? (
                         <div className="p-6 text-center text-slate-400 text-xs">No students registered in {selectedClass} cohort.</div>
                       ) : (
-                        filteredStudents.map((s) => {
+                        filteredStudents.map((s, idx) => {
                           const statusValue = attendanceRecords[s.id] || 'PRESENT';
                           return (
-                            <div key={s.id} className="p-3 flex justify-between items-center hover:bg-slate-50/30">
+                            <motion.div
+                              key={s.id}
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.2, delay: Math.min(idx * 0.025, 0.35) }}
+                              className="p-3 flex justify-between items-center hover:bg-slate-50/30"
+                            >
                               <div>
                                 <span className="text-[10px] font-mono text-slate-400 block">{s.rollNo}</span>
                                 <span className="text-xs font-bold text-slate-800">{s.name}</span>
@@ -720,7 +738,7 @@ export default function TeacherDashboard({
                                   </button>
                                 ))}
                               </div>
-                            </div>
+                            </motion.div>
                           );
                         })
                       )}
@@ -998,10 +1016,16 @@ export default function TeacherDashboard({
 
                   return (
                     <div className="grid gap-4 md:grid-cols-2">
-                      {filteredHws.map((hw) => {
+                      {filteredHws.map((hw, idx) => {
                         const attachments = hw.fileUrl ? hw.fileUrl.split(',').filter(Boolean) : [];
                         return (
-                          <div key={hw.id} className="rounded-xl border border-slate-150 p-4 bg-slate-50/15 flex flex-col justify-between gap-3 shadow-3xs hover:shadow-2xs transition-shadow">
+                          <motion.div
+                            key={hw.id}
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.25, delay: Math.min(idx * 0.04, 0.4) }}
+                            className="rounded-xl border border-slate-150 p-4 bg-slate-50/15 flex flex-col justify-between gap-3 shadow-3xs hover:shadow-2xs transition-shadow"
+                          >
                             <div>
                               <div className="flex justify-between items-start gap-2 mb-2">
                                 <div className="flex flex-wrap gap-1.5">
@@ -1071,7 +1095,7 @@ export default function TeacherDashboard({
                                 </button>
                               </div>
                             </div>
-                          </div>
+                          </motion.div>
                         );
                       })}
                     </div>
@@ -1239,10 +1263,16 @@ export default function TeacherDashboard({
               <p className="text-xs text-slate-500 mb-6">Review student homework answers, give numerical/grading feedback, and add supportive guidelines remarks.</p>
 
               <div className="space-y-4">
-                {relevantSubmissions.map((sub) => {
+                {relevantSubmissions.map((sub, idx) => {
                   const origHw = homeworkList.find((h) => h.id === sub.homeworkId);
                   return (
-                    <div key={sub.id} className="rounded-xl border border-slate-100 p-4 bg-slate-50/40">
+                    <motion.div
+                      key={sub.id}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.25, delay: Math.min(idx * 0.04, 0.4) }}
+                      className="rounded-xl border border-slate-100 p-4 bg-slate-50/40"
+                    >
                       <div className="flex justify-between items-start gap-4 flex-col sm:flex-row">
                         <div>
                           <div className="flex items-center gap-2 mb-1.5">
@@ -1420,7 +1450,7 @@ export default function TeacherDashboard({
                           )}
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
                 {relevantSubmissions.length === 0 && (
@@ -1594,8 +1624,14 @@ export default function TeacherDashboard({
                 <h3 className="font-display font-bold text-base text-slate-800 mb-4">Enter Student Grades & Marks</h3>
 
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {tests.map((test) => (
-                    <div key={test.id} className="rounded-xl border border-slate-100 p-4 hover:border-slate-300 transition-all">
+                  {tests.map((test, idx) => (
+                    <motion.div
+                      key={test.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.25, delay: Math.min(idx * 0.04, 0.4) }}
+                      className="rounded-xl border border-slate-100 p-4 hover:border-slate-300 transition-all"
+                    >
                       <span className="text-[9px] font-black text-brand-blue block mb-1 uppercase">
                         {test.class} • {test.subject}
                       </span>
@@ -1610,7 +1646,7 @@ export default function TeacherDashboard({
                       >
                         <Plus size={14} /> Grade Student Scores
                       </button>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               </div>
@@ -1736,8 +1772,14 @@ export default function TeacherDashboard({
                           <td colSpan={7} className="p-8 text-center text-slate-400 font-medium block md:table-cell">No schedule slots registered in Sunshine Classes database yet.</td>
                         </tr>
                       ) : (
-                        timetableList.map((entry) => (
-                          <tr key={entry.id} className="hover:bg-slate-50/30 block md:table-row p-3 md:p-0">
+                        timetableList.map((entry, idx) => (
+                          <motion.tr
+                            key={entry.id}
+                            initial={{ opacity: 0, y: 6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.2, delay: Math.min(idx * 0.025, 0.35) }}
+                            className="hover:bg-slate-50/30 block md:table-row p-3 md:p-0"
+                          >
                             <td className="py-1 px-3 font-bold text-slate-800 block md:table-cell md:p-3"><span className="inline-block md:hidden font-bold text-slate-400 w-28">Day:</span>{entry.day}</td>
                             <td className="py-1 px-3 font-semibold text-slate-600 block md:table-cell md:p-3"><span className="inline-block md:hidden font-bold text-slate-400 w-28">Class:</span>{entry.className}</td>
                             <td className="py-1 px-3 block md:table-cell md:p-3">
@@ -1771,7 +1813,7 @@ export default function TeacherDashboard({
                                 <Trash2 size={14} />
                               </button>
                             </td>
-                          </tr>
+                          </motion.tr>
                         ))
                       )}
                     </tbody>
@@ -2003,7 +2045,7 @@ export default function TeacherDashboard({
                         <p className="text-xs text-slate-400 mt-1">Announce study updates, test schedules, or clear student doubts here.</p>
                       </div>
                     ) : (
-                      filteredBulletins.map((post) => {
+                      filteredBulletins.map((post, idx) => {
                         const dateObj = new Date(post.timestamp);
                         const formattedTime = isNaN(dateObj.getTime()) 
                           ? post.timestamp 
@@ -2030,8 +2072,11 @@ export default function TeacherDashboard({
                         }
 
                         return (
-                          <div 
-                            key={post.id} 
+                          <motion.div 
+                            key={post.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.25, delay: Math.min(idx * 0.035, 0.35) }}
                             className="rounded-xl border border-slate-100 p-4 bg-white hover:border-slate-200 transition-all flex gap-3.5 items-start relative group"
                           >
                             {/* Avatar */}
@@ -2105,7 +2150,7 @@ export default function TeacherDashboard({
                             >
                               <Trash2 size={13} />
                             </button>
-                          </div>
+                          </motion.div>
                         );
                       })
                     )}

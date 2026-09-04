@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../auth/useAuth';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, DollarSign, Calendar, CreditCard, Shield, Receipt, ArrowLeft, RefreshCw, CheckCircle, AlertCircle, FileText, Download } from 'lucide-react';
+import { Search, DollarSign, Calendar, CreditCard, Shield, Receipt, ArrowLeft, RefreshCw, CheckCircle, AlertCircle, FileText, Download, CheckCircle2 } from 'lucide-react';
 import SunshineLogo from '../components/SunshineLogo';
 import { useNavigate } from 'react-router-dom';
 import { Student, FeeStatus, FeeReceipt } from '../types';
@@ -40,6 +40,7 @@ export const FeesPage: React.FC<FeesPageProps> = ({
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [newReceiptId, setNewReceiptId] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,6 +82,7 @@ export const FeesPage: React.FC<FeesPageProps> = ({
     setPaymentAmount(fee.pendingFee.toString());
     setTransactionId('');
     setPaymentSuccess(false);
+    setPaymentError(null);
   };
 
   const handleProcessPayment = (e: React.FormEvent) => {
@@ -89,15 +91,16 @@ export const FeesPage: React.FC<FeesPageProps> = ({
 
     const amount = parseFloat(paymentAmount);
     if (isNaN(amount) || amount <= 0) {
-      alert("Please enter a valid amount.");
+      setPaymentError("Please enter a valid payment amount of at least ₹1.");
       return;
     }
 
     if (amount > payingFee.pendingFee) {
-      alert(`Payment amount cannot exceed pending balance of ₹${payingFee.pendingFee}`);
+      setPaymentError(`Payment amount cannot exceed pending balance of ₹${payingFee.pendingFee}`);
       return;
     }
 
+    setPaymentError(null);
     setIsProcessing(true);
 
     setTimeout(() => {
@@ -111,7 +114,7 @@ export const FeesPage: React.FC<FeesPageProps> = ({
         class: matchedStudent.class || 'Class 10',
         month: payingFee.month,
         amountPaid: amount,
-        paymentMethod: paymentMethod === 'CASH' ? 'Cash' : paymentMethod === 'CARD' ? 'Card' : paymentMethod === 'UPI' ? 'UPI' : 'Bank Transfer',
+        paymentMethod: paymentMethod === 'CASH' ? 'CASH' : paymentMethod === 'CARD' ? 'ONLINE' : paymentMethod === 'UPI' ? 'UPI' : 'BANK_TRANSFER',
         transactionId: transactionId || `TXN-${Date.now().toString().slice(-8)}`,
         notes: `Online Parent payment for ${payingFee.month}`,
         skipWhatsApp: false
@@ -146,7 +149,7 @@ export const FeesPage: React.FC<FeesPageProps> = ({
           class: matchedStudent.class || 'Class 10',
           month: payingFee.month,
           amountPaid: amount,
-          paymentMethod: paymentMethod === 'CASH' ? 'Cash' : paymentMethod === 'CARD' ? 'Card' : paymentMethod === 'UPI' ? 'UPI' : 'Bank Transfer',
+          paymentMethod: paymentMethod === 'CASH' ? 'CASH' : paymentMethod === 'CARD' ? 'ONLINE' : paymentMethod === 'UPI' ? 'UPI' : 'BANK_TRANSFER',
           transactionId: transactionId || `TXN-${Date.now().toString().slice(-8)}`,
           date: new Date().toISOString().split('T')[0],
           receivedBy: currentUser?.name || 'Online Portal'
@@ -496,6 +499,13 @@ export const FeesPage: React.FC<FeesPageProps> = ({
                     </span>
                   </div>
 
+                  {paymentError && (
+                    <div id="payment-modal-error-banner" className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+                      <AlertCircle size={15} className="shrink-0 text-rose-500" />
+                      <span className="font-semibold">{paymentError}</span>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Enter Payment Amount (₹)</label>
                     <div className="relative">
@@ -593,6 +603,19 @@ export const FeesPage: React.FC<FeesPageProps> = ({
                       )}
                     </button>
                   </div>
+
+                  <div className="pt-2 text-center">
+                    <button
+                      id="btn-fees-report-failure"
+                      type="button"
+                      onClick={() => {
+                        navigate(`/payment/failure?student=${encodeURIComponent(matchedStudent.name)}&amount=${paymentAmount}&month=${encodeURIComponent(payingFee.month)}`);
+                      }}
+                      className="text-[11px] text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 underline transition-colors cursor-pointer"
+                    >
+                      Having trouble with payment or transaction failed? Open Helpdesk
+                    </button>
+                  </div>
                 </form>
               ) : (
                 <div className="p-8 text-center space-y-4">
@@ -609,6 +632,15 @@ export const FeesPage: React.FC<FeesPageProps> = ({
                   </div>
 
                   <div className="flex flex-col gap-2 pt-3">
+                    <button
+                      id="btn-fees-open-full-success-page"
+                      onClick={() => {
+                        navigate(`/payment/success?receiptId=${newReceiptId}&amount=${paymentAmount}&student=${encodeURIComponent(matchedStudent.name)}&class=${encodeURIComponent(matchedStudent.class || 'Class 10')}&month=${encodeURIComponent(payingFee.month)}&method=${encodeURIComponent(paymentMethod)}`);
+                      }}
+                      className="w-full rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 py-2.5 text-xs font-black shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <CheckCircle2 size={14} /> View & Print Verified Success Slip Page →
+                    </button>
                     <button
                       id="print-success-receipt"
                       onClick={() => {

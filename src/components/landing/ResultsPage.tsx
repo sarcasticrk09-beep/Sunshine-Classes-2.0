@@ -1,12 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { Trophy, Award, Sparkles, Search, GraduationCap, X, CheckCircle2, Share2, Medal, User, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Topper } from '../../types';
+import { Topper, Testimonial } from '../../types';
 import { TopperCard, getTopperInitials } from '../merit/TopperCard';
 
 interface ResultsPageProps {
   toppers?: Topper[];
+  testimonials?: Testimonial[];
   onEnrollClick?: (className?: string) => void;
+  onSubmitReview?: (review: Omit<Testimonial, "id">) => void;
 }
 
 const containerVariants = {
@@ -20,7 +22,7 @@ const containerVariants = {
   }
 };
 
-const itemVariants = {
+const itemVariants: any = {
   hidden: { opacity: 0, y: 20, scale: 0.98 },
   visible: {
     opacity: 1,
@@ -28,7 +30,7 @@ const itemVariants = {
     scale: 1,
     transition: {
       duration: 0.4,
-      ease: [0.22, 1, 0.36, 1]
+      ease: "easeOut"
     }
   }
 };

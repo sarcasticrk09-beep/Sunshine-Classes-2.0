@@ -142,7 +142,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button
           id="nav-logo-btn"
           onClick={() => handleNavClick('home')}
-          className="flex items-center gap-1.5 sm:gap-2 cursor-pointer text-left focus:outline-none shrink-0 max-w-[170px] xs:max-w-none overflow-hidden"
+          className="flex items-center gap-1.5 sm:gap-2 cursor-pointer text-left focus:outline-none shrink min-w-0 max-w-[150px] xs:max-w-none overflow-hidden"
           title="Sunshine Classes Home"
         >
           <SunshineLogo size="sm" showText={true} textSubTitle="Pihani, Hardoi" />
@@ -401,17 +401,43 @@ export const Navbar: React.FC<NavbarProps> = ({
         </nav>
 
         {/* Right Header Action Controls */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-2.5 shrink-0 justify-end">
           
+          {/* Direct Call Desk (Desktop/Tablet) */}
+          <a
+            id="btn-nav-call-desk"
+            href="tel:+918707738284"
+            className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 text-xs font-black transition-all cursor-pointer min-h-[44px]"
+            title="Call Admission Helpdesk directly at 8707738284"
+            aria-label="Call Admission Helpdesk directly at 8707738284"
+          >
+            <Phone size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
+            <span>8707738284</span>
+          </a>
+
+          {/* Direct WhatsApp (Desktop/Tablet) */}
+          <a
+            id="btn-nav-whatsapp"
+            href="https://wa.me/919161586254?text=Hello!%20I%20want%20to%20inquire%20about%20Sunshine%20Classes."
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 text-xs font-black transition-all cursor-pointer min-h-[44px]"
+            title="Chat on WhatsApp (9161586254)"
+            aria-label="Chat on WhatsApp at 9161586254"
+          >
+            <MessageCircle size={14} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>WhatsApp</span>
+          </a>
+
           {/* Theme Switcher */}
           <button
             id="btn-nav-theme-toggle"
             onClick={onToggleTheme}
-            className="p-2 sm:p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="p-1.5 xs:p-2 sm:p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer min-h-[36px] min-w-[36px] sm:min-h-[42px] sm:min-w-[42px] flex items-center justify-center shrink-0"
             title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             aria-label="Toggle theme mode"
           >
-            {theme === 'dark' ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} className="text-slate-700" />}
+            {theme === 'dark' ? <Sun size={16} className="text-amber-400 sm:w-[18px] sm:h-[18px]" /> : <Moon size={16} className="text-slate-700 dark:text-slate-300 sm:w-[18px] sm:h-[18px]" />}
           </button>
 
           {/* Share Portal Button */}
@@ -526,21 +552,32 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             id="btn-nav-enroll-now"
             onClick={() => handleNavClick('admissions')}
-            className="flex items-center gap-1 sm:gap-1.5 px-2.5 xs:px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-md transition-all cursor-pointer shrink-0 min-h-[40px] sm:min-h-[44px]"
+            className="flex items-center gap-1 sm:gap-1.5 px-2 xs:px-3 sm:px-4 py-1.5 xs:py-2 sm:py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-[11px] xs:text-xs shadow-md transition-all cursor-pointer shrink-0 min-h-[36px] sm:min-h-[42px]"
           >
-            <GraduationCap size={15} className="shrink-0" />
+            <GraduationCap size={14} className="shrink-0 sm:w-[15px] sm:h-[15px]" />
             <span className="hidden xs:inline">Enroll Now</span>
             <span className="xs:hidden">Enroll</span>
           </button>
 
-          {/* Mobile Drawer Toggle */}
+          {/* Mobile Quick Call Button (Contact button) */}
+          <a
+            id="btn-nav-mobile-call"
+            href="tel:+918707738284"
+            className="xl:hidden flex items-center justify-center p-1.5 xs:p-2 sm:p-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-xs cursor-pointer min-h-[36px] min-w-[36px] sm:min-h-[42px] sm:min-w-[42px] shrink-0"
+            title="Call Admission Desk (8707738284)"
+            aria-label="Call Admission Desk at 8707738284"
+          >
+            <Phone size={15} className="stroke-[2.5] sm:w-[17px] sm:h-[17px]" />
+          </a>
+
+          {/* Mobile Drawer Toggle (Menu icon) */}
           <button
             id="btn-nav-mobile-toggle"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="xl:hidden p-2 sm:p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer min-h-[40px] min-w-[40px] sm:min-h-[44px] sm:min-w-[44px] flex items-center justify-center shrink-0"
+            className="xl:hidden p-1.5 xs:p-2 sm:p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer min-h-[36px] min-w-[36px] sm:min-h-[42px] sm:min-w-[42px] flex items-center justify-center shrink-0"
             aria-label="Toggle mobile navigation menu"
           >
-            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            {mobileMenuOpen ? <X size={18} className="sm:w-5 sm:h-5" /> : <Menu size={18} className="sm:w-5 sm:h-5" />}
           </button>
         </div>
       </div>
