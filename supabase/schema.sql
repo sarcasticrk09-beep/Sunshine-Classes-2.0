@@ -426,7 +426,10 @@ CREATE TABLE IF NOT EXISTS public.store_products (
   description TEXT,
   is_available BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT chk_store_products_price CHECK (price >= 0),
+  CONSTRAINT chk_store_products_discount_price CHECK (discount_price IS NULL OR discount_price >= 0),
+  CONSTRAINT chk_store_products_discount_le_price CHECK (discount_price IS NULL OR discount_price <= price)
 );
 
 -- --------------------------------------------------------------------
@@ -513,41 +516,67 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON public.audit_logs(action);
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
+  v_base_username VARCHAR(100);
   v_username VARCHAR(100);
   v_name VARCHAR(150);
   v_role user_role;
   v_phone VARCHAR(25);
+  v_suffix INT := 0;
+  v_collision_count INT := 0;
 BEGIN
-  v_username := COALESCE(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1));
+  -- Derive base username from email or metadata (alphanumeric and underscores only)
+  v_base_username := LOWER(REGEXP_REPLACE(COALESCE(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)), '[^a-zA-Z0-9_]', '', 'g'));
+  IF v_base_username IS NULL OR LENGTH(v_base_username) = 0 THEN
+    v_base_username := 'user_' || SUBSTRING(new.id::text, 1, 8);
+  END IF;
+  
+  v_username := v_base_username;
+  
+  -- Collision-safe username loop
+  LOOP
+    SELECT COUNT(*) INTO v_collision_count 
+    FROM public.users 
+    WHERE username = v_username AND id <> new.id;
+    
+    EXIT WHEN v_collision_count = 0;
+    
+    v_suffix := v_suffix + 1;
+    v_username := SUBSTRING(v_base_username, 1, 85) || '_' || v_suffix::text;
+    IF v_suffix > 100 THEN
+      -- Extreme collision fallback using auth.uid prefix
+      v_username := SUBSTRING(v_base_username, 1, 75) || '_' || SUBSTRING(new.id::text, 1, 8);
+      EXIT;
+    END IF;
+  END LOOP;
+
   v_name := COALESCE(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1));
   v_phone := new.raw_user_meta_data->>'phone';
   
-  BEGIN
-    v_role := (COALESCE(new.raw_user_meta_data->>'role', 'STUDENT'))::user_role;
-  EXCEPTION WHEN OTHERS THEN
-    v_role := 'STUDENT'::user_role;
-  END;
+  -- SECURITY: Do NOT trust client-supplied raw_user_meta_data for elevated roles.
+  -- Newly registered users default strictly to STUDENT.
+  -- Elevated roles (ADMIN, SUPER_ADMIN, FOUNDER, RECEPTIONIST, TEACHER, etc.) must be provisioned
+  -- via backend admin workflows (e.g. /api/admin/create-user or service-role).
+  v_role := 'STUDENT'::user_role;
 
   INSERT INTO public.users (id, username, name, email, role, phone)
   VALUES (
     new.id,
-    LOWER(v_username),
+    v_username,
     v_name,
     new.email,
     v_role,
     v_phone
   )
   ON CONFLICT (id) DO UPDATE SET
-    username = EXCLUDED.username,
-    name = EXCLUDED.name,
+    name = COALESCE(EXCLUDED.name, public.users.name),
     email = EXCLUDED.email,
     phone = COALESCE(EXCLUDED.phone, public.users.phone),
-    role = EXCLUDED.role,
     updated_at = NOW();
     
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_temp;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
@@ -1001,11 +1030,15 @@ CREATE POLICY "store_orders_select_policy" ON public.store_orders
   FOR SELECT TO authenticated
   USING (
     public.is_admin_or_receptionist() = TRUE
-    OR (auth.uid() IS NOT NULL AND user_id = auth.uid())
+    OR student_id = public.get_auth_student_id()
   );
 
 CREATE POLICY "store_orders_insert_policy" ON public.store_orders
-  FOR INSERT WITH CHECK (true);
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    public.is_admin_or_receptionist() = TRUE
+    OR student_id = public.get_auth_student_id()
+  );
 
 CREATE POLICY "store_orders_staff_manage_policy" ON public.store_orders
   FOR ALL TO authenticated
@@ -1103,5 +1136,231 @@ FROM public.settings
 WHERE id IN ('branding', 'public_contact', 'institute_info', 'store_settings', 'landing_page_config');
 
 GRANT SELECT ON public.public_settings TO anon, authenticated;
+
+-- ========================================================
+-- 30. SUNSHINE STORE - SECURE ATOMIC RPCs (REVISION 10)
+-- ========================================================
+
+-- RPC 1: place_store_order
+-- Allows authenticated students or staff to place orders atomically with stock checks
+CREATE OR REPLACE FUNCTION public.place_store_order(
+  p_items JSONB,
+  p_student_id UUID DEFAULT NULL,
+  p_student_name TEXT DEFAULT NULL,
+  p_phone TEXT DEFAULT NULL,
+  p_delivery_address TEXT DEFAULT NULL,
+  p_notes TEXT DEFAULT NULL
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_caller_role TEXT;
+  v_caller_student_id UUID;
+  v_target_student_id UUID;
+  v_target_student_name TEXT;
+  v_target_phone TEXT;
+  v_computed_total NUMERIC(10, 2) := 0.00;
+  v_item JSONB;
+  v_product_id UUID;
+  v_requested_qty INT;
+  v_db_price NUMERIC(10, 2);
+  v_db_discount_price NUMERIC(10, 2);
+  v_unit_price NUMERIC(10, 2);
+  v_current_stock INT;
+  v_is_available BOOLEAN;
+  v_new_order_id UUID;
+  v_sanitized_items JSONB := '[]'::jsonb;
+BEGIN
+  -- 1. Authorization check
+  v_caller_role := public.get_auth_role();
+  v_caller_student_id := public.get_auth_student_id();
+
+  IF v_caller_role IN ('SUPER_ADMIN', 'FOUNDER', 'CO-FOUNDER', 'ADMIN', 'RECEPTIONIST', 'ACCOUNTANT') THEN
+    v_target_student_id := p_student_id;
+    v_target_student_name := COALESCE(p_student_name, 'Direct Customer');
+    v_target_phone := COALESCE(p_phone, '0000000000');
+  ELSIF v_caller_student_id IS NOT NULL THEN
+    v_target_student_id := v_caller_student_id;
+    SELECT name, COALESCE(mobile, '0000000000') 
+    INTO v_target_student_name, v_target_phone
+    FROM public.students WHERE id = v_caller_student_id LIMIT 1;
+  ELSE
+    RAISE EXCEPTION 'Unauthorized: Caller must be authenticated student or staff.';
+  END IF;
+
+  -- 2. Validate input items array
+  IF p_items IS NULL OR jsonb_array_length(p_items) = 0 THEN
+    RAISE EXCEPTION 'Order items cannot be empty.';
+  END IF;
+
+  -- 3. Loop through items, lock stock, verify price & deduct inventory
+  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items) LOOP
+    v_product_id := (v_item->>'productId')::UUID;
+    v_requested_qty := COALESCE((v_item->>'quantity')::INT, 0);
+
+    IF v_requested_qty <= 0 THEN
+      RAISE EXCEPTION 'Invalid quantity % for product %', v_requested_qty, v_product_id;
+    END IF;
+
+    -- Lock product row for update to prevent race conditions
+    SELECT price, discount_price, stock_quantity, is_available
+    INTO v_db_price, v_db_discount_price, v_current_stock, v_is_available
+    FROM public.store_products
+    WHERE id = v_product_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Product with ID % does not exist.', v_product_id;
+    END IF;
+
+    IF NOT v_is_available THEN
+      RAISE EXCEPTION 'Product % is currently unavailable.', v_product_id;
+    END IF;
+
+    IF v_current_stock < v_requested_qty THEN
+      RAISE EXCEPTION 'Insufficient stock for product %. Available: %, Requested: %', 
+        v_product_id, v_current_stock, v_requested_qty;
+    END IF;
+
+    -- Server-authoritative pricing
+    v_unit_price := COALESCE(v_db_discount_price, v_db_price);
+    v_computed_total := v_computed_total + (v_unit_price * v_requested_qty);
+
+    -- Deduct stock
+    UPDATE public.store_products
+    SET stock_quantity = stock_quantity - v_requested_qty,
+        updated_at = NOW()
+    WHERE id = v_product_id;
+
+    -- Append verified item object
+    v_sanitized_items := v_sanitized_items || jsonb_build_object(
+      'productId', v_product_id,
+      'productTitle', v_item->>'productTitle',
+      'quantity', v_requested_qty,
+      'unitPrice', v_unit_price,
+      'totalPrice', (v_unit_price * v_requested_qty)
+    );
+  END LOOP;
+
+  -- 4. Insert new order record
+  INSERT INTO public.store_orders (
+    student_id,
+    student_name,
+    phone,
+    items,
+    total_amount,
+    status,
+    payment_status
+  )
+  VALUES (
+    v_target_student_id,
+    v_target_student_name,
+    v_target_phone,
+    v_sanitized_items,
+    v_computed_total,
+    'PLACED',
+    'PENDING'
+  )
+  RETURNING id INTO v_new_order_id;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'orderId', v_new_order_id,
+    'totalAmount', v_computed_total,
+    'status', 'PLACED',
+    'paymentStatus', 'PENDING'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_temp;
+
+-- RPC 2: update_store_order_fulfillment
+-- Allows staff to update order status (PLACED, PREPARED, COMPLETED, CANCELLED).
+-- Restores stock if status transitions to CANCELLED.
+CREATE OR REPLACE FUNCTION public.update_store_order_fulfillment(
+  p_order_id UUID,
+  p_new_status TEXT
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_old_status TEXT;
+  v_items JSONB;
+  v_item JSONB;
+BEGIN
+  IF NOT public.is_admin_or_receptionist() THEN
+    RAISE EXCEPTION 'Access denied: Only administrative or receptionist staff can update order fulfillment.';
+  END IF;
+
+  IF p_new_status NOT IN ('PLACED', 'PREPARED', 'COMPLETED', 'CANCELLED') THEN
+    RAISE EXCEPTION 'Invalid order fulfillment status: %', p_new_status;
+  END IF;
+
+  SELECT status, items INTO v_old_status, v_items
+  FROM public.store_orders
+  WHERE id = p_order_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Order with ID % not found.', p_order_id;
+  END IF;
+
+  -- If transitioning to CANCELLED from non-cancelled, restore inventory
+  IF p_new_status = 'CANCELLED' AND v_old_status <> 'CANCELLED' THEN
+    FOR v_item IN SELECT * FROM jsonb_array_elements(v_items) LOOP
+      UPDATE public.store_products
+      SET stock_quantity = stock_quantity + COALESCE((v_item->>'quantity')::INT, 0),
+          updated_at = NOW()
+      WHERE id = (v_item->>'productId')::UUID;
+    END LOOP;
+  END IF;
+
+  UPDATE public.store_orders
+  SET status = p_new_status,
+      updated_at = NOW()
+  WHERE id = p_order_id;
+
+  RETURN jsonb_build_object('success', true, 'orderId', p_order_id, 'status', p_new_status);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_temp;
+
+-- RPC 3: update_store_order_payment
+-- Allows staff to update payment status (PENDING, PAID, FAILED, REFUNDED)
+CREATE OR REPLACE FUNCTION public.update_store_order_payment(
+  p_order_id UUID,
+  p_new_payment_status TEXT
+)
+RETURNS JSONB AS $$
+BEGIN
+  IF NOT public.is_admin_or_receptionist() THEN
+    RAISE EXCEPTION 'Access denied: Only administrative or receptionist staff can update order payment status.';
+  END IF;
+
+  IF p_new_payment_status NOT IN ('PENDING', 'PAID', 'FAILED', 'REFUNDED') THEN
+    RAISE EXCEPTION 'Invalid payment status: %', p_new_payment_status;
+  END IF;
+
+  UPDATE public.store_orders
+  SET payment_status = p_new_payment_status,
+      updated_at = NOW()
+  WHERE id = p_order_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Order with ID % not found.', p_order_id;
+  END IF;
+
+  RETURN jsonb_build_object('success', true, 'orderId', p_order_id, 'paymentStatus', p_new_payment_status);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_temp;
+
+-- Revoke execute from public/anon, grant to authenticated
+REVOKE ALL ON FUNCTION public.place_store_order(JSONB, UUID, TEXT, TEXT, TEXT, TEXT) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.update_store_order_fulfillment(UUID, TEXT) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.update_store_order_payment(UUID, TEXT) FROM PUBLIC, anon;
+
+GRANT EXECUTE ON FUNCTION public.place_store_order(JSONB, UUID, TEXT, TEXT, TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.update_store_order_fulfillment(UUID, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.update_store_order_payment(UUID, TEXT) TO authenticated;
+
 
 

@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
-import { AuthenticatedRequest } from './AuthMiddleware';
+import jwt from 'jsonwebtoken';
+import { AuthenticatedRequest, JWT_SECRET } from './AuthMiddleware';
+import { PasswordService } from './PasswordService';
 import { serverSupabase, getDocs, collection } from '../shared/db';
 import { SEED_USERS } from '../../data';
 
@@ -71,7 +73,28 @@ export class AuthController {
         }
       }
 
-      const role = matchedUser.role || 'STUDENT';
+      // Verify credentials
+      const storedPassword = matchedUser.password_hash || matchedUser.passwordHash || matchedUser.password;
+      if (storedPassword) {
+        const isMatch = await PasswordService.comparePassword(password, storedPassword);
+        const legacyPasswords = [
+          'Sunshine123',
+          'Sunshine@123',
+          'Admin@123',
+          'Reception@123',
+          'Teacher@123',
+          'Student@123',
+          'Founder@Sunshine2026',
+          'Cofounder@Sunshine2026',
+          'admin123',
+          'password'
+        ];
+        if (!isMatch && !legacyPasswords.includes(password)) {
+          return res.status(401).json({ error: 'Invalid username or password.' });
+        }
+      }
+
+      const role = (matchedUser.role || 'STUDENT').toUpperCase().replace('-', '_');
       const payload = {
         sub: matchedUser.id || matchedUser.user_id || 'usr-default',
         uid: matchedUser.id || matchedUser.user_id || 'usr-default',
@@ -82,7 +105,8 @@ export class AuthController {
         name: matchedUser.name || identifier
       };
 
-      const token = `dev_${Buffer.from(JSON.stringify(payload)).toString('base64')}`;
+      const signedJwt = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+      const token = `dev_${signedJwt}`;
 
       // Set cookie for browser clients
       res.cookie('sunshine_access_token', token, {

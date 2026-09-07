@@ -47,7 +47,7 @@ export class ErrorStandardizer {
     if (statusCode >= 500) {
       console.error(`[ErrorStandardizer] API Error [${statusCode}] [${payload.code}]: ${payload.message}`, JSON.stringify(errorObj.errors || {}));
     } else {
-      console.warn(`[ErrorStandardizer] API Response [${statusCode}] [${payload.code}]: ${payload.message}`, JSON.stringify(errorObj.errors || {}));
+      console.log(`[ErrorStandardizer] API Response [${statusCode}] [${payload.code}]: ${payload.message}`, JSON.stringify(errorObj.errors || {}));
     }
     return res.status(statusCode).json(payload);
   }

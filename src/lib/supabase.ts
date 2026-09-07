@@ -3,12 +3,18 @@ import { SyncService } from '../services/SyncService';
 
 const metaEnv = (import.meta as any).env || {};
 
-// Check environment variables first, then localStorage for runtime configurability
-const envUrl = metaEnv.VITE_SUPABASE_URL || '';
-const envAnonKey = metaEnv.VITE_SUPABASE_ANON_KEY || '';
+const isStaging = metaEnv.VITE_APP_ENV === 'staging' || metaEnv.MODE === 'staging';
 
-const localUrl = typeof window !== 'undefined' ? localStorage.getItem('sunshine_supabase_url') || '' : '';
-const localAnonKey = typeof window !== 'undefined' ? localStorage.getItem('sunshine_supabase_anon_key') || '' : '';
+// Check environment variables first, then localStorage for runtime configurability
+const envUrl = isStaging
+  ? (metaEnv.VITE_STAGING_SUPABASE_URL || '')
+  : (metaEnv.VITE_SUPABASE_URL || '');
+const envAnonKey = isStaging
+  ? (metaEnv.VITE_STAGING_SUPABASE_ANON_KEY || '')
+  : (metaEnv.VITE_SUPABASE_ANON_KEY || '');
+
+const localUrl = typeof window !== 'undefined' ? localStorage.getItem(isStaging ? 'sunshine_staging_supabase_url' : 'sunshine_supabase_url') || '' : '';
+const localAnonKey = typeof window !== 'undefined' ? localStorage.getItem(isStaging ? 'sunshine_staging_supabase_anon_key' : 'sunshine_supabase_anon_key') || '' : '';
 
 export const supabaseUrl = envUrl || localUrl;
 export const supabaseAnonKey = envAnonKey || localAnonKey;

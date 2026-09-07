@@ -5,11 +5,11 @@ import { ErrorStandardizer } from '../shared/ErrorStandardizer';
 export class MonthlyFeeGeneratorController {
   /**
    * Helper to check authorization roles for write actions (Generate, Preview)
-   * Only SUPER_ADMIN and ADMIN are allowed.
+   * FOUNDER, CO_FOUNDER, SUPER_ADMIN, ADMIN, and ACCOUNTANT are allowed.
    */
   private static assertWritePermission(currentUser: any) {
-    const role = (currentUser?.role || '').toUpperCase();
-    if (!['SUPER_ADMIN', 'ADMIN'].includes(role)) {
+    const role = (currentUser?.role || '').toUpperCase().replace('-', '_');
+    if (!['FOUNDER', 'CO_FOUNDER', 'SUPER_ADMIN', 'ADMIN', 'ACCOUNTANT'].includes(role)) {
       throw {
         statusCode: 403,
         code: 'FORBIDDEN',
@@ -20,11 +20,11 @@ export class MonthlyFeeGeneratorController {
 
   /**
    * Helper to check authorization roles for read actions
-   * SUPER_ADMIN, ADMIN, and RECEPTIONIST are allowed.
+   * FOUNDER, CO_FOUNDER, SUPER_ADMIN, ADMIN, ACCOUNTANT, and RECEPTIONIST are allowed.
    */
   private static assertReadPermission(currentUser: any) {
-    const role = (currentUser?.role || '').toUpperCase();
-    if (!['SUPER_ADMIN', 'ADMIN', 'RECEPTIONIST'].includes(role)) {
+    const role = (currentUser?.role || '').toUpperCase().replace('-', '_');
+    if (!['FOUNDER', 'CO_FOUNDER', 'SUPER_ADMIN', 'ADMIN', 'ACCOUNTANT', 'RECEPTIONIST'].includes(role)) {
       throw {
         statusCode: 403,
         code: 'FORBIDDEN',

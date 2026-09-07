@@ -980,8 +980,34 @@ export function subscribeStoreOrders(onUpdate: (orders: StoreOrder[]) => void) {
 
 export async function createStoreOrder(orderData: Omit<StoreOrder, 'id' | 'createdAt' | 'updatedAt'>): Promise<StoreOrder> {
   const orders = getLocalStoreOrders();
-  const id = `ord-${Date.now()}`;
+  let id = `ord-${Date.now()}`;
   const now = new Date().toISOString();
+
+  // If Supabase is configured, execute atomic transactional RPC
+  if (isSupabaseConfigured) {
+    try {
+      const isUUID = (v?: string) => v && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+      const studentId = isUUID(orderData.studentRollNo) ? orderData.studentRollNo : null;
+
+      const { data, error } = await supabase.rpc('place_store_order', {
+        p_items: orderData.items,
+        p_student_id: studentId,
+        p_student_name: orderData.customerName,
+        p_phone: orderData.customerPhone,
+        p_delivery_address: orderData.deliveryAddress || orderData.shippingAddress || null,
+        p_notes: orderData.notes || null
+      });
+
+      if (error) {
+        console.warn('[place_store_order RPC] Error from database:', error.message);
+      } else if (data && data.orderId) {
+        id = data.orderId;
+      }
+    } catch (rpcErr) {
+      console.warn('[place_store_order RPC] Exception:', rpcErr);
+    }
+  }
+
   const newOrder: StoreOrder = {
     ...orderData,
     id,
@@ -990,10 +1016,6 @@ export async function createStoreOrder(orderData: Omit<StoreOrder, 'id' | 'creat
   };
   const updatedOrders = [newOrder, ...orders];
   saveLocalStoreOrders(updatedOrders);
-
-  if (isSupabaseConfigured) {
-    supabase.from('store_orders').insert(newOrder).then().catch(() => {});
-  }
 
   return newOrder;
 }
@@ -1017,11 +1039,35 @@ export async function updateStoreOrderStatus(
   });
   saveLocalStoreOrders(updated);
 
+  // If Supabase is configured, call atomic fulfillment & payment RPCs
   if (isSupabaseConfigured) {
-    const updates: Partial<StoreOrder> = { updatedAt: new Date().toISOString() };
-    if (orderStatus) updates.orderStatus = orderStatus;
-    if (paymentStatus) updates.paymentStatus = paymentStatus;
-    supabase.from('store_orders').update(updates).eq('id', orderId).then().catch(() => {});
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
+    if (isUUID) {
+      if (orderStatus) {
+        // Map frontend orderStatus ('NEW' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED')
+        // to DB fulfillment status ('PLACED', 'PREPARED', 'COMPLETED', 'CANCELLED')
+        let dbFulfillmentStatus = 'PLACED';
+        if (orderStatus === 'PROCESSING') dbFulfillmentStatus = 'PREPARED';
+        else if (orderStatus === 'SHIPPED' || orderStatus === 'DELIVERED') dbFulfillmentStatus = 'COMPLETED';
+        else if (orderStatus === 'CANCELLED') dbFulfillmentStatus = 'CANCELLED';
+
+        supabase.rpc('update_store_order_fulfillment', {
+          p_order_id: orderId,
+          p_new_status: dbFulfillmentStatus
+        }).then(({ error }) => {
+          if (error) console.warn('[update_store_order_fulfillment RPC] Error:', error.message);
+        }).catch(err => console.warn('[update_store_order_fulfillment RPC] Exception:', err));
+      }
+
+      if (paymentStatus) {
+        supabase.rpc('update_store_order_payment', {
+          p_order_id: orderId,
+          p_new_payment_status: paymentStatus
+        }).then(({ error }) => {
+          if (error) console.warn('[update_store_order_payment RPC] Error:', error.message);
+        }).catch(err => console.warn('[update_store_order_payment RPC] Exception:', err));
+      }
+    }
   }
 
   return updated;

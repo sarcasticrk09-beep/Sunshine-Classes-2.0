@@ -2361,7 +2361,7 @@ async function startServer() {
 
 
   // 3. Admin create user endpoint
-  app.post("/api/admin/create-user", async (req, res) => {
+  app.post("/api/admin/create-user", authMiddleware, roleMiddleware(['FOUNDER', 'CO_FOUNDER', 'SUPER_ADMIN', 'ADMIN']), async (req: AuthenticatedRequest, res) => {
     try {
       const { username, name, email: reqEmail, password, role } = req.body;
       if (!username || !password) {
@@ -2418,7 +2418,7 @@ async function startServer() {
       // Set user profile document in database 'users' collection
       await adminDb.collection("users").doc(newUserId).set(newUser);
 
-      AuditLogger.log("CREATE_USER", "Admin", `Created Auth account & database profile for user ${username} (${role})`);
+      AuditLogger.log("CREATE_USER", req.user?.username || "Admin", `Created Auth account & database profile for user ${username} (${role})`);
 
       return res.status(200).json({
         success: true,
@@ -2437,7 +2437,7 @@ async function startServer() {
   });
 
   // 4. Admin update user endpoint (password reset / enable / disable / lock)
-  app.post("/api/admin/update-user", async (req, res) => {
+  app.post("/api/admin/update-user", authMiddleware, roleMiddleware(['FOUNDER', 'CO_FOUNDER', 'SUPER_ADMIN', 'ADMIN']), async (req: AuthenticatedRequest, res) => {
     try {
       const { uid, password, email, displayName, disabled, active, isLocked } = req.body;
       if (!uid) {
@@ -2493,7 +2493,7 @@ async function startServer() {
       // Update in database
       await adminDb.collection("users").doc(uid).set(updateData, { merge: true });
 
-      AuditLogger.log("UPDATE_USER", "Admin", `Updated user ${user.username || uid}. Active: ${accountActive}, Password Reset: ${!!password}`);
+      AuditLogger.log("UPDATE_USER", req.user?.username || "Admin", `Updated user ${user.username || uid}. Active: ${accountActive}, Password Reset: ${!!password}`);
 
       return res.status(200).json({ success: true, uid });
     } catch (err: any) {
@@ -2503,7 +2503,7 @@ async function startServer() {
   });
 
   // 5. Admin delete user endpoint
-  app.post("/api/admin/delete-user", async (req, res) => {
+  app.post("/api/admin/delete-user", authMiddleware, roleMiddleware(['FOUNDER', 'CO_FOUNDER', 'SUPER_ADMIN', 'ADMIN']), async (req: AuthenticatedRequest, res) => {
     try {
       const { uid } = req.body;
       if (!uid) {
@@ -2520,7 +2520,7 @@ async function startServer() {
       // Delete from database
       await adminDb.collection("users").doc(uid).delete();
 
-      AuditLogger.log("DELETE_USER", "Admin", `Deleted user account ID: ${uid}`);
+      AuditLogger.log("DELETE_USER", req.user?.username || "Admin", `Deleted user account ID: ${uid}`);
       return res.status(200).json({ success: true });
     } catch (err: any) {
       console.error("[Admin Delete User Error]:", err);
@@ -2529,7 +2529,7 @@ async function startServer() {
   });
 
   // 6. User audit endpoint
-  app.get("/api/admin/audit-users", async (req, res) => {
+  app.get("/api/admin/audit-users", authMiddleware, roleMiddleware(['FOUNDER', 'CO_FOUNDER', 'SUPER_ADMIN', 'ADMIN']), async (req: AuthenticatedRequest, res) => {
     try {
       const users = await getERPUsersList();
       
@@ -2772,7 +2772,7 @@ How can I help you towards your academic success today? Feel free to ask!`;
   }
 
   // 1.5 Real email sender API (Nodemailer with SMTP and Ethereal demo fallback)
-  app.post("/api/send-email", async (req, res) => {
+  app.post("/api/send-email", authMiddleware, roleMiddleware(['FOUNDER', 'CO_FOUNDER', 'SUPER_ADMIN', 'ADMIN', 'RECEPTIONIST', 'TEACHER']), async (req: AuthenticatedRequest, res) => {
     const {
       type,
       to,
@@ -2971,11 +2971,13 @@ How can I help you towards your academic success today? Feel free to ask!`;
   });
 
   // 1.6 Secure Cloudinary Asset Destruction and Signature APIs
-  app.post("/api/admin/cloudinary-credentials", async (req, res) => {
+  app.post("/api/admin/cloudinary-credentials", authMiddleware, roleMiddleware(['FOUNDER', 'CO_FOUNDER', 'SUPER_ADMIN', 'ADMIN']), async (req: AuthenticatedRequest, res) => {
     const { apiKey, apiSecret, cloudName } = req.body;
     if (cloudName) process.env.CLOUDINARY_CLOUD_NAME = cloudName;
     if (apiKey) process.env.CLOUDINARY_API_KEY = apiKey;
     if (apiSecret) process.env.CLOUDINARY_API_SECRET = apiSecret;
+
+    AuditLogger.log("CLOUDINARY_CONFIG", req.user?.username || "Admin", "Updated Cloudinary server credentials");
 
     return res.json({
       success: true,
@@ -2983,7 +2985,7 @@ How can I help you towards your academic success today? Feel free to ask!`;
     });
   });
 
-  app.post("/api/cloudinary-signature", async (req, res) => {
+  app.post("/api/cloudinary-signature", authMiddleware, roleMiddleware(['FOUNDER', 'CO_FOUNDER', 'SUPER_ADMIN', 'ADMIN', 'RECEPTIONIST', 'TEACHER']), async (req: AuthenticatedRequest, res) => {
     const { folder } = req.body;
     const cleanFolder = String(folder || "documents").toLowerCase();
 
@@ -2995,8 +2997,8 @@ How can I help you towards your academic success today? Feel free to ask!`;
     });
   });
 
-  app.post("/api/delete-cloudinary", async (req, res) => {
-    const { publicId, userId, role } = req.body;
+  app.post("/api/delete-cloudinary", authMiddleware, roleMiddleware(['FOUNDER', 'CO_FOUNDER', 'SUPER_ADMIN', 'ADMIN']), async (req: AuthenticatedRequest, res) => {
+    const { publicId } = req.body;
 
     if (!publicId) {
       return res.status(400).json({ error: "Required parameter (publicId) is missing." });
@@ -3027,6 +3029,8 @@ How can I help you towards your academic success today? Feel free to ask!`;
       const resData = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
       const wasDeleted = resData.result === "ok" || resData.result === "not_found";
 
+      AuditLogger.log("CLOUDINARY_DELETE", req.user?.username || "Admin", `Destroyed asset publicId: ${publicId}`);
+
       return res.json({
         success: wasDeleted,
         log: `Cloudinary API returned result: ${resData.result || "error"}.`
@@ -3039,7 +3043,7 @@ How can I help you towards your academic success today? Feel free to ask!`;
   });
 
   // 1.7 Real outbound WhatsApp dispatch API
-  app.post("/api/send-whatsapp", async (req, res) => {
+  app.post("/api/send-whatsapp", authMiddleware, roleMiddleware(['FOUNDER', 'CO_FOUNDER', 'SUPER_ADMIN', 'ADMIN', 'RECEPTIONIST']), async (req: AuthenticatedRequest, res) => {
     const { 
       to, 
       message, 

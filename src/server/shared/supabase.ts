@@ -1,12 +1,27 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+const isStaging = process.env.APP_ENV === 'staging';
+
+// When in staging, strictly use staging environment variables and prevent touching production
+const supabaseUrl = isStaging
+  ? (process.env.STAGING_SUPABASE_URL || '')
+  : (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
+
+const supabaseServiceKey = isStaging
+  ? (process.env.STAGING_SUPABASE_SERVICE_ROLE_KEY || '')
+  : process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const supabaseAnonKey = isStaging
+  ? (process.env.STAGING_SUPABASE_ANON_KEY || '')
+  : (process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY);
 
 export const isSupabaseServerConfigured = !!(supabaseUrl && (supabaseServiceKey || supabaseAnonKey));
 
 let supabaseServerClient: any = null;
+
+if (isStaging && !supabaseUrl) {
+  console.warn('[Supabase Server] APP_ENV=staging is set, but STAGING_SUPABASE_URL is not provided. Refusing to connect to production.');
+}
 
 if (isSupabaseServerConfigured) {
   try {

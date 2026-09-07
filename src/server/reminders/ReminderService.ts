@@ -71,15 +71,22 @@ export class ReminderService {
   public static async getTemplates(db: any): Promise<ReminderTemplate[]> {
     try {
       const snap = await getDocs(collection(db, 'reminder_templates'));
-      if (!snap.empty && snap.docs.length > 0) {
-        return snap.docs.map((d: any) => d.data() as ReminderTemplate);
-      }
+      const existing: ReminderTemplate[] = !snap.empty ? snap.docs.map((d: any) => d.data() as ReminderTemplate) : [];
       
-      // Initialize default templates
-      for (const tpl of DEFAULT_TEMPLATES) {
-        await setDoc(doc(db, 'reminder_templates', tpl.id), tpl);
+      // Ensure all default templates exist; seed any missing template
+      const map = new Map<string, ReminderTemplate>();
+      for (const t of existing) {
+        if (t.templateType) map.set(t.templateType, t);
       }
-      return DEFAULT_TEMPLATES;
+
+      for (const def of DEFAULT_TEMPLATES) {
+        if (!map.has(def.templateType)) {
+          await setDoc(doc(db, 'reminder_templates', def.id), def);
+          map.set(def.templateType, def);
+        }
+      }
+
+      return Array.from(map.values());
     } catch (err) {
       console.error('[ReminderService] Failed to load templates, returning defaults:', err);
       return DEFAULT_TEMPLATES;

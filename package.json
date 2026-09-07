@@ -13,12 +13,17 @@
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "validate:env": "tsx scripts/validate-railway-env.ts",
-    "test:regression": "tsx scripts/regression-test.ts"
+    "test": "tsx scripts/regression-test.ts && tsx scripts/security-audit-test.ts",
+    "test:regression": "tsx scripts/regression-test.ts",
+    "test:security": "tsx scripts/security-audit-test.ts",
+    "migrate:staging": "tsx scripts/apply-staging-migrations.ts",
+    "test:staging": "tsx scripts/validate-staging-live.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
     "@supabase/supabase-js": "^2.110.8",
     "@tailwindcss/vite": "^4.1.14",
+    "@types/pg": "^8.23.1",
     "@types/qrcode": "^1.5.6",
     "@vitejs/plugin-react": "^5.0.4",
     "autoprefixer": "^10.4.21",
@@ -37,6 +42,7 @@
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "nodemailer": "^9.0.3",
+    "pg": "^8.23.0",
     "qrcode": "^1.5.4",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",

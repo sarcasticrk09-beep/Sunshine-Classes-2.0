@@ -254,10 +254,10 @@ export class MonthlyFeeGeneratorService {
 
         // Determine fee structure
         const structure = await this.getFeeStructureForClass(student.class, db);
-        const baseFee = structure ? Number(structure.monthlyFee) : (Number(student.monthlyFee) || 500);
+        let baseFee = structure ? Number(structure.monthlyFee) : (Number(student.monthlyFee) || 500);
 
-        if (baseFee <= 0) {
-          return { success: false, statusCode: 400, code: 'BAD_REQUEST', message: 'Monthly fee must be greater than zero.' };
+        if (isNaN(baseFee) || baseFee <= 0) {
+          baseFee = 500;
         }
 
         const qDiscount = this.calculateQuarterlyDiscount(m, structure);
@@ -387,10 +387,10 @@ export class MonthlyFeeGeneratorService {
 
         // Determine fee structure and details
         const structure = await this.getFeeStructureForClass(student.class, db);
-        const baseFee = structure ? Number(structure.monthlyFee) : (Number(student.monthlyFee) || 500);
+        let baseFee = structure ? Number(structure.monthlyFee) : (Number(student.monthlyFee) || 500);
 
-        if (baseFee <= 0) {
-          return { success: false, statusCode: 400, code: 'BAD_REQUEST', message: 'Monthly fee must be greater than zero.' };
+        if (isNaN(baseFee) || baseFee <= 0) {
+          baseFee = 500;
         }
 
         const qDiscount = this.calculateQuarterlyDiscount(m, structure);
@@ -566,7 +566,21 @@ export class MonthlyFeeGeneratorService {
    */
   public static async getMonthlyFeesByStudent(studentId: string, db: any) {
     // Confirm student exists
-    const studentDoc = await getDoc(doc(db, 'students', studentId));
+    let studentDoc = await getDoc(doc(db, 'students', studentId));
+    let resolvedStudentId = studentId;
+
+    if (!studentDoc.exists()) {
+      const snap = await getDocs(collection(db, 'students'));
+      const found = snap.docs.find((d: any) => {
+        const s = d.data();
+        return s.id === studentId || s.rollNo === studentId || s.rollNumber === studentId;
+      });
+      if (found) {
+        studentDoc = found;
+        resolvedStudentId = found.id || found.data().id || studentId;
+      }
+    }
+
     if (!studentDoc.exists()) {
       return { success: false, statusCode: 404, code: 'NOT_FOUND', message: 'Student record not found.' };
     }
@@ -574,7 +588,7 @@ export class MonthlyFeeGeneratorService {
     const snap = await getDocs(collection(db, 'student_monthly_fees'));
     const fees = snap.docs
       .map((d: any) => d.data())
-      .filter((f: any) => f.studentId === studentId)
+      .filter((f: any) => f.studentId === resolvedStudentId || f.studentId === studentId)
       .sort((a: any, b: any) => b.monthVal - a.monthVal);
 
     return { success: true, data: fees };

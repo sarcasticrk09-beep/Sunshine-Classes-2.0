@@ -11,8 +11,13 @@ import {
   SEED_SUBSCRIPTION_RECEIPTS
 } from '../../data';
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
+const isStaging = process.env.APP_ENV === 'staging';
+const supabaseUrl = isStaging
+  ? (process.env.STAGING_SUPABASE_URL || 'https://placeholder-staging.supabase.co')
+  : (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://placeholder.supabase.co');
+const supabaseKey = isStaging
+  ? (process.env.STAGING_SUPABASE_SERVICE_ROLE_KEY || process.env.STAGING_SUPABASE_ANON_KEY || 'placeholder-staging-key')
+  : (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key');
 
 export const serverSupabase = createClient(supabaseUrl, supabaseKey);
 
@@ -146,6 +151,16 @@ export async function getDoc(docRef: any): Promise<any> {
   // Check memory store
   if (memoryStore[col] && memoryStore[col][id]) {
     return new AdminDocSnapAdapter(true, memoryStore[col][id]);
+  }
+
+  // Fallback for students: lookup by rollNo or studentId if not found by primary key
+  if (col === 'students' && memoryStore[col]) {
+    const studentMatch = Object.values(memoryStore[col]).find((s: any) => 
+      s.id === id || s.rollNo === id || s.rollNumber === id || s.studentId === id
+    );
+    if (studentMatch) {
+      return new AdminDocSnapAdapter(true, studentMatch, studentMatch.id);
+    }
   }
 
   // Attempt Supabase query

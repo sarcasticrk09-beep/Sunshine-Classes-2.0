@@ -192,8 +192,9 @@ export function FeeCollectionManager({ jwtToken }: { jwtToken: string }) {
         headers: { 'Authorization': `Bearer ${jwtToken}` }
       });
       const data = await res.json();
-      if (data.status === 'success') {
-        setStudents(data.students || []);
+      const studentList = data?.data?.data || data?.students || data?.data || [];
+      if (data.success || data.status === 'success') {
+        setStudents(Array.isArray(studentList) ? studentList : []);
       }
     } catch (err) {
       console.error('Failed to search students', err);
