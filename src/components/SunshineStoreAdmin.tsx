@@ -9,7 +9,8 @@ import {
   StoreAnalyticsLog,
   StoreReview,
   StoreOrder,
-  StoreOrderItem
+  StoreOrderItem,
+  User
 } from '../types';
 import { 
   subscribeStoreProducts, 
@@ -76,7 +77,7 @@ import {
   Lock,
   Truck,
   CreditCard,
-  User,
+  User as UserIcon,
   Phone,
   Clock,
   CheckCircle2,
@@ -86,7 +87,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 
-export const SunshineStoreAdmin: React.FC = () => {
+export const SunshineStoreAdmin: React.FC<{ currentUser?: User }> = () => {
   const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'PRODUCTS' | 'INVENTORY' | 'ORDERS' | 'CATEGORIES' | 'BRANDS' | 'REVIEWS' | 'SETTINGS'>('DASHBOARD');
 
   const [products, setProducts] = useState<StoreProduct[]>([]);

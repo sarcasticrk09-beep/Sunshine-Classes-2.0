@@ -106,6 +106,7 @@ export interface Teacher {
 
 export interface Admission {
   id: string; // Generated Admission ID (e.g. SC-2026-001)
+  enrollmentId?: string;
   userId?: string;
   studentName: string;
   fatherName: string;

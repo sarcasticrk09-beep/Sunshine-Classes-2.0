@@ -232,7 +232,7 @@ function simpleSecureHash(password: string): string {
 
 async function startServer() {
   const app = express();
-  const PORT = Number(process.env.PORT) || 3000;
+  const PORT = 3000;
 
   // Security headers with relaxed content security policy for preview frames
   app.use(helmet({

@@ -141,19 +141,21 @@ export const FeesPage: React.FC<FeesPageProps> = ({
 
       setStudentFees(updatedFees);
       
-      const updatedReceipts = [
-        {
-          id: receiptId,
-          studentId: matchedStudent.id,
-          studentName: matchedStudent.name,
-          class: matchedStudent.class || 'Class 10',
-          month: payingFee.month,
-          amountPaid: amount,
-          paymentMethod: paymentMethod === 'CASH' ? 'CASH' : paymentMethod === 'CARD' ? 'ONLINE' : paymentMethod === 'UPI' ? 'UPI' : 'BANK_TRANSFER',
-          transactionId: transactionId || `TXN-${Date.now().toString().slice(-8)}`,
-          date: new Date().toISOString().split('T')[0],
-          receivedBy: currentUser?.name || 'Online Portal'
-        },
+      const newReceipt: FeeReceipt = {
+        id: receiptId,
+        studentId: matchedStudent.id,
+        studentName: matchedStudent.name,
+        class: matchedStudent.class || 'Class 10',
+        month: payingFee.month,
+        amountPaid: amount,
+        paymentMethod: paymentMethod === 'CASH' ? 'CASH' : paymentMethod === 'CARD' ? 'ONLINE' : paymentMethod === 'UPI' ? 'UPI' : 'BANK_TRANSFER',
+        transactionId: transactionId || `TXN-${Date.now().toString().slice(-8)}`,
+        date: new Date().toISOString().split('T')[0],
+        receivedBy: currentUser?.name || 'Online Portal'
+      };
+      
+      const updatedReceipts: FeeReceipt[] = [
+        newReceipt,
         ...studentReceipts
       ];
       setStudentReceipts(updatedReceipts);

@@ -2446,7 +2446,7 @@ export default function AdminDashboard({
     setEditStdFatherName(student.fatherName || '');
     setEditStdMotherName(student.motherName || '');
     setEditStdDob(student.dob || '');
-    setEditStdGender(student.gender || 'Male');
+    setEditStdGender(student.gender === 'Female' ? 'Female' : 'Male');
     setEditStdAddress(student.address || '');
     setEditStdMobile(student.mobile || '');
     setEditStdParentMobile(student.parentMobile || '');
@@ -4294,7 +4294,7 @@ export default function AdminDashboard({
         targetRole: 'STUDENT',
         targetBatch: bulkTargetType === 'BATCH' ? targetVal : undefined,
         targetClass: bulkTargetType === 'CLASS' ? targetVal : undefined,
-        sentAsEmail: dispatchChannel === 'BOTH' || dispatchChannel === 'EMAIL',
+        sentAsEmail: dispatchChannel === 'BOTH',
         emailRecipientsCount: currentAudience.filter(s => s.email).length
       });
     }
@@ -4887,7 +4887,7 @@ export default function AdminDashboard({
   const handleOpenEditTiming = (classId: string, timing: ClassTiming) => {
     setTimingTargetClassId(classId);
     setEditingTiming(timing);
-    setTimingFormLabel(timing.label);
+    setTimingFormLabel((['Morning', 'Afternoon', 'Evening', 'Weekend', 'Custom'].includes(timing.label as any) ? timing.label : 'Custom') as TimingSlotLabel);
     setTimingFormRange(timing.timeRange);
     setTimingFormTeachers(timing.teachers || []);
     setTimingFormCapacity(timing.capacity || 20);
@@ -7615,7 +7615,7 @@ ${data.log}`
                 currentUser={currentUser}
                 teachersList={teachers}
                 classList={Array.from(new Set(['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', ...students.map((s: any) => s.class || s.className || s.preferredBatch || '')])).filter(Boolean)}
-                onRefreshGlobalData={onHealState}
+                onRefreshGlobalData={() => onHealState('students', students)}
               />
 
               {/* BULK ACTIONS CONFIRMATION MODAL */}
@@ -11508,7 +11508,26 @@ ${data.log}`
                   <button
                     id="admin-btn-add-mat-trigger"
                     onClick={() => {
-                      setNewMaterial({ title: '', subject: 'Mathematics', class: 'Class 10', category: 'NOTES', desc: '', file: '', size: '1.8 MB' });
+                      setNewMaterial({
+                        title: '',
+                        slug: '',
+                        description: '',
+                        desc: '',
+                        subject: 'Mathematics',
+                        class: 'Class 10',
+                        category: 'NOTES',
+                        materialType: 'NOTES',
+                        isPublic: true,
+                        status: 'PUBLISHED',
+                        downloadCount: 0,
+                        viewCount: 0,
+                        tags: [],
+                        createdBy: currentUser?.name || 'Admin',
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        file: '',
+                        size: '1.8 MB'
+                      });
                       setShowMaterialForm(true);
                     }}
                     className="rounded-xl bg-indigo-900 text-white text-xs font-bold px-4 py-2 flex items-center gap-1.5 hover:bg-indigo-950 transition-colors cursor-pointer shadow-sm"

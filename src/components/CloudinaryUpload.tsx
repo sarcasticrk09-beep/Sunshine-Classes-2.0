@@ -8,7 +8,7 @@ import {
   CheckCircle, 
   AlertCircle, 
   Trash2, 
-  File, 
+  File as FileIcon, 
   Eye,
   Crop,
   RotateCw,
