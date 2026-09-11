@@ -2,15 +2,40 @@ import React, { useState } from 'react';
 import { Phone, MapPin, Instagram, Youtube, Facebook, ChevronUp, Share2, X } from 'lucide-react';
 import { WhatsAppIcon } from './WhatsAppIcon';
 import { motion, AnimatePresence } from 'motion/react';
+import { useLocation } from 'react-router-dom';
 
 export const FloatingContactBar: React.FC = () => {
   const [isSocialsOpen, setIsSocialsOpen] = useState(false);
+  const location = useLocation();
+
+  // Internal dashboards don't need the public marketing contact widget
+  const isDashboardRoute = /^\/(admin|teacher|student|reception)/.test(location.pathname);
+  if (isDashboardRoute) return null;
+
+  // Check if current route renders LandingPage where MobileBottomNav is active on mobile (< xl)
+  const isLandingRoute = [
+    '/',
+    '/about',
+    '/faculty',
+    '/courses',
+    '/enroll',
+    '/admissions',
+    '/results',
+    '/gallery',
+    '/contact'
+  ].some((p) => location.pathname === p || (p !== '/' && location.pathname.startsWith(p)));
+
+  // On LandingPage, hide on mobile (< xl) since MobileBottomNav already provides dedicated 1-tap Contact & Call
+  // On other public pages without a bottom nav, display cleanly without obstruction
+  const containerClasses = isLandingRoute
+    ? 'hidden xl:block fixed bottom-6 left-6 z-40 pointer-events-auto max-w-[calc(100vw-48px)]'
+    : 'fixed bottom-4 sm:bottom-6 left-3 sm:left-6 z-40 pointer-events-auto max-w-[calc(100vw-24px)]';
 
   return (
     <aside 
       id="floating-contact-bar-container"
       aria-label="Contact and Social channels"
-      className="fixed bottom-[58px] sm:bottom-6 left-2 sm:left-6 z-40 pointer-events-auto max-w-[calc(100vw-16px)]"
+      className={containerClasses}
     >
       <div className="flex flex-col items-start gap-1.5 sm:gap-2">
         

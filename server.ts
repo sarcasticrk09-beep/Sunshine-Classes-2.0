@@ -368,14 +368,20 @@ async function startServer() {
     const urls = [
       { loc: "/", priority: "1.0", changefreq: "daily" },
       { loc: "/about", priority: "0.8", changefreq: "monthly" },
+      { loc: "/faculty", priority: "0.8", changefreq: "monthly" },
       { loc: "/courses", priority: "0.9", changefreq: "weekly" },
       { loc: "/enroll", priority: "0.9", changefreq: "monthly" },
       { loc: "/admissions", priority: "0.8", changefreq: "monthly" },
       { loc: "/results", priority: "0.8", changefreq: "weekly" },
-      { loc: "/resources", priority: "0.7", changefreq: "weekly" },
+      { loc: "/resources", priority: "0.8", changefreq: "weekly" },
+      { loc: "/study-material", priority: "0.8", changefreq: "weekly" },
+      { loc: "/store", priority: "0.8", changefreq: "weekly" },
+      { loc: "/books", priority: "0.8", changefreq: "weekly" },
       { loc: "/gallery", priority: "0.7", changefreq: "monthly" },
       { loc: "/contact", priority: "0.8", changefreq: "monthly" },
-      { loc: "/fees", priority: "0.7", changefreq: "monthly" }
+      { loc: "/fees", priority: "0.7", changefreq: "monthly" },
+      { loc: "/privacy", priority: "0.3", changefreq: "yearly" },
+      { loc: "/terms", priority: "0.3", changefreq: "yearly" }
     ];
 
     let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
@@ -403,14 +409,20 @@ async function startServer() {
     let txt = `User-agent: *\n`;
     txt += `Allow: /\n`;
     txt += `Allow: /about\n`;
+    txt += `Allow: /faculty\n`;
     txt += `Allow: /courses\n`;
     txt += `Allow: /enroll\n`;
     txt += `Allow: /admissions\n`;
     txt += `Allow: /results\n`;
     txt += `Allow: /resources\n`;
+    txt += `Allow: /study-material\n`;
+    txt += `Allow: /store\n`;
+    txt += `Allow: /books\n`;
     txt += `Allow: /gallery\n`;
     txt += `Allow: /contact\n`;
     txt += `Allow: /fees\n`;
+    txt += `Allow: /privacy\n`;
+    txt += `Allow: /terms\n`;
     txt += `\n`;
     txt += `# Disallow administrative and secure system areas\n`;
     txt += `Disallow: /admin\n`;
