@@ -3677,22 +3677,19 @@ export default function StudentDashboard({
                     Cancel
                   </button>
                   <button
+                    id="btn-confirm-pay-subscription"
                     onClick={() => {
                       setIsPaying(true);
                       setTimeout(() => {
                         setIsPaying(false);
-                        setPaySuccess(true);
-                        // Trigger fee payment handler
+                        setPaySubId(null);
+                        // Trigger fee payment handler which immediately pops up PaymentSuccessModal
                         onPaySubscription(paySubId, paymentMethodSelected, mySubscription.monthlyFee);
-                        setTimeout(() => {
-                          setPaySuccess(false);
-                          setPaySubId(null);
-                        }, 1800);
-                      }, 1600);
+                      }, 1000);
                     }}
                     className="rounded-xl bg-brand-orange hover:bg-amber-500 text-white text-xs font-black px-5 py-2 shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
                   >
-                    Confirm & Pay ₹{mySubscription.monthlyFee}
+                    {isPaying ? 'Processing Payment...' : `Confirm & Pay ₹${mySubscription.monthlyFee}`}
                   </button>
                 </div>
               </div>
@@ -3726,24 +3723,51 @@ export default function StudentDashboard({
             </div>
 
             {paySuccess ? (
-              <div className="text-center py-12 animate-fade-in">
+              <div className="text-center py-8 animate-fade-in">
                 <div className="mx-auto h-16 w-16 rounded-full bg-green-100 flex items-center justify-center text-green-600 mb-4 animate-bounce">
                   <CheckCircle size={36} />
                 </div>
                 <h4 className="font-display font-black text-lg text-slate-950">SUBMITTED FOR VERIFICATION!</h4>
                 <p className="text-xs text-slate-600 mt-2 max-w-xs mx-auto leading-relaxed font-semibold">
-                  Your payment has been successfully submitted to the accounts team. Once verified, your status will update and a receipt will be emailed.
+                  Your payment has been successfully submitted to the accounts team. You can download your submission voucher PDF immediately below.
                 </p>
-                <button
-                  id="btn-payment-done-close"
-                  onClick={() => {
-                    setPaySuccess(false);
-                    setPayFeeId(null);
-                  }}
-                  className="mt-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 text-xs shadow-md cursor-pointer transition-colors"
-                >
-                  Return to Dashboard
-                </button>
+
+                <div className="flex flex-col gap-2.5 mt-6 max-w-xs mx-auto">
+                  <button
+                    id="btn-download-voucher-pdf"
+                    onClick={() => {
+                      const voucherReceipt: FeeReceipt = {
+                        id: `SUB-${Date.now().toString().slice(-6)}`,
+                        studentId: student.id,
+                        studentName: student.name,
+                        class: student.class || 'Class 10',
+                        month: selectedFeeItem.month,
+                        amountPaid: Number(customPayAmount) || selectedFeeItem.pendingFee,
+                        paymentMethod: 'UPI',
+                        date: new Date().toISOString().split('T')[0],
+                        transactionId: transactionRefNum || 'PENDING_VERIFICATION',
+                        receivedBy: 'Submitted to Accounts',
+                        notes: 'Tuition fee payment voucher pending office settlement'
+                      };
+                      const doc = generateReceiptPdf(voucherReceipt, student);
+                      doc.save(`Voucher-${voucherReceipt.id}.pdf`);
+                    }}
+                    className="w-full rounded-xl bg-brand-orange hover:bg-amber-600 text-white font-bold px-4 py-2.5 text-xs shadow-md cursor-pointer transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <Download size={15} /> Download Submission Voucher PDF
+                  </button>
+
+                  <button
+                    id="btn-payment-done-close"
+                    onClick={() => {
+                      setPaySuccess(false);
+                      setPayFeeId(null);
+                    }}
+                    className="w-full rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 text-xs cursor-pointer transition-colors"
+                  >
+                    Return to Dashboard
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-4">

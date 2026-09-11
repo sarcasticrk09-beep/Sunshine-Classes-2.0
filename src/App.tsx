@@ -97,6 +97,7 @@ import { Login } from './pages/Login';
 import { ForcePasswordChange } from './components/ForcePasswordChange';
 import { UserProfileSecurityModal } from './components/UserProfileSecurityModal';
 import { MailSimulatorWidget } from './components/MailSimulatorWidget';
+import { PaymentSuccessModal } from './components/common/PaymentSuccessModal';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { FeesPage } from './pages/FeesPage';
 import { ReceiptVerificationPage } from './pages/ReceiptVerificationPage';
@@ -508,6 +509,10 @@ export default function App() {
   const [attendance, setAttendance] = useState<Attendance[]>(() => getOrSeedLocal('attendance', SEED_ATTENDANCE));
   const [feeStatuses, setFeeStatuses] = useState<FeeStatus[]>(() => getOrSeedLocal('fee_statuses', SEED_FEE_STATUS));
   const [feeReceipts, setFeeReceipts] = useState<FeeReceipt[]>(() => getOrSeedLocal('fee_receipts', SEED_FEE_RECEIPTS));
+  const [paymentSuccessModalReceipt, setPaymentSuccessModalReceipt] = useState<{
+    receipt: FeeReceipt;
+    student?: Student | null;
+  } | null>(null);
   const [upiPayments, setUpiPayments] = useState<UPIPayment[]>(() => getOrSeedLocal('upi_payments', []));
   const [tests, setTests] = useState<Test[]>(() => getOrSeedLocal('tests', SEED_TESTS));
   const [studentMarks, setStudentMarks] = useState<StudentMark[]>(() => getOrSeedLocal('student_marks', SEED_STUDENT_MARKS));
@@ -1653,6 +1658,26 @@ export default function App() {
     setSubReceipts(updatedReceipts);
     syncState('receipts', updatedReceipts);
 
+    // Pop up dedicated receipt modal on active dashboard
+    const matchedStudent = students.find(s => s.id === sub.studentId);
+    const subReceiptAdapter: FeeReceipt = {
+      id: receiptId,
+      studentId: sub.studentId,
+      studentName: sub.studentName,
+      class: matchedStudent?.class || 'Class 10',
+      month: newPayment.month,
+      amountPaid: amount,
+      paymentMethod: paymentMethod as any,
+      date: todayStr,
+      receivedBy: 'Online Gateway',
+      transactionId: txnId,
+      notes: `Subscription payment for ${sub.batchName}`
+    };
+    setPaymentSuccessModalReceipt({
+      receipt: subReceiptAdapter,
+      student: matchedStudent || null
+    });
+
     const updatedNotifications = [newNotif, ...subNotifications];
     setSubNotifications(updatedNotifications);
     syncState('payment_notifications', updatedNotifications);
@@ -1732,22 +1757,46 @@ export default function App() {
 
       // Update client state immediately
       if (res.admission) {
-        setAdmissions(prev => prev.map(a => (a.id === admissionId || a.enrollmentId === admissionId) ? res.admission : a));
+        setAdmissions(prev => {
+          const updated = prev.map(a => (a.id === admissionId || a.enrollmentId === admissionId) ? res.admission : a);
+          syncState('admissions', updated);
+          return updated;
+        });
       }
       if (res.student) {
-        setStudents(prev => [res.student, ...prev.filter((s: any) => s.id !== res.student.id)]);
+        setStudents(prev => {
+          const updated = [res.student, ...prev.filter((s: any) => s.id !== res.student.id)];
+          syncState('students', updated);
+          return updated;
+        });
       }
       if (res.user) {
-        setUsers(prev => [res.user, ...prev.filter((u: any) => u.id !== res.user.id)]);
+        setUsers(prev => {
+          const updated = [res.user, ...prev.filter((u: any) => u.id !== res.user.id)];
+          syncState('users', updated);
+          return updated;
+        });
       }
       if (res.feeRecords && res.feeRecords.length > 0) {
-        setFeeStatuses(prev => [...prev.filter((f: any) => !res.feeRecords.some((rf: any) => rf.id === f.id)), ...res.feeRecords]);
+        setFeeStatuses(prev => {
+          const updated = [...prev.filter((f: any) => !res.feeRecords.some((rf: any) => rf.id === f.id)), ...res.feeRecords];
+          syncState('fee_statuses', updated);
+          return updated;
+        });
       }
       if (res.subscription) {
-        setSubscriptions(prev => [res.subscription, ...prev.filter((s: any) => s.id !== res.subscription.id)]);
+        setSubscriptions(prev => {
+          const updated = [res.subscription, ...prev.filter((s: any) => s.id !== res.subscription.id)];
+          syncState('student_subscriptions', updated);
+          return updated;
+        });
       }
       if (res.auditLog) {
-        setAuditLogs(prev => [res.auditLog, ...prev.filter((a: any) => a.id !== res.auditLog.id)]);
+        setAuditLogs(prev => {
+          const updated = [res.auditLog, ...prev.filter((a: any) => a.id !== res.auditLog.id)];
+          syncState('audit_logs', updated);
+          return updated;
+        });
       }
 
       alert(`🎉 Admission Approved Successfully!\n\nStudent Login Credentials:\n---------------------------------\nUsername: ${res.username || 'N/A'}\nPassword: ${res.defaultPass || 'Sunshine123'}\n\nPlease share these credentials with the student or parents.`);
@@ -1803,6 +1852,12 @@ export default function App() {
 
     // Auto-mail fee receipt if student parent email exists
     const matchedStudent = students.find((s) => s.id === fee.studentId);
+
+    // Pop up dedicated receipt modal on active dashboard allowing immediate PDF download
+    setPaymentSuccessModalReceipt({
+      receipt: newReceipt,
+      student: matchedStudent || null
+    });
     if (matchedStudent?.email) {
       const variables = {
         receiptId: receiptId,
@@ -2033,6 +2088,12 @@ export default function App() {
       const updatedReceipts = [newReceipt, ...feeReceipts];
       setFeeReceipts(updatedReceipts);
       syncState('fee_receipts', updatedReceipts);
+
+      // Pop up dedicated receipt modal on active dashboard
+      setPaymentSuccessModalReceipt({
+        receipt: newReceipt,
+        student: student || null
+      });
 
       const updatedLedgers = feeStatuses.map((f) => {
         if (f.studentId === payment.studentId && f.month === payment.month) {
@@ -2499,6 +2560,20 @@ Sunshine Classes`;
         setUsers(prev => {
           const updated = [data.user, ...prev];
           syncState('users', updated);
+          return updated;
+        });
+      }
+      if (data.subscription) {
+        setSubscriptions(prev => {
+          const updated = [data.subscription, ...prev.filter((s: any) => s.id !== data.subscription.id)];
+          syncState('student_subscriptions', updated);
+          return updated;
+        });
+      }
+      if (data.admission) {
+        setAdmissions(prev => {
+          const updated = [data.admission, ...prev.filter((a: any) => a.id !== data.admission.id)];
+          syncState('admissions', updated);
           return updated;
         });
       }
@@ -4322,6 +4397,13 @@ Sunshine Classes`;
         onUserUpdated={(updatedUser) => {
           handleHealState('users', users.map(u => u.id === updatedUser.id ? updatedUser : u));
         }}
+      />
+      {/* Dedicated Fee Payment Success Modal with Instant PDF Receipt Download */}
+      <PaymentSuccessModal
+        isOpen={!!paymentSuccessModalReceipt}
+        onClose={() => setPaymentSuccessModalReceipt(null)}
+        receipt={paymentSuccessModalReceipt?.receipt || null}
+        student={paymentSuccessModalReceipt?.student || null}
       />
       <MailSimulatorWidget />
       <CookieConsentBanner />

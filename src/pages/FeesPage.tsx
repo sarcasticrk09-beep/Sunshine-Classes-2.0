@@ -5,6 +5,7 @@ import { Search, DollarSign, Calendar, CreditCard, Shield, Receipt, ArrowLeft, R
 import SunshineLogo from '../components/SunshineLogo';
 import { useNavigate } from 'react-router-dom';
 import { Student, FeeStatus, FeeReceipt } from '../types';
+import { generateReceiptPdf } from '../lib/pdfGenerator';
 
 interface FeesPageProps {
   students: Student[];
@@ -634,6 +635,27 @@ export const FeesPage: React.FC<FeesPageProps> = ({
                   </div>
 
                   <div className="flex flex-col gap-2 pt-3">
+                    <button
+                      id="btn-fees-download-pdf-receipt"
+                      onClick={() => {
+                        const rec: FeeReceipt = studentReceipts.find(r => r.id === newReceiptId) || {
+                          id: newReceiptId,
+                          studentId: matchedStudent.id,
+                          studentName: matchedStudent.name,
+                          class: matchedStudent.class || 'Class 10',
+                          month: payingFee.month,
+                          amountPaid: parseFloat(paymentAmount),
+                          paymentMethod: paymentMethod === 'CASH' ? 'CASH' : paymentMethod === 'CARD' ? 'ONLINE' : paymentMethod === 'UPI' ? 'UPI' : 'BANK_TRANSFER',
+                          date: new Date().toISOString().split('T')[0],
+                          receivedBy: currentUser?.name || 'Online Portal'
+                        };
+                        const doc = generateReceiptPdf(rec, matchedStudent);
+                        doc.save(`Receipt-${newReceiptId}.pdf`);
+                      }}
+                      className="w-full rounded-xl bg-brand-orange hover:bg-amber-600 text-white py-2.5 text-xs font-bold shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Download size={14} /> Download PDF Receipt (Instant)
+                    </button>
                     <button
                       id="btn-fees-open-full-success-page"
                       onClick={() => {

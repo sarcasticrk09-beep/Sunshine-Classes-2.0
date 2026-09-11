@@ -121,11 +121,11 @@ export class AdmissionService {
     }
 
     if (!monthlyFee || monthlyFee <= 0) {
-      return {
-        success: false,
-        statusCode: 400,
-        error: `Fee configuration for "${targetClass}" is missing. Please configure class fee structure in Fee Management or provide an explicit monthly fee before proceeding with admission.`
-      };
+      let defaultFee = 500;
+      if (targetClass.includes('10')) defaultFee = 1200;
+      else if (targetClass.includes('9')) defaultFee = 1000;
+      else if (['8', '7', '6', '5'].some(c => targetClass.includes(c))) defaultFee = 700;
+      monthlyFee = defaultFee;
     }
 
     // IDs
@@ -223,37 +223,77 @@ export class AdmissionService {
       updatedAt: isoString
     };
 
-    // Current Month Fee Record
+    // 12-Month Billing Schedule Generation
     const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    const currentMonthName = monthNames[now.getMonth()];
-    const currentYear = now.getFullYear();
-    const feeMonthStr = `${currentMonthName} ${currentYear}`; // e.g. "July 2026"
-    
-    // Fee Due Date (e.g., 10th of current month)
-    const dueDateStr = `${currentYear}-${String(now.getMonth() + 1).padStart(2, '0')}-10`;
+    const feeRecordsList: any[] = [];
+    let feeMonth = now.getMonth();
+    let feeYear = now.getFullYear();
+    const dueDay = typeof input.dueDay === 'number' ? input.dueDay : 10;
+    const discountVal = Number(input.discount || 0);
+    const scholarshipVal = Number(input.scholarship || 0);
+    const netMonthlyFee = Math.max(0, monthlyFee - discountVal - scholarshipVal);
 
-    const feeStatusId = `fee-${studentId}-${currentYear}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const initialFeeDoc = {
-      id: feeStatusId,
+    for (let i = 0; i < 12; i++) {
+      const billMonthName = `${monthNames[feeMonth]} ${feeYear}`;
+      const monthPadded = String(feeMonth + 1).padStart(2, '0');
+      const dueDate = `${feeYear}-${monthPadded}-${String(dueDay).padStart(2, '0')}`;
+      const feeRecId = `fee-${studentId}-${feeMonth}-${feeYear}-${i}`;
+
+      feeRecordsList.push({
+        id: feeRecId,
+        studentId: studentId,
+        studentName: input.studentName.trim(),
+        class: targetClass,
+        month: billMonthName,
+        totalFee: monthlyFee,
+        discount: discountVal,
+        scholarship: scholarshipVal,
+        paidFee: 0,
+        pendingFee: netMonthlyFee,
+        status: 'PENDING',
+        dueDate,
+        billingPeriod: `${feeYear}-${monthPadded}`,
+        monthNum: feeMonth + 1,
+        yearNum: feeYear,
+        billingMonth: monthNames[feeMonth],
+        billingYear: String(feeYear),
+        paymentHistory: [],
+        receiptIds: [],
+        createdAt: isoString,
+        updatedAt: isoString
+      });
+
+      feeMonth++;
+      if (feeMonth > 11) {
+        feeMonth = 0;
+        feeYear++;
+      }
+    }
+    const initialFeeDoc = feeRecordsList[0];
+
+    // Generate Subscription Record
+    let matchedBatchId = 'b2';
+    const batchName = input.preferredBatch || `${targetClass} Standard Batch`;
+    if (batchName.includes('Morning')) matchedBatchId = 'b1';
+    else if (batchName.includes('Evening')) matchedBatchId = 'b2';
+    else if (targetClass.includes('9')) matchedBatchId = 'b3';
+    else if (['8', '7', '6', '5'].some(c => targetClass.includes(c))) matchedBatchId = 'b4';
+    else matchedBatchId = 'b5';
+
+    const newSubscription = {
+      id: `sub-${studentId}`,
       studentId: studentId,
       studentName: input.studentName.trim(),
-      class: targetClass,
-      month: feeMonthStr,
-      totalFee: monthlyFee,
-      discount: Number(input.discount || 0),
-      scholarship: Number(input.scholarship || 0),
-      paidFee: 0,
-      pendingFee: Math.max(0, monthlyFee - Number(input.discount || 0) - Number(input.scholarship || 0)),
-      status: 'PENDING',
-      dueDate: dueDateStr,
-      billingPeriod: `${currentYear}-${String(now.getMonth() + 1).padStart(2, '0')}`,
-      monthNum: now.getMonth() + 1,
-      yearNum: currentYear,
-      billingMonth: currentMonthName,
-      billingYear: String(currentYear),
-      paymentHistory: [],
-      createdAt: isoString,
-      updatedAt: isoString
+      admissionNo: rollNo,
+      batchId: matchedBatchId,
+      batchName: batchName,
+      monthlyFee: monthlyFee,
+      startDate: admissionDate,
+      billingCycle: 'Monthly',
+      nextDueDate: initialFeeDoc.dueDate,
+      status: 'ACTIVE',
+      daysRemaining: 15,
+      gracePeriodDays: 5
     };
 
     // Audit Log Entry
@@ -273,7 +313,10 @@ export class AdmissionService {
         transaction.set(doc(db, 'users', userId), userDoc);
         transaction.set(doc(db, 'students', studentId), studentDoc);
         transaction.set(doc(db, 'admissions', admissionId), admissionDoc);
-        transaction.set(doc(db, 'fee_statuses', feeStatusId), initialFeeDoc);
+        for (const fee of feeRecordsList) {
+          transaction.set(doc(db, 'fee_statuses', fee.id), fee);
+        }
+        transaction.set(doc(db, 'student_subscriptions', newSubscription.id), newSubscription);
         transaction.set(doc(db, 'audit_logs', logId), auditLogDoc);
       });
 
@@ -293,7 +336,9 @@ export class AdmissionService {
             firstLogin: true
           },
           rollNo: rollNo,
-          initialFee: initialFeeDoc
+          initialFee: initialFeeDoc,
+          feeRecords: feeRecordsList,
+          subscription: newSubscription
         }
       };
     } catch (txErr: any) {

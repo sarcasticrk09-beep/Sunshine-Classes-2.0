@@ -1246,10 +1246,10 @@ async function startServer() {
       const existingUser = currentUsers.find((u: any) => u.id === `u-std-${admissionId}` || u.phone === sMobile);
 
       let nextRollNum = 1000 + currentStudents.length + 1;
-      let rollNo = `SC-${nextRollNum}`;
-      if (admissionId.startsWith('SC2026-') || admissionId.startsWith('SC-')) {
-        rollNo = admissionId;
+      while (currentStudents.some((s: any) => s.rollNo === `SC-${nextRollNum}`)) {
+        nextRollNum++;
       }
+      let rollNo = (targetAdm.rollNo && !targetAdm.rollNo.startsWith('SC2026-')) ? targetAdm.rollNo : `SC-${nextRollNum}`;
 
       const studentId = existingStudent ? existingStudent.id : `s-std-${rollNo}`;
       const userId = existingUser ? existingUser.id : `u-std-${rollNo}`;
@@ -1285,7 +1285,7 @@ async function startServer() {
         id: studentId,
         userId: userId,
         rollNo: rollNo,
-        enrollmentId: rollNo,
+        enrollmentId: targetAdm.enrollmentId || admissionId,
         name: sName,
         class: sClass,
         fatherName: targetAdm.fatherName || '',
@@ -1415,7 +1415,7 @@ async function startServer() {
       };
 
       await runTransaction(db, async (transaction) => {
-        transaction.set(doc(db, 'admissions', admissionId), { status: 'APPROVED', updatedAt: new Date().toISOString() }, { merge: true });
+        transaction.set(doc(db, 'admissions', admissionId), { status: 'APPROVED', rollNo, updatedAt: new Date().toISOString() }, { merge: true });
         transaction.set(doc(db, 'students', studentId), newStudent);
         transaction.set(doc(db, 'users', userId), newUser);
         for (const fee of newFeeRecords) {
@@ -1435,15 +1435,17 @@ async function startServer() {
       logEnrollmentEvent("INFO", `Admission approval transaction completed for ${admissionId} in ${Date.now() - startTime}ms.`);
       return res.status(200).json({
         status: "success",
+        success: true,
         message: "Admission approved and student created atomically.",
-        admission: { ...targetAdm, status: 'APPROVED' },
+        admission: { ...targetAdm, status: 'APPROVED', rollNo },
         student: newStudent,
-        user: newUser,
+        user: { ...newUser, temporaryPassword: defaultPass },
         feeRecords: newFeeRecords,
         subscription: newSubscription,
         auditLog: newAuditLog,
         username: generatedUsername,
-        defaultPass
+        defaultPass,
+        rollNo
       });
     } catch (err: any) {
       logEnrollmentEvent("ERROR", "Approval transaction failed", null, err.message);
@@ -1664,9 +1666,45 @@ async function startServer() {
         timestamp: new Date().toISOString()
       };
 
-      verifyEnrollmentIntegrity(newStudent, { id: "NO_ADMISSION" }, newUser, newFeeRecords, newAuditLog);
+      const admissionId = `adm-${studentId}`;
+      const newAdmission = {
+        id: admissionId,
+        admissionNo: rollNo,
+        rollNo: rollNo,
+        enrollmentId: rollNo,
+        studentId: studentId,
+        userId: userId,
+        studentName: sName,
+        name: sName,
+        fatherName: fatherName || '',
+        motherName: motherName || '',
+        dob: dob || todayStr,
+        gender: gender || 'Male',
+        className: sClass,
+        class: sClass,
+        mobile: sMobile,
+        whatsapp: whatsapp || sMobile,
+        parentMobile: parentMobile || sMobile,
+        email: finalEmail,
+        address: address || '',
+        preferredBatch: preferredBatch || sClass,
+        preferredTiming: preferredTiming || '04:00 PM - 06:30 PM',
+        admissionDate: todayStr,
+        date: todayStr,
+        status: 'APPROVED' as const,
+        monthlyFee: classTuitionFee,
+        discount: typeof discount === 'number' ? discount : 0,
+        scholarship: typeof scholarship === 'number' ? scholarship : 0,
+        photoUrl: photoUrl || '',
+        createdBy: 'ADMIN_PORTAL',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      verifyEnrollmentIntegrity(newStudent, newAdmission, newUser, newFeeRecords, newAuditLog);
 
       await runTransaction(db, async (transaction) => {
+        transaction.set(doc(db, 'admissions', newAdmission.id), newAdmission);
         transaction.set(doc(db, 'students', studentId), newStudent);
         transaction.set(doc(db, 'users', userId), newUser);
         for (const fee of newFeeRecords) {
@@ -1686,22 +1724,22 @@ async function startServer() {
       logEnrollmentEvent("INFO", `Admin manual registration completed successfully in ${Date.now() - startTime}ms. Roll No: ${rollNo}`);
       return res.status(201).json({
         status: "success",
+        success: true,
         rollNo,
         student: newStudent,
-        user: newUser,
+        user: { ...newUser, temporaryPassword: defaultPass },
         feeRecords: newFeeRecords,
-        auditLog: newAuditLog
+        subscription: newSubscription,
+        admission: newAdmission,
+        auditLog: newAuditLog,
+        username: generatedUsername,
+        defaultPass
       });
 
     } catch (err: any) {
       logEnrollmentEvent("ERROR", "Admin manual student registration failed", null, err.message);
       return res.status(500).json({ status: "error", message: err.message || "Failed to manually register student." });
     }
-  });
-
-  app.post("/api/admissions", async (req, res) => {
-    req.url = "/api/enroll";
-    return app._router.handle(req, res);
   });
 
   // Unified POST /api/students endpoint - delegates to single enrollment pipeline

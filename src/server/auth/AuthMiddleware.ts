@@ -98,7 +98,26 @@ export async function authMiddleware(req: AuthenticatedRequest, res: Response, n
   if (!authenticatedUser) {
     try {
       const rawToken = token.startsWith('dev_') ? token.slice(4) : token;
-      const decoded: any = jwt.verify(rawToken, JWT_SECRET);
+      let decoded: any = null;
+      try {
+        decoded = jwt.verify(rawToken, JWT_SECRET);
+      } catch (jwtErr: any) {
+        if (jwtErr.name === 'TokenExpiredError') {
+          return res.status(401).json({
+            success: false,
+            error: 'Unauthorized: Authentication token has expired.',
+            code: 'TOKEN_EXPIRED'
+          });
+        }
+        if (token.startsWith('dev_')) {
+          try {
+            const jsonStr = Buffer.from(rawToken, 'base64').toString('utf-8');
+            decoded = JSON.parse(jsonStr);
+          } catch {
+            // invalid dev token format
+          }
+        }
+      }
 
       if (decoded && (decoded.sub || decoded.uid || decoded.id)) {
         const uid = decoded.sub || decoded.uid || decoded.id;

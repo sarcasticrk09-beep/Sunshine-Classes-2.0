@@ -8,6 +8,7 @@ import { FeeCollectionManager } from './FeeCollectionManager';
 import { FeeReminderManager } from './FeeReminderManager';
 import { WhatsAppNotificationManager } from './WhatsAppNotificationManager';
 import { FinanceDashboard } from './FinanceDashboard';
+import { RevenueOverviewChart } from './RevenueOverviewChart';
 import { StudyMaterialCMS } from './StudyMaterialCMS';
 import { SunshineStoreAdmin } from './SunshineStoreAdmin';
 import { AdminMeritManager } from './merit/AdminMeritManager';
@@ -2801,7 +2802,6 @@ export default function AdminDashboard({
       skipWhatsApp: !quickCollectSendWhatsApp
     });
 
-    alert(`Successfully recorded fee payment of ₹${amount} for ${quickCollectStudent.name} (${quickCollectMonth}).`);
     setQuickCollectStudent(null);
   };
 
@@ -6950,6 +6950,13 @@ ${data.log}`
                 </div>
               </div>
 
+              {/* REVENUE OVERVIEW CHART */}
+              <RevenueOverviewChart
+                subPayments={subPayments}
+                dashboardSession={dashboardSession}
+                selectedMonth={dashboardMonth}
+              />
+
               {/* Tuition & Subscription Fee Revenue Logs */}
               <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/50">
                 <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -8608,8 +8615,6 @@ ${data.log}`
                 transactionId: collectTxnId || undefined
               });
 
-              // Add a default log or alert
-              alert(`Successfully recorded fee payment of ₹${amount} for ${matchedStudent.name} (${collectMonth}).`);
               setCollectStudentId('');
               setCollectAmount('');
               setCollectTxnId('');

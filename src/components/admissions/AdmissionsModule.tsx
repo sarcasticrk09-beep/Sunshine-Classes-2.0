@@ -256,13 +256,38 @@ export default function AdmissionsModule() {
       // Show Credentials Dialog
       if (data.data && data.data.user) {
         setCredentialsModal({
-          studentName: data.data.admission.studentName,
-          rollNo: data.data.rollNo || data.data.admission.rollNo,
+          studentName: data.data.admission?.studentName || formData.studentName,
+          rollNo: data.data.rollNo || data.data.admission?.rollNo,
           username: data.data.user.username,
-          temporaryPassword: data.data.user.temporaryPassword,
-          className: data.data.admission.className || data.data.admission.class,
-          initialFee: data.data.initialFee?.pendingFee || data.data.admission.monthlyFee || 500
+          temporaryPassword: data.data.user.temporaryPassword || 'Sunshine123',
+          className: data.data.admission?.className || data.data.admission?.class || formData.className,
+          initialFee: data.data.initialFee?.pendingFee || data.data.admission?.monthlyFee || 500
         });
+
+        try {
+          if (data.data.student) {
+            const rawStudents = localStorage.getItem('sunshine_students');
+            const currentStudents = rawStudents ? JSON.parse(rawStudents) : [];
+            localStorage.setItem('sunshine_students', JSON.stringify([data.data.student, ...currentStudents.filter((s: any) => s.id !== data.data.student.id)]));
+          }
+          if (data.data.admission) {
+            const rawAdmissions = localStorage.getItem('sunshine_admissions');
+            const currentAdmissions = rawAdmissions ? JSON.parse(rawAdmissions) : [];
+            localStorage.setItem('sunshine_admissions', JSON.stringify([data.data.admission, ...currentAdmissions.filter((a: any) => a.id !== data.data.admission.id)]));
+          }
+          if (data.data.feeRecords && data.data.feeRecords.length > 0) {
+            const rawFees = localStorage.getItem('sunshine_fee_statuses');
+            const currentFees = rawFees ? JSON.parse(rawFees) : [];
+            localStorage.setItem('sunshine_fee_statuses', JSON.stringify([...data.data.feeRecords, ...currentFees.filter((f: any) => !data.data.feeRecords.some((rf: any) => rf.id === f.id))]));
+          }
+          if (data.data.subscription) {
+            const rawSubs = localStorage.getItem('sunshine_student_subscriptions');
+            const currentSubs = rawSubs ? JSON.parse(rawSubs) : [];
+            localStorage.setItem('sunshine_student_subscriptions', JSON.stringify([data.data.subscription, ...currentSubs.filter((s: any) => s.id !== data.data.subscription.id)]));
+          }
+        } catch (storageErr) {
+          console.warn('[AdmissionsModule] Local storage update warning:', storageErr);
+        }
       }
 
       fetchAdmissions();
@@ -403,6 +428,31 @@ export default function AdmissionsModule() {
           className: data.student?.class || adm.className,
           initialFee: data.feeRecords?.[0]?.totalFee || adm.monthlyFee || 500
         });
+
+        try {
+          if (data.student) {
+            const rawStudents = localStorage.getItem('sunshine_students');
+            const currentStudents = rawStudents ? JSON.parse(rawStudents) : [];
+            localStorage.setItem('sunshine_students', JSON.stringify([data.student, ...currentStudents.filter((s: any) => s.id !== data.student.id)]));
+          }
+          if (data.admission) {
+            const rawAdmissions = localStorage.getItem('sunshine_admissions');
+            const currentAdmissions = rawAdmissions ? JSON.parse(rawAdmissions) : [];
+            localStorage.setItem('sunshine_admissions', JSON.stringify(currentAdmissions.map((a: any) => (a.id === data.admission.id || a.enrollmentId === data.admission.enrollmentId) ? data.admission : a)));
+          }
+          if (data.feeRecords && data.feeRecords.length > 0) {
+            const rawFees = localStorage.getItem('sunshine_fee_statuses');
+            const currentFees = rawFees ? JSON.parse(rawFees) : [];
+            localStorage.setItem('sunshine_fee_statuses', JSON.stringify([...data.feeRecords, ...currentFees.filter((f: any) => !data.feeRecords.some((rf: any) => rf.id === f.id))]));
+          }
+          if (data.subscription) {
+            const rawSubs = localStorage.getItem('sunshine_student_subscriptions');
+            const currentSubs = rawSubs ? JSON.parse(rawSubs) : [];
+            localStorage.setItem('sunshine_student_subscriptions', JSON.stringify([data.subscription, ...currentSubs.filter((s: any) => s.id !== data.subscription.id)]));
+          }
+        } catch (storageErr) {
+          console.warn('[AdmissionsModule] Storage update warning:', storageErr);
+        }
       }
 
       fetchAdmissions();

@@ -276,6 +276,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       };
       const fallbackToken = `dev_${btoa(JSON.stringify(tokenPayload))}`;
       setCachedIdToken(fallbackToken);
+      sessionStorage.setItem('sunshine_access_token', fallbackToken);
+      if (remember) {
+        localStorage.setItem('sunshine_access_token', fallbackToken);
+      }
 
       const sessionObj = { user: userObj, role: userObj.role };
       sessionStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
@@ -382,6 +386,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     sessionStorage.removeItem('sunshine_active_session');
     localStorage.removeItem('sunshine_active_session');
+    sessionStorage.removeItem('sunshine_access_token');
+    localStorage.removeItem('sunshine_access_token');
     setCachedIdToken(null);
 
     setCurrentUser(null);

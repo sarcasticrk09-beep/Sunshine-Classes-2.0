@@ -701,7 +701,6 @@ export default function ReceptionDashboard({
       transactionId: paymentMethod !== 'CASH' ? transactionId : undefined
     });
 
-    alert("Fee logged! Receipt generated instantly.");
     setSelectedStudentId('');
     setTransactionId('');
   };
