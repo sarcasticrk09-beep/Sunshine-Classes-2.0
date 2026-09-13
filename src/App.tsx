@@ -3541,7 +3541,15 @@ Sunshine Classes`;
               className="bg-transparent border-0 cursor-pointer p-0 text-left hover:opacity-90 transition-opacity"
               title="Sunshine Classes ERP Portal Home"
             >
-              <SunshineLogo size={32} showText={true} textSubTitle="Digital ERP Terminal" />
+              <motion.div
+                initial={{ opacity: 0, y: -6, scale: 0.94 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <SunshineLogo size={32} showText={true} textSubTitle="Digital ERP Terminal" />
+              </motion.div>
             </button>
 
             {/* Share Portal Button */}

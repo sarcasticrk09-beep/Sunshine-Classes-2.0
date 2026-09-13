@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import SunshineLogo from '../SunshineLogo';
+import { WhatsAppIcon } from '../WhatsAppIcon';
 import { useNavigate } from 'react-router-dom';
 
 interface NavbarProps {

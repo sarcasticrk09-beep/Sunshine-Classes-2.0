@@ -114,7 +114,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                   </div>
                   <div>
                     <span className="block text-xs font-black text-slate-900 dark:text-white">WhatsApp</span>
-                    <span className="block text-[10px] font-bold text-emerald-700 dark:text-emerald-400">Instant Reply</span>
+                    <span className="block text-[10px] font-bold text-emerald-700 dark:text-emerald-400">9161586254</span>
                   </div>
                 </a>
 
