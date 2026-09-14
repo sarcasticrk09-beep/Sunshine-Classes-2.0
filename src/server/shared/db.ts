@@ -8,16 +8,23 @@ import {
   SEED_COURSES,
   SEED_STUDENT_SUBSCRIPTIONS,
   SEED_SUBSCRIPTION_PAYMENTS,
-  SEED_SUBSCRIPTION_RECEIPTS
+  SEED_SUBSCRIPTION_RECEIPTS,
+  SEED_ADMISSIONS
 } from '../../data';
 
 const isStaging = process.env.APP_ENV === 'staging';
+const PROD_PROJECT_REF = 'nqxthuycvltpuptejjot';
+
 const supabaseUrl = isStaging
   ? (process.env.STAGING_SUPABASE_URL || 'https://placeholder-staging.supabase.co')
   : (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://placeholder.supabase.co');
 const supabaseKey = isStaging
   ? (process.env.STAGING_SUPABASE_SERVICE_ROLE_KEY || process.env.STAGING_SUPABASE_ANON_KEY || 'placeholder-staging-key')
   : (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key');
+
+if (isStaging && supabaseUrl.includes(PROD_PROJECT_REF)) {
+  throw new Error('CRITICAL SECURITY VIOLATION: Server attempted to connect to PRODUCTION in staging mode!');
+}
 
 export const serverSupabase = createClient(supabaseUrl, supabaseKey);
 
@@ -32,7 +39,7 @@ const memoryStore: Record<string, Record<string, any>> = {
   subscriptions: Object.fromEntries(SEED_STUDENT_SUBSCRIPTIONS.map(s => [s.id, s])),
   payments: Object.fromEntries(SEED_SUBSCRIPTION_PAYMENTS.map(p => [p.id, p])),
   receipts: Object.fromEntries(SEED_SUBSCRIPTION_RECEIPTS.map(r => [r.id, r])),
-  admissions: {},
+  admissions: Object.fromEntries(SEED_ADMISSIONS.map(a => [a.id, a])),
   audit_logs: {},
   fee_receipts: {},
   attendance: {}

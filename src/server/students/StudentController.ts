@@ -43,7 +43,12 @@ export class StudentController {
       const duration = Date.now() - startTime;
       console.log(`[StudentController] [LIST] Succeeded for ${currentUser.username} in ${duration}ms`);
 
-      return ErrorStandardizer.success(res, 'Student directory retrieved successfully.', result);
+      return res.status(200).json({
+        success: true,
+        message: 'Student directory retrieved successfully.',
+        data: result.data,
+        pagination: result.pagination
+      });
     } catch (error: any) {
       return ErrorStandardizer.handleServerError(res, error, 'StudentController.list');
     }

@@ -545,8 +545,13 @@ async function startServer() {
       throw new Error("INTEGRITY_VERIFICATION_FAILED: Admission record is invalid or missing.");
     }
     if (admission.id !== "NO_ADMISSION") {
-      if (admission.id !== student.rollNo) {
-        throw new Error("INTEGRITY_VERIFICATION_FAILED: Admission ID does not match Student Roll Number.");
+      const rollMatches = (admission.rollNo && admission.rollNo === student.rollNo) ||
+                          (admission.admissionNo && admission.admissionNo === student.rollNo) ||
+                          (admission.enrollmentId && (admission.enrollmentId === student.rollNo || admission.enrollmentId === student.enrollmentId)) ||
+                          (admission.studentId && admission.studentId === student.id) ||
+                          (admission.id === student.rollNo);
+      if (!rollMatches) {
+        throw new Error("INTEGRITY_VERIFICATION_FAILED: Admission record does not match Student Roll Number or ID.");
       }
     }
 
@@ -1432,6 +1437,34 @@ async function startServer() {
         transaction.set(doc(db, 'users', userId), newUser);
         for (const fee of newFeeRecords) {
           transaction.set(doc(db, 'fee_statuses', fee.id), fee);
+          const monthlyFeeDocId = `monthly-${studentId}-${fee.billingMonth.toLowerCase().replace(/\s+/g, '')}-${fee.billingYear}`;
+          const monthIndex = MONTH_NAMES.indexOf(fee.billingMonth);
+          const monthVal = parseInt(fee.billingYear, 10) * 100 + (monthIndex >= 0 ? monthIndex + 1 : 1);
+          transaction.set(doc(db, 'student_monthly_fees', monthlyFeeDocId), {
+            id: monthlyFeeDocId,
+            studentId: studentId,
+            studentName: sName,
+            rollNo: rollNo,
+            class: sClass,
+            preferredBatch: targetAdm.preferredBatch || sClass,
+            month: fee.month,
+            monthVal: monthVal,
+            baseFee: fee.totalFee,
+            discountApplied: fee.discount || 0,
+            totalFee: fee.totalFee,
+            paidFee: 0,
+            pendingFee: fee.totalFee,
+            status: 'PENDING',
+            dueDate: fee.dueDate,
+            feeStructureSnapshot: null,
+            originalClassFee: fee.totalFee,
+            concessionPercentage: 0,
+            concessionAmount: 0,
+            generatedBy: 'ONLINE_ADMISSION',
+            generatedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
         }
         transaction.set(doc(db, 'student_subscriptions', newSubscription.id), newSubscription);
         transaction.set(doc(db, 'notifications', newNotification.id), newNotification);
@@ -1721,6 +1754,34 @@ async function startServer() {
         transaction.set(doc(db, 'users', userId), newUser);
         for (const fee of newFeeRecords) {
           transaction.set(doc(db, 'fee_statuses', fee.id), fee);
+          const monthlyFeeDocId = `monthly-${studentId}-${fee.billingMonth.toLowerCase().replace(/\s+/g, '')}-${fee.billingYear}`;
+          const monthIndex = MONTH_NAMES.indexOf(fee.billingMonth);
+          const monthVal = parseInt(fee.billingYear, 10) * 100 + (monthIndex >= 0 ? monthIndex + 1 : 1);
+          transaction.set(doc(db, 'student_monthly_fees', monthlyFeeDocId), {
+            id: monthlyFeeDocId,
+            studentId: studentId,
+            studentName: sName,
+            rollNo: rollNo,
+            class: sClass,
+            preferredBatch: preferredBatch || sClass,
+            month: fee.month,
+            monthVal: monthVal,
+            baseFee: fee.totalFee,
+            discountApplied: fee.discount || 0,
+            totalFee: fee.totalFee,
+            paidFee: 0,
+            pendingFee: fee.totalFee,
+            status: 'PENDING',
+            dueDate: fee.dueDate,
+            feeStructureSnapshot: null,
+            originalClassFee: fee.totalFee,
+            concessionPercentage: 0,
+            concessionAmount: 0,
+            generatedBy: 'ADMIN_PORTAL',
+            generatedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
         }
         transaction.set(doc(db, 'student_subscriptions', newSubscription.id), newSubscription);
         transaction.set(doc(db, 'notifications', newNotification.id), newNotification);

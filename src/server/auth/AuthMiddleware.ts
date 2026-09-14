@@ -59,7 +59,8 @@ export async function authMiddleware(req: AuthenticatedRequest, res: Response, n
       if (!error && data?.user) {
         const sbUser = data.user;
         const uid = sbUser.id;
-        let role = sbUser.user_metadata?.role || 'STUDENT';
+        // SECURITY: Never trust client-supplied or OAuth user_metadata for roles. Default strictly to STUDENT.
+        let role = 'STUDENT';
         let username = sbUser.user_metadata?.username || sbUser.email?.split('@')[0] || 'user';
         let name = sbUser.user_metadata?.name || sbUser.user_metadata?.full_name || 'User';
 
@@ -70,13 +71,25 @@ export async function authMiddleware(req: AuthenticatedRequest, res: Response, n
             .select('role, username, name, email')
             .eq('id', uid)
             .maybeSingle();
+
           if (dbUser?.role) {
             role = dbUser.role;
             username = dbUser.username || username;
             name = dbUser.name || name;
+          } else if (sbUser.email) {
+            const { data: dbUserEmail } = await serverSupabase
+              .from('users')
+              .select('role, username, name, email')
+              .ilike('email', sbUser.email)
+              .maybeSingle();
+            if (dbUserEmail?.role) {
+              role = dbUserEmail.role;
+              username = dbUserEmail.username || username;
+              name = dbUserEmail.name || name;
+            }
           }
         } catch {
-          // If public.users read fails, keep verified Supabase identity
+          // If public.users read fails, keep default unprivileged STUDENT role
         }
 
         authenticatedUser = {

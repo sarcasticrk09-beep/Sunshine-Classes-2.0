@@ -698,7 +698,8 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Founder@Sunshine2026',
     status: 'ACTIVE',
     active: true,
-    mustChangePassword: false
+    mustChangePassword: true,
+    forcePasswordChange: true
   },
   // Super Admin 2: Rajeev Kumar Verma (Co-Founder)
   {
@@ -712,7 +713,8 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Cofounder@Sunshine2026',
     status: 'ACTIVE',
     active: true,
-    mustChangePassword: false
+    mustChangePassword: true,
+    forcePasswordChange: true
   },
   // Founder / Super Admin aliases for backwards-compatibility & easy logins
   {
@@ -726,7 +728,8 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Founder@Sunshine2026',
     status: 'ACTIVE',
     active: true,
-    mustChangePassword: false
+    mustChangePassword: true,
+    forcePasswordChange: true
   },
   {
     id: 'u-cofounder',
@@ -739,7 +742,8 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Cofounder@Sunshine2026',
     status: 'ACTIVE',
     active: true,
-    mustChangePassword: false
+    mustChangePassword: true,
+    forcePasswordChange: true
   },
   // General Admin
   {
@@ -753,7 +757,8 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Admin@123',
     status: 'ACTIVE',
     active: true,
-    mustChangePassword: false
+    mustChangePassword: true,
+    forcePasswordChange: true
   },
   // Receptionist Desk
   {
@@ -767,7 +772,8 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Reception@123',
     status: 'ACTIVE',
     active: true,
-    mustChangePassword: false
+    mustChangePassword: true,
+    forcePasswordChange: true
   },
   // Test Teachers
   {
@@ -781,7 +787,8 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Teacher@123',
     status: 'ACTIVE',
     active: true,
-    mustChangePassword: false
+    mustChangePassword: true,
+    forcePasswordChange: true
   },
   {
     id: 'u-teacher-2',
@@ -794,7 +801,8 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Teacher@123',
     status: 'ACTIVE',
     active: true,
-    mustChangePassword: false
+    mustChangePassword: true,
+    forcePasswordChange: true
   },
   {
     id: 'u-teacher-3',
@@ -807,7 +815,8 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Teacher@123',
     status: 'ACTIVE',
     active: true,
-    mustChangePassword: false
+    mustChangePassword: true,
+    forcePasswordChange: true
   },
   // Test Students
   {
@@ -821,7 +830,8 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Student@123',
     status: 'ACTIVE',
     active: true,
-    mustChangePassword: false
+    mustChangePassword: true,
+    forcePasswordChange: true
   },
   {
     id: 'u-student-2',
@@ -834,7 +844,8 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Student@123',
     status: 'ACTIVE',
     active: true,
-    mustChangePassword: false
+    mustChangePassword: true,
+    forcePasswordChange: true
   },
   {
     id: 'u-student-3',
@@ -847,11 +858,155 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Student@123',
     status: 'ACTIVE',
     active: true,
-    mustChangePassword: false
+    mustChangePassword: true,
+    forcePasswordChange: true
   }
 ];
 
-export const SEED_ADMISSIONS: Admission[] = [];
+export const SEED_ADMISSIONS: Admission[] = [
+  {
+    id: 'ADM-2026-001',
+    enrollmentId: 'ENR-2026-001',
+    userId: 'u-student-1',
+    studentName: 'Rahul Verma',
+    fatherName: 'Suresh Verma',
+    motherName: 'Sunita Verma',
+    dob: '2010-04-15',
+    gender: 'Male',
+    className: 'Class 10',
+    previousSchool: 'St. Xavier High School',
+    mobile: '9876543210',
+    parentMobile: '9876543210',
+    email: 'rahul.verma@sunshineclasses.net',
+    address: '14/2 Railway Colony, Varanasi',
+    board: 'CBSE',
+    preferredStartMonth: 'April 2026',
+    paymentPlan: 'Monthly',
+    preferredBatch: 'Class 10 - Morning',
+    preferredTiming: '07:00 AM – 09:30 AM',
+    monthlyFee: 1200,
+    status: 'APPROVED',
+    date: '2026-04-01'
+  },
+  {
+    id: 'ADM-2026-002',
+    enrollmentId: 'ENR-2026-002',
+    userId: 'u-student-2',
+    studentName: 'Ananya Sharma',
+    fatherName: 'Rajesh Sharma',
+    motherName: 'Poonam Sharma',
+    dob: '2011-08-22',
+    gender: 'Female',
+    className: 'Class 9',
+    previousSchool: 'Delhi Public School',
+    mobile: '9876543211',
+    parentMobile: '9876543211',
+    email: 'ananya.sharma@sunshineclasses.net',
+    address: 'Flat 302, Sunrise Apts, Varanasi',
+    board: 'CBSE',
+    preferredStartMonth: 'April 2026',
+    paymentPlan: 'Monthly',
+    preferredBatch: 'Class 9 - Evening',
+    preferredTiming: '03:00 PM – 05:00 PM',
+    monthlyFee: 1000,
+    status: 'APPROVED',
+    date: '2026-04-03'
+  },
+  {
+    id: 'ADM-2026-003',
+    enrollmentId: 'ENR-2026-003',
+    userId: 'u-student-3',
+    studentName: 'Aryan Patel',
+    fatherName: 'Ramesh Patel',
+    motherName: 'Geeta Patel',
+    dob: '2012-01-10',
+    gender: 'Male',
+    className: 'Class 8',
+    previousSchool: 'Kendriya Vidyalaya',
+    mobile: '9876543212',
+    parentMobile: '9876543212',
+    email: 'aryan.patel@sunshineclasses.net',
+    address: '56 New Cantt Road, Varanasi',
+    board: 'CBSE',
+    preferredStartMonth: 'April 2026',
+    paymentPlan: 'Monthly',
+    preferredBatch: 'Class 8 - Afternoon',
+    preferredTiming: '02:00 PM – 04:00 PM',
+    monthlyFee: 700,
+    status: 'APPROVED',
+    date: '2026-04-05'
+  },
+  {
+    id: 'ADM-2026-004',
+    enrollmentId: 'ENR-2026-004',
+    studentName: 'Meera Kapoor',
+    fatherName: 'Vikram Kapoor',
+    motherName: 'Anita Kapoor',
+    dob: '2010-11-14',
+    gender: 'Female',
+    className: 'Class 10',
+    previousSchool: 'City Montessori School',
+    mobile: '9876543220',
+    parentMobile: '9876543220',
+    email: 'meera.kapoor@example.com',
+    address: '88 Shivpur Road, Varanasi',
+    board: 'ICSE',
+    preferredStartMonth: 'July 2026',
+    paymentPlan: 'Quarterly',
+    preferredBatch: 'Class 10 - Evening',
+    preferredTiming: '04:00 PM – 06:30 PM',
+    monthlyFee: 1200,
+    status: 'PENDING',
+    date: '2026-07-02'
+  },
+  {
+    id: 'ADM-2026-005',
+    enrollmentId: 'ENR-2026-005',
+    studentName: 'Rohan Gupta',
+    fatherName: 'Manoj Gupta',
+    motherName: 'Kiran Gupta',
+    dob: '2011-05-19',
+    gender: 'Male',
+    className: 'Class 9',
+    previousSchool: 'Sunbeam Academy',
+    mobile: '9876543221',
+    parentMobile: '9876543221',
+    email: 'rohan.gupta@example.com',
+    address: '42 Mahmoorganj, Varanasi',
+    board: 'CBSE',
+    preferredStartMonth: 'July 2026',
+    paymentPlan: 'Monthly',
+    preferredBatch: 'Class 9 - Evening',
+    preferredTiming: '03:00 PM – 05:00 PM',
+    monthlyFee: 1000,
+    status: 'PENDING',
+    date: '2026-07-05'
+  },
+  {
+    id: 'ADM-2026-006',
+    enrollmentId: 'ENR-2026-006',
+    studentName: 'Tanvi Joshi',
+    fatherName: 'Deepak Joshi',
+    motherName: 'Sangeeta Joshi',
+    dob: '2012-09-08',
+    gender: 'Female',
+    className: 'Class 8',
+    previousSchool: 'St. John Convent',
+    mobile: '9876543222',
+    parentMobile: '9876543222',
+    email: 'tanvi.joshi@example.com',
+    address: '12 Sigra Crossing, Varanasi',
+    board: 'UP Board',
+    preferredStartMonth: 'August 2026',
+    paymentPlan: 'Monthly',
+    preferredBatch: 'Class 8 - Afternoon',
+    preferredTiming: '02:00 PM – 04:00 PM',
+    monthlyFee: 700,
+    status: 'NEED_MORE_INFO',
+    requestedChanges: 'Please upload recent marksheet and transfer certificate.',
+    date: '2026-07-08'
+  }
+];
 
 export const SEED_ATTENDANCE: Attendance[] = [
   // Attendance history for s1 (Rahul Verma)

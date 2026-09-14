@@ -5,6 +5,11 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    define: {
+      'import.meta.env.VITE_APP_ENV': JSON.stringify(process.env.APP_ENV || 'staging'),
+      'import.meta.env.VITE_STAGING_SUPABASE_URL': JSON.stringify(process.env.STAGING_SUPABASE_URL || ''),
+      'import.meta.env.VITE_STAGING_SUPABASE_ANON_KEY': JSON.stringify(process.env.STAGING_SUPABASE_ANON_KEY || ''),
+    },
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

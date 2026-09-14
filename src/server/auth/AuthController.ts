@@ -95,6 +95,13 @@ export class AuthController {
       }
 
       const role = (matchedUser.role || 'STUDENT').toUpperCase().replace('-', '_');
+      const forceChange = !!(
+        matchedUser.force_password_change ||
+        matchedUser.forcePasswordChange ||
+        matchedUser.mustChangePassword ||
+        matchedUser.must_change_password
+      );
+
       const payload = {
         sub: matchedUser.id || matchedUser.user_id || 'usr-default',
         uid: matchedUser.id || matchedUser.user_id || 'usr-default',
@@ -102,7 +109,9 @@ export class AuthController {
         username: matchedUser.username || identifier,
         email: matchedUser.email || `${identifier}@sunshineclasses.net`,
         role: role,
-        name: matchedUser.name || identifier
+        name: matchedUser.name || identifier,
+        forcePasswordChange: forceChange,
+        mustChangePassword: forceChange
       };
 
       const signedJwt = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
@@ -120,6 +129,8 @@ export class AuthController {
         success: true,
         token,
         user: payload,
+        forcePasswordChange: forceChange,
+        mustChangePassword: forceChange,
         message: 'Login successful'
       });
     } catch (err: any) {

@@ -3869,7 +3869,7 @@ Sunshine Classes`;
 
   return (
     <>
-      {currentUser && currentUser.forcePasswordChange && (
+      {currentUser && (currentUser.forcePasswordChange || currentUser.mustChangePassword) && (
         <ForcePasswordChange onSuccess={() => navigate(0)} />
       )}
 

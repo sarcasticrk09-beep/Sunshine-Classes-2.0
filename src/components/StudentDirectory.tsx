@@ -36,6 +36,7 @@ import {
   GraduationCap
 } from 'lucide-react';
 import { StudentProfile } from './StudentProfile';
+import { SyncService } from '../services/SyncService';
 
 interface StudentDirectoryProps {
   currentUser: {
@@ -49,6 +50,7 @@ interface StudentDirectoryProps {
   };
   teachersList?: any[];
   classList?: string[];
+  initialStudents?: any[];
   onRefreshGlobalData?: () => void;
 }
 
@@ -56,6 +58,7 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
   currentUser,
   teachersList = [],
   classList = [],
+  initialStudents = [],
   onRefreshGlobalData
 }) => {
   const role = (currentUser?.role || 'ADMIN').toUpperCase();
@@ -91,15 +94,27 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
   });
 
   // Data & API State
-  const [students, setStudents] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>(initialStudents || []);
   const [paginationInfo, setPaginationInfo] = useState<any>({
-    totalCount: 0,
-    totalPages: 1,
+    totalCount: initialStudents?.length || 0,
+    totalPages: Math.max(1, Math.ceil((initialStudents?.length || 0) / limit)),
     hasMore: false,
     lastDocId: null
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Sync initial students if provided later and current state is empty
+  useEffect(() => {
+    if (initialStudents && initialStudents.length > 0 && students.length === 0) {
+      setStudents(initialStudents);
+      setPaginationInfo((prev: any) => ({
+        ...prev,
+        totalCount: initialStudents.length,
+        totalPages: Math.max(1, Math.ceil(initialStudents.length / limit))
+      }));
+    }
+  }, [initialStudents, limit, students.length]);
 
   // Selection & Bulk Actions
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -179,25 +194,70 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
         ? sessionStorage.getItem('sunshine_access_token') || localStorage.getItem('sunshine_access_token') || ''
         : '';
 
-      const response = await fetch(`/api/students?${params.toString()}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
-        credentials: 'include'
-      });
-      const data = await response.json();
+      let list: any[] = [];
+      let pagination = { totalCount: 0, totalPages: 1, hasMore: false, page, limit };
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || 'Failed to fetch student directory.');
+      try {
+        const response = await fetch(`/api/students?${params.toString()}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          credentials: 'include'
+        });
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          const rawList = Array.isArray(data.data)
+            ? data.data
+            : Array.isArray(data.data?.data)
+            ? data.data.data
+            : Array.isArray(data.students)
+            ? data.students
+            : [];
+          list = rawList;
+          pagination = data.pagination || data.data?.pagination || {
+            totalCount: rawList.length,
+            totalPages: Math.max(1, Math.ceil(rawList.length / limit)),
+            hasMore: false,
+            page,
+            limit
+          };
+          setError(null);
+        } else {
+          throw new Error(data.message || 'Failed to fetch student directory.');
+        }
+      } catch (apiErr: any) {
+        console.warn('[StudentDirectory] API call failed, falling back to SyncService/local data:', apiErr.message);
+        const localList = await SyncService.list<any>('students').catch(() => []);
+        if (localList && localList.length > 0) {
+          list = localList;
+          pagination = {
+            totalCount: localList.length,
+            totalPages: Math.max(1, Math.ceil(localList.length / limit)),
+            hasMore: false,
+            page,
+            limit
+          };
+          setError(null);
+        } else if (initialStudents && initialStudents.length > 0) {
+          list = initialStudents;
+          pagination = {
+            totalCount: initialStudents.length,
+            totalPages: Math.max(1, Math.ceil(initialStudents.length / limit)),
+            hasMore: false,
+            page,
+            limit
+          };
+          setError(null);
+        } else {
+          setError(apiErr.message || 'Network error fetching students.');
+        }
       }
 
-      setStudents(data.data || []);
-      setPaginationInfo(data.pagination || { totalCount: 0, totalPages: 1, hasMore: false });
-    } catch (err: any) {
-      console.error('[StudentDirectory] Fetch error:', err);
-      setError(err.message || 'Network error fetching students.');
+      setStudents(list);
+      setPaginationInfo(pagination);
     } finally {
       setLoading(false);
     }

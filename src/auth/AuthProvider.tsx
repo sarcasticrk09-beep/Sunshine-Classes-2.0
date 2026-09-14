@@ -100,35 +100,109 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (isSupabaseConfigured) {
       console.log("[AuthProvider] Initializing Supabase Auth persistence layer...");
       
+      const resolveAndSetApplicationUser = async (session: any) => {
+        if (!session?.user) return;
+        const supabaseUser = session.user;
+        setCachedIdToken(session.access_token);
+
+        let profile: any = null;
+        try {
+          // 1. Resolve through the trusted public.users record by id
+          const { data: profileById, error: idErr } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', supabaseUser.id)
+            .maybeSingle();
+
+          if (profileById && !idErr) {
+            profile = profileById;
+          } else if (supabaseUser.email) {
+            // 2. If not found by id, resolve through public.users by verified email
+            const { data: profileByEmail, error: emailErr } = await supabase
+              .from('users')
+              .select('*')
+              .ilike('email', supabaseUser.email)
+              .maybeSingle();
+            if (profileByEmail && !emailErr) {
+              profile = profileByEmail;
+            }
+          }
+        } catch (dbErr) {
+          console.warn("[AuthProvider] Error querying public.users table:", dbErr);
+        }
+
+        // 3. Fallback to trusted seed users definitions if public.users is not yet provisioned
+        if (!profile && supabaseUser.email) {
+          const matchedSeed = SEED_USERS.find(
+            u => u.email.toLowerCase() === supabaseUser.email.toLowerCase()
+          );
+          if (matchedSeed) {
+            profile = {
+              id: matchedSeed.id,
+              username: matchedSeed.username,
+              name: matchedSeed.name,
+              email: matchedSeed.email,
+              role: matchedSeed.role,
+              phone: matchedSeed.phone,
+              force_password_change: matchedSeed.forcePasswordChange
+            };
+          }
+        }
+
+        // Security boundaries:
+        // - Do NOT trust client/Google-provided roles (ignore supabaseUser.user_metadata?.role)
+        // - Never elevate a new Google user to FOUNDER, ADMIN, or other privileged role
+        // - Strictly adhere to the handle_new_user security model: default to STUDENT
+        if (profile) {
+          const cleanRole = sanitizeRole(profile.role);
+          const mustChange = !!(
+            profile.force_password_change ??
+            (profile.mustChangePassword || profile.forcePasswordChange)
+          );
+          const userObj: User = {
+            id: profile.id || supabaseUser.id,
+            uid: profile.id || supabaseUser.id,
+            username: profile.username || supabaseUser.email?.split('@')[0] || 'user',
+            name: profile.name || supabaseUser.user_metadata?.full_name || supabaseUser.user_metadata?.name || 'User',
+            email: profile.email || supabaseUser.email || '',
+            role: cleanRole,
+            phone: profile.phone || '',
+            forcePasswordChange: mustChange,
+            mustChangePassword: mustChange,
+            activeSessionId: `sess-${Date.now()}`
+          };
+          setCurrentUser(userObj);
+          setRole(cleanRole);
+          const sessionObj = { user: userObj, role: cleanRole };
+          sessionStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
+          localStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
+        } else {
+          console.warn(`[AuthProvider] No authorized user record found for ${supabaseUser.email}. Enforcing default unprivileged STUDENT role in accordance with handle_new_user security model.`);
+          const studentUser: User = {
+            id: supabaseUser.id,
+            uid: supabaseUser.id,
+            username: supabaseUser.email ? supabaseUser.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') : `user_${supabaseUser.id.substring(0, 8)}`,
+            name: supabaseUser.user_metadata?.full_name || supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'Student',
+            email: supabaseUser.email || '',
+            role: 'STUDENT', // Strictly non-privileged default
+            phone: '',
+            forcePasswordChange: false,
+            mustChangePassword: false,
+            activeSessionId: `sess-${Date.now()}`
+          };
+          setCurrentUser(studentUser);
+          setRole('STUDENT');
+          const sessionObj = { user: studentUser, role: 'STUDENT' };
+          sessionStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
+          localStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
+        }
+      };
+
       const checkSession = async () => {
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session) {
-            const supabaseUser = session.user;
-            setCachedIdToken(session.access_token);
-
-            const { data: profile, error } = await supabase
-              .from('users')
-              .select('*')
-              .eq('id', supabaseUser.id)
-              .maybeSingle();
-
-            if (profile && !error) {
-              const cleanRole = sanitizeRole(profile.role);
-              const userObj: User = {
-                id: supabaseUser.id,
-                uid: supabaseUser.id,
-                username: profile.username || supabaseUser.email?.split('@')[0] || '',
-                name: profile.name || 'User',
-                email: supabaseUser.email || profile.email || '',
-                role: cleanRole,
-                phone: profile.phone || '',
-                forcePasswordChange: !!profile.force_password_change,
-                activeSessionId: `sess-${Date.now()}`
-              };
-              setCurrentUser(userObj);
-              setRole(cleanRole);
-            }
+            await resolveAndSetApplicationUser(session);
           }
         } catch (err) {
           console.error("[AuthProvider] Supabase initial session check error:", err);
@@ -142,37 +216,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
         try {
           if (session) {
-            const supabaseUser = session.user;
-            setCachedIdToken(session.access_token);
-
-            const { data: profile, error } = await supabase
-              .from('users')
-              .select('*')
-              .eq('id', supabaseUser.id)
-              .maybeSingle();
-
-            if (profile && !error) {
-              const cleanRole = sanitizeRole(profile.role);
-              const userObj: User = {
-                id: supabaseUser.id,
-                uid: supabaseUser.id,
-                username: profile.username || supabaseUser.email?.split('@')[0] || '',
-                name: profile.name || 'User',
-                email: supabaseUser.email || profile.email || '',
-                role: cleanRole,
-                phone: profile.phone || '',
-                forcePasswordChange: !!profile.force_password_change,
-                activeSessionId: `sess-${Date.now()}`
-              };
-              setCurrentUser(userObj);
-              setRole(cleanRole);
-            }
+            await resolveAndSetApplicationUser(session);
           } else if (event === 'SIGNED_OUT') {
             setCurrentUser(null);
             setRole(null);
             setCachedIdToken(null);
             sessionStorage.removeItem('sunshine_active_session');
             localStorage.removeItem('sunshine_active_session');
+            sessionStorage.removeItem('sunshine_access_token');
+            localStorage.removeItem('sunshine_access_token');
           }
         } catch (err) {
           console.error("[AuthProvider] Supabase auth state change handler error:", err);
@@ -250,6 +302,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const processSeedUserLogin = async (matched: User) => {
       const cleanRole = sanitizeRole(matched.role);
+      const mustChange = !!(matched.forcePasswordChange || matched.mustChangePassword);
       const userObj: User = {
         id: matched.id || matched.uid || `u-${matched.username}`,
         uid: matched.id || matched.uid || `u-${matched.username}`,
@@ -258,7 +311,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         email: matched.email || `${matched.username}@sunshineclasses.net`,
         role: cleanRole,
         phone: matched.phone || '',
-        forcePasswordChange: !!matched.mustChangePassword,
+        forcePasswordChange: mustChange,
+        mustChangePassword: mustChange,
         activeSessionId: `sess-${Date.now()}`
       };
 
@@ -312,6 +366,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             .maybeSingle();
 
           const cleanRole = sanitizeRole(profile?.role);
+          const mustChange = !!(
+            profile?.force_password_change ??
+            (profile?.mustChangePassword || profile?.forcePasswordChange)
+          );
           const userObj: User = {
             id: data.user.id,
             uid: data.user.id,
@@ -320,7 +378,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             email: data.user.email || profile?.email || '',
             role: cleanRole,
             phone: profile?.phone || '',
-            forcePasswordChange: !!profile?.force_password_change,
+            forcePasswordChange: mustChange,
+            mustChangePassword: mustChange,
             activeSessionId: `sess-${Date.now()}`
           };
 
@@ -369,7 +428,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const googleLogin = async (): Promise<boolean> => {
-    throw new Error("Google Sign-In has been replaced with Username and Password authentication as per ERP security guidelines.");
+    setGoogleLoading(true);
+    try {
+      if (!isSupabaseConfigured) {
+        throw new Error("Supabase is not configured. Please check your environment variables.");
+      }
+
+      const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/login` : undefined;
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'select_account',
+          }
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.url && typeof window !== 'undefined') {
+        if (window.self !== window.top) {
+          try {
+            window.top!.location.href = data.url;
+          } catch {
+            window.location.href = data.url;
+          }
+        } else {
+          window.location.href = data.url;
+        }
+      }
+
+      return true;
+    } catch (err: any) {
+      console.error("[AuthProvider] Google Sign-In error:", err);
+      throw err;
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   const logout = async (): Promise<void> => {
@@ -415,7 +515,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             console.warn("Could not update public profile forcePasswordChange field:", dbErr.message);
           }
 
-          setCurrentUser({ ...currentUser, forcePasswordChange: false });
+          setCurrentUser({ ...currentUser, forcePasswordChange: false, mustChangePassword: false });
+          const sessionObj = { user: { ...currentUser, forcePasswordChange: false, mustChangePassword: false }, role: currentUser.role };
+          sessionStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
+          localStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
         }
 
         await writeAuditLog(currentUser?.id || 'user', currentUser?.username || 'user', 'PASSWORD_CHANGE', "User updated their password successfully via Supabase.");
@@ -425,8 +528,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } else {
       if (currentUser) {
-        setCurrentUser({ ...currentUser, forcePasswordChange: false });
-        const sessionObj = { user: { ...currentUser, forcePasswordChange: false }, role: currentUser.role };
+        setCurrentUser({ ...currentUser, forcePasswordChange: false, mustChangePassword: false });
+        const sessionObj = { user: { ...currentUser, forcePasswordChange: false, mustChangePassword: false }, role: currentUser.role };
         sessionStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
         localStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
       }

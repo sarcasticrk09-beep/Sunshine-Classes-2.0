@@ -100,52 +100,52 @@ export class FeeCollectionService {
       return { success: false, statusCode: 400, code: 'BAD_REQUEST', message: 'No monthly fee records specified for payment.' };
     }
 
+    // 1. Fetch student to verify existence (pre-transaction validation)
+    const studentDoc = await getDoc(doc(db, 'students', studentId));
+    if (!studentDoc.exists()) {
+      return { success: false, statusCode: 404, code: 'NOT_FOUND', message: 'Student record not found.' };
+    }
+    const studentData = studentDoc.data();
+
+    // 2. Fetch outstanding fee records to verify FIFO and amounts (pre-transaction validation)
+    const outstanding = await this.getOutstandingFeeRecords(studentId, db);
+    if (outstanding.length === 0) {
+      return { success: false, statusCode: 400, code: 'BAD_REQUEST', message: 'No outstanding fees found for this student.' };
+    }
+
+    // Enforce FIFO: the requested feeRecordIds must match the exact oldest sequential outstanding records
+    for (let i = 0; i < feeRecordIds.length; i++) {
+      if (!outstanding[i] || outstanding[i].id !== feeRecordIds[i]) {
+        return { success: false, statusCode: 400, code: 'BAD_REQUEST', message: 'FIFO violation: You must pay the oldest outstanding monthly fees first.' };
+      }
+    }
+
+    // Enforce No Partial Payment: sum of pendingFee must match requested amount exactly
+    let calculatedSum = 0;
+    const breakdown: any[] = [];
+    const recordsToUpdate: any[] = [];
+
+    for (const recordId of feeRecordIds) {
+      const record = outstanding.find(r => r.id === recordId);
+      if (!record) {
+        return { success: false, statusCode: 404, code: 'NOT_FOUND', message: `Fee record ${recordId} not found among student's outstanding fees.` };
+      }
+      calculatedSum += record.pendingFee;
+      breakdown.push({
+        month: record.month,
+        baseFee: record.baseFee,
+        discountApplied: record.discountApplied || 0,
+        amountPaid: record.pendingFee
+      });
+      recordsToUpdate.push(record);
+    }
+
+    if (amount !== calculatedSum) {
+      return { success: false, statusCode: 400, code: 'BAD_REQUEST', message: `Amount mismatch: Expected ₹${calculatedSum} for specified month(s) but received ₹${amount}. Partial payments are not allowed.` };
+    }
+
     return await TransactionManager.run(db, 'COLLECT_CASH_PAYMENT', async (transaction) => {
       const receiptNumber = await ReceiptService.generateReceiptNumber(transaction, db);
-
-      // 1. Fetch student to verify existence
-      const studentDoc = await transaction.get(doc(db, 'students', studentId));
-      if (!studentDoc.exists()) {
-        throw new Error('Student record not found.');
-      }
-      const studentData = studentDoc.data();
-
-      // 2. Fetch outstanding fee records to verify FIFO and amounts
-      const outstanding = await this.getOutstandingFeeRecords(studentId, db);
-      if (outstanding.length === 0) {
-        throw new Error('No outstanding fees found for this student.');
-      }
-
-      // Enforce FIFO: the requested feeRecordIds must match the exact oldest sequential outstanding records
-      for (let i = 0; i < feeRecordIds.length; i++) {
-        if (!outstanding[i] || outstanding[i].id !== feeRecordIds[i]) {
-          throw new Error('FIFO violation: You must pay the oldest outstanding monthly fees first.');
-        }
-      }
-
-      // Enforce No Partial Payment: sum of pendingFee must match requested amount exactly
-      let calculatedSum = 0;
-      const breakdown: any[] = [];
-      const recordsToUpdate: any[] = [];
-
-      for (const recordId of feeRecordIds) {
-        const record = outstanding.find(r => r.id === recordId);
-        if (!record) {
-          throw new Error(`Fee record ${recordId} not found among student's outstanding fees.`);
-        }
-        calculatedSum += record.pendingFee;
-        breakdown.push({
-          month: record.month,
-          baseFee: record.baseFee,
-          discountApplied: record.discountApplied || 0,
-          amountPaid: record.pendingFee
-        });
-        recordsToUpdate.push(record);
-      }
-
-      if (amount !== calculatedSum) {
-        throw new Error(`Amount mismatch: Expected ₹${calculatedSum} for specified month(s) but received ₹${amount}. Partial payments are not allowed.`);
-      }
 
       const paymentId = `pmt-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 

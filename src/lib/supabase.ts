@@ -16,8 +16,20 @@ const envAnonKey = isStaging
 const localUrl = typeof window !== 'undefined' ? localStorage.getItem(isStaging ? 'sunshine_staging_supabase_url' : 'sunshine_supabase_url') || '' : '';
 const localAnonKey = typeof window !== 'undefined' ? localStorage.getItem(isStaging ? 'sunshine_staging_supabase_anon_key' : 'sunshine_supabase_anon_key') || '' : '';
 
-export const supabaseUrl = envUrl || localUrl;
-export const supabaseAnonKey = envAnonKey || localAnonKey;
+const PROD_PROJECT_REF = 'nqxthuycvltpuptejjot';
+
+let finalUrl = envUrl || localUrl;
+let finalAnonKey = envAnonKey || localAnonKey;
+
+// Strict safety isolation: In staging mode, never touch production project reference
+if (isStaging && finalUrl.includes(PROD_PROJECT_REF)) {
+  console.warn('[Supabase Client Safety] Detected production project reference in staging mode. Enforcing dedicated staging Supabase URL.');
+  finalUrl = metaEnv.VITE_STAGING_SUPABASE_URL || '';
+  finalAnonKey = metaEnv.VITE_STAGING_SUPABASE_ANON_KEY || '';
+}
+
+export const supabaseUrl = finalUrl;
+export const supabaseAnonKey = finalAnonKey;
 
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
 
