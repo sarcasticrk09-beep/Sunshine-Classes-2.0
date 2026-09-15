@@ -15,6 +15,10 @@ import cookieParser from "cookie-parser";
 import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
 import fs from "fs";
+import crypto from "crypto";
+
+const isUUID = (val: string): boolean =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(val || '').trim());
 
 import { PasswordService } from "./src/server/auth/PasswordService";
 import { AuthController } from "./src/server/auth/AuthController";
@@ -1236,6 +1240,62 @@ async function startServer() {
       const teachersList = teaSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
 
       let targetAdm = currentAdmissions.find((a: any) => a.id === admissionId || a.enrollmentId === admissionId || (admissionId && String(a.id || '').includes(admissionId)));
+      
+      // Fallback query directly to PostgreSQL admissions if not found in memory store
+      if (!targetAdm && isUUID(admissionId)) {
+        try {
+          const { data: dbAdm } = await serverSupabase.from('admissions').select('*').eq('id', admissionId).maybeSingle();
+          if (dbAdm) {
+            targetAdm = {
+              id: dbAdm.id,
+              enrollmentId: dbAdm.roll_no || dbAdm.id,
+              studentName: dbAdm.student_name,
+              className: dbAdm.class_name,
+              mobile: dbAdm.mobile,
+              fatherName: dbAdm.father_name,
+              motherName: dbAdm.mother_name,
+              dob: dbAdm.dob,
+              gender: dbAdm.gender,
+              address: dbAdm.address,
+              whatsapp: dbAdm.whatsapp,
+              email: dbAdm.email,
+              preferredBatch: dbAdm.preferred_batch,
+              preferredTiming: dbAdm.preferred_timing,
+              photoUrl: dbAdm.photo_url,
+              status: dbAdm.status
+            };
+          }
+        } catch (dbAdmErr) {
+          console.warn('[approve-enrollment] Database admission lookup notice:', dbAdmErr);
+        }
+      } else if (!targetAdm && admissionId) {
+        try {
+          const { data: dbAdm } = await serverSupabase.from('admissions').select('*').eq('roll_no', admissionId).maybeSingle();
+          if (dbAdm) {
+            targetAdm = {
+              id: dbAdm.id,
+              enrollmentId: dbAdm.roll_no || dbAdm.id,
+              studentName: dbAdm.student_name,
+              className: dbAdm.class_name,
+              mobile: dbAdm.mobile,
+              fatherName: dbAdm.father_name,
+              motherName: dbAdm.mother_name,
+              dob: dbAdm.dob,
+              gender: dbAdm.gender,
+              address: dbAdm.address,
+              whatsapp: dbAdm.whatsapp,
+              email: dbAdm.email,
+              preferredBatch: dbAdm.preferred_batch,
+              preferredTiming: dbAdm.preferred_timing,
+              photoUrl: dbAdm.photo_url,
+              status: dbAdm.status
+            };
+          }
+        } catch (dbAdmErr) {
+          console.warn('[approve-enrollment] Database admission roll_no lookup notice:', dbAdmErr);
+        }
+      }
+
       if (!targetAdm && admissionId) {
         // Fallback for immediate test runs
         targetAdm = {
@@ -1255,35 +1315,76 @@ async function startServer() {
         return res.status(404).json({ status: "error", message: "Admission application not found." });
       }
 
-      const sName = targetAdm.studentName;
-      const sClass = targetAdm.className;
-      const sMobile = targetAdm.mobile;
+      const sName = (targetAdm.studentName || targetAdm.student_name || 'Student').trim();
+      const sClass = (targetAdm.className || targetAdm.class_name || 'Class 10').trim();
+      const sMobile = (targetAdm.mobile || '0000000000').trim();
 
-      const existingStudent = currentStudents.find((s: any) => s.id === `s-std-${admissionId}` || s.rollNo === admissionId || s.enrollmentId === admissionId);
+      const existingStudent = currentStudents.find((s: any) => s.id === `s-std-${admissionId}` || s.rollNo === admissionId || s.enrollmentId === admissionId || s.id === admissionId);
       const existingUser = currentUsers.find((u: any) => u.id === `u-std-${admissionId}` || u.phone === sMobile);
 
       let nextRollNum = 1000 + currentStudents.length + 1;
-      while (currentStudents.some((s: any) => s.rollNo === `SC-${nextRollNum}`)) {
+      while (currentStudents.some((s: any) => s.rollNo === `SC-${nextRollNum}` || s.roll_no === `SC-${nextRollNum}`)) {
         nextRollNum++;
       }
       let rollNo = (targetAdm.rollNo && !targetAdm.rollNo.startsWith('SC2026-')) ? targetAdm.rollNo : `SC-${nextRollNum}`;
+      targetAdm.rollNo = rollNo;
 
-      const studentId = existingStudent ? existingStudent.id : `s-std-${rollNo}`;
-      const userId = existingUser ? existingUser.id : `u-std-${rollNo}`;
-
-      const baseUsername = sName.trim().split(/\s+/)[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+      const baseUsername = sName.split(/\s+/)[0].toLowerCase().replace(/[^a-z0-9]/g, '') || 'student';
       let generatedUsername = baseUsername;
       let counter = 1;
-      while (currentUsers.some((u: any) => u.username === generatedUsername && u.id !== userId)) {
+      while (currentUsers.some((u: any) => (u.username || '').toLowerCase() === generatedUsername.toLowerCase() && (!existingUser || u.id !== existingUser.id))) {
         generatedUsername = `${baseUsername}${counter}`;
         counter++;
       }
 
-      const defaultPass = "Sunshine123";
+      const defaultPass = "Sunshine@123";
       const hashedPassword = simpleSecureHash(defaultPass);
       const passwordHash = await PasswordService.hashPassword(defaultPass);
-      const finalEmail = targetAdm.email || `${generatedUsername}@sunshineclasses.net`;
+      const finalEmail = (targetAdm.email && targetAdm.email.includes('@')) 
+        ? targetAdm.email.trim() 
+        : `${generatedUsername}@sunshineclasses.net`;
       const todayStr = new Date().toISOString().split('T')[0];
+
+      // Authoritative Supabase Auth user provisioning
+      let authUserId: string;
+      try {
+        const { data: authData, error: authErr } = await serverSupabase.auth.admin.createUser({
+          email: finalEmail,
+          password: defaultPass,
+          email_confirm: true,
+          user_metadata: {
+            name: sName,
+            username: generatedUsername,
+            phone: sMobile,
+            role: 'STUDENT'
+          }
+        });
+
+        if (!authErr && authData?.user?.id) {
+          authUserId = authData.user.id;
+          logEnrollmentEvent("INFO", `Supabase Auth account created for student: ${authUserId} (${finalEmail})`);
+        } else if (authErr) {
+          console.warn(`[approve-enrollment] Supabase Auth creation note: ${authErr.message}`);
+          const { data: userList } = await serverSupabase.auth.admin.listUsers();
+          const existingAuthUser = userList?.users?.find((u: any) => u.email?.toLowerCase() === finalEmail.toLowerCase());
+          if (existingAuthUser) {
+            authUserId = existingAuthUser.id;
+            logEnrollmentEvent("INFO", `Reusing existing Supabase Auth account: ${authUserId} (${finalEmail})`);
+          } else {
+            authUserId = crypto.randomUUID();
+          }
+        } else {
+          authUserId = crypto.randomUUID();
+        }
+      } catch (authEx: any) {
+        console.warn(`[approve-enrollment] Supabase Auth exception: ${authEx.message}`);
+        authUserId = crypto.randomUUID();
+      }
+
+      // Valid UUID for PostgreSQL student record
+      const studentId = (existingStudent && isUUID(existingStudent.id)) 
+        ? existingStudent.id 
+        : (isUUID(admissionId) ? admissionId : crypto.randomUUID());
 
       let classTuitionFee = 500;
       if (sClass === 'Class 10') classTuitionFee = 1200;
@@ -1298,28 +1399,30 @@ async function startServer() {
       ];
       const currentBillingMonth = `${MONTH_NAMES[d.getMonth()]} ${y}`;
 
-      const newStudent = existingStudent || {
+      const newStudent = {
         id: studentId,
-        userId: userId,
+        studentId: studentId,
+        userId: authUserId,
         rollNo: rollNo,
         enrollmentId: targetAdm.enrollmentId || admissionId,
         name: sName,
         class: sClass,
-        fatherName: targetAdm.fatherName || '',
-        motherName: targetAdm.motherName || '',
+        className: sClass,
+        fatherName: targetAdm.father_name || targetAdm.fatherName || '',
+        motherName: targetAdm.mother_name || targetAdm.motherName || '',
         dob: targetAdm.dob || todayStr,
         gender: targetAdm.gender || 'Male',
         address: targetAdm.address || '',
         mobile: sMobile,
         whatsapp: targetAdm.whatsapp || sMobile,
-        parentMobile: targetAdm.parentMobile || sMobile,
+        parentMobile: targetAdm.parent_mobile || targetAdm.parentMobile || sMobile,
         email: finalEmail,
-        preferredBatch: targetAdm.preferredBatch || sClass,
-        preferredTiming: targetAdm.preferredTiming || '04:00 PM - 06:30 PM',
+        preferredBatch: targetAdm.preferred_batch || targetAdm.preferredBatch || sClass,
+        preferredTiming: targetAdm.preferred_timing || targetAdm.preferredTiming || '04:00 PM - 06:30 PM',
         admissionDate: todayStr,
         attendancePercentage: 100,
         status: 'ACTIVE',
-        photoUrl: targetAdm.photoUrl || '',
+        photoUrl: targetAdm.photo_url || targetAdm.photoUrl || '',
         documentUrl: targetAdm.documentUrl || '',
         feeStartMonth: currentBillingMonth,
         monthlyFee: classTuitionFee,
@@ -1334,8 +1437,8 @@ async function startServer() {
         updatedAt: new Date().toISOString()
       };
 
-      const newUser = existingUser || {
-        id: userId,
+      const newUser = {
+        id: authUserId,
         username: generatedUsername,
         name: sName,
         email: finalEmail,
@@ -1345,6 +1448,7 @@ async function startServer() {
         passwordHash: passwordHash,
         mustChangePassword: true,
         active: true,
+        status: 'ACTIVE',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -1356,9 +1460,10 @@ async function startServer() {
         const billMonthName = `${MONTH_NAMES[feeMonth]} ${feeYear}`;
         const monthPadded = String(feeMonth + 1).padStart(2, '0');
         const dueDate = `${feeYear}-${monthPadded}-10`;
+        const feeId = crypto.randomUUID();
 
         newFeeRecords.push({
-          id: `fee-${studentId}-${feeMonth}-${feeYear}-${i}`,
+          id: feeId,
           studentId: studentId,
           studentName: sName,
           class: sClass,
@@ -1422,19 +1527,110 @@ async function startServer() {
         targetClass: sClass
       };
 
+      const auditLogId = crypto.randomUUID();
       const newAuditLog = {
-        id: `L-${Date.now()}`,
-        userId: 'admin',
+        id: auditLogId,
+        userId: authUserId,
         username: 'admin',
         action: 'APPROVE_ADMISSION',
         details: `Approved online admission for ${sName} (${sClass}). Generated Roll No: ${rollNo}, Username: ${generatedUsername}. Assigned teacher: ${teacherName}.`,
         timestamp: new Date().toISOString()
       };
 
+      verifyEnrollmentIntegrity(newStudent, targetAdm, newUser, newFeeRecords, newAuditLog);
+
+      // Direct write to Supabase PostgreSQL tables
+      try {
+        await serverSupabase.from('users').upsert({
+          id: authUserId,
+          username: generatedUsername,
+          name: sName,
+          email: finalEmail,
+          role: 'STUDENT',
+          phone: sMobile,
+          status: 'ACTIVE',
+          must_change_password: true,
+          updated_at: new Date().toISOString()
+        });
+      } catch (userSyncErr: any) {
+        console.warn('[approve-enrollment] users table sync note:', userSyncErr?.message);
+      }
+
+      try {
+        await serverSupabase.from('students').upsert({
+          id: studentId,
+          user_id: authUserId,
+          roll_no: rollNo,
+          name: sName,
+          class_name: sClass,
+          preferred_batch: newStudent.preferredBatch,
+          father_name: newStudent.fatherName,
+          mother_name: newStudent.motherName,
+          dob: newStudent.dob,
+          gender: newStudent.gender,
+          address: newStudent.address,
+          mobile: sMobile,
+          whatsapp: newStudent.whatsapp,
+          email: finalEmail,
+          admission_date: todayStr,
+          status: 'ACTIVE',
+          monthly_fee: classTuitionFee,
+          photo_url: newStudent.photoUrl
+        });
+      } catch (studentSyncErr: any) {
+        console.warn('[approve-enrollment] students table sync note:', studentSyncErr?.message);
+      }
+
+      try {
+        const feeRows = newFeeRecords.map(fee => ({
+          id: fee.id,
+          student_id: studentId,
+          student_name: sName,
+          month: fee.month,
+          total_fee: fee.totalFee,
+          paid_fee: 0,
+          pending_fee: fee.totalFee,
+          status: 'PENDING',
+          due_date: fee.dueDate,
+          payment_history: []
+        }));
+        await serverSupabase.from('fee_statuses').upsert(feeRows);
+      } catch (feeSyncErr: any) {
+        console.warn('[approve-enrollment] fee_statuses table sync note:', feeSyncErr?.message);
+      }
+
+      try {
+        if (isUUID(admissionId)) {
+          await serverSupabase.from('admissions').update({
+            status: 'APPROVED',
+            roll_no: rollNo,
+            reviewed_by: 'ADMIN',
+            reviewed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }).eq('id', admissionId);
+        }
+      } catch (admSyncErr: any) {
+        console.warn('[approve-enrollment] admissions table sync note:', admSyncErr?.message);
+      }
+
+      try {
+        await serverSupabase.from('audit_logs').insert({
+          id: auditLogId,
+          user_id: authUserId,
+          username: 'admin',
+          action: 'APPROVE_ADMISSION',
+          details: newAuditLog.details,
+          performed_by: 'ADMIN'
+        });
+      } catch (auditSyncErr: any) {
+        console.warn('[approve-enrollment] audit_logs table sync note:', auditSyncErr?.message);
+      }
+
+      // Memory Store and local adapter transaction commit
       await runTransaction(db, async (transaction) => {
         transaction.set(doc(db, 'admissions', admissionId), { status: 'APPROVED', rollNo, updatedAt: new Date().toISOString() }, { merge: true });
         transaction.set(doc(db, 'students', studentId), newStudent);
-        transaction.set(doc(db, 'users', userId), newUser);
+        transaction.set(doc(db, 'users', authUserId), newUser);
         for (const fee of newFeeRecords) {
           transaction.set(doc(db, 'fee_statuses', fee.id), fee);
           const monthlyFeeDocId = `monthly-${studentId}-${fee.billingMonth.toLowerCase().replace(/\s+/g, '')}-${fee.billingYear}`;
@@ -1548,28 +1744,69 @@ async function startServer() {
 
       const nextRollNum = 1000 + students.length + 1;
       const rollNo = `SC-${nextRollNum}`;
-      const studentId = `s-admin-${Date.now()}`;
-      const userId = `u-std-${nextRollNum}`;
       const todayStr = admissionDate || new Date().toISOString().split('T')[0];
 
-      const baseUsername = sName.split(/\s+/)[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+      const baseUsername = sName.split(/\s+/)[0].toLowerCase().replace(/[^a-z0-9]/g, '') || 'student';
       let generatedUsername = baseUsername;
       let counter = 1;
-      while (users.some((u: any) => u.username === generatedUsername)) {
+      while (users.some((u: any) => (u.username || '').toLowerCase() === generatedUsername.toLowerCase())) {
         generatedUsername = `${baseUsername}${counter}`;
         counter++;
       }
       const finalEmail = (email && email.trim()) ? email.trim() : `${generatedUsername}@sunshineclasses.net`;
+      const defaultPass = "Sunshine@123";
+
+      // Supabase Auth Admin account creation
+      let authUserId: string;
+      try {
+        const { data: authData, error: authErr } = await serverSupabase.auth.admin.createUser({
+          email: finalEmail,
+          password: defaultPass,
+          email_confirm: true,
+          user_metadata: {
+            name: sName,
+            username: generatedUsername,
+            phone: sMobile,
+            role: 'STUDENT'
+          }
+        });
+
+        if (!authErr && authData?.user?.id) {
+          authUserId = authData.user.id;
+          logEnrollmentEvent("INFO", `Supabase Auth account created for manual enroll: ${authUserId} (${finalEmail})`);
+        } else if (authErr) {
+          console.warn(`[enroll-student] Supabase Auth creation note: ${authErr.message}`);
+          const { data: userList } = await serverSupabase.auth.admin.listUsers();
+          const existingAuthUser = userList?.users?.find((u: any) => u.email?.toLowerCase() === finalEmail.toLowerCase());
+          if (existingAuthUser) {
+            authUserId = existingAuthUser.id;
+            logEnrollmentEvent("INFO", `Reusing existing Supabase Auth account: ${authUserId} (${finalEmail})`);
+          } else {
+            authUserId = crypto.randomUUID();
+          }
+        } else {
+          authUserId = crypto.randomUUID();
+        }
+      } catch (authEx: any) {
+        console.warn(`[enroll-student] Supabase Auth exception: ${authEx.message}`);
+        authUserId = crypto.randomUUID();
+      }
+
+      const studentId = crypto.randomUUID();
+      const userId = authUserId;
+      const admissionId = crypto.randomUUID();
 
       const classTuitionFee = typeof monthlyFee === 'number' ? monthlyFee : 500;
 
       const newStudent = {
         id: studentId,
+        studentId: studentId,
         userId: userId,
         rollNo: rollNo,
         enrollmentId: rollNo,
         name: sName,
         class: sClass,
+        className: sClass,
         fatherName: fatherName || '',
         motherName: motherName || '',
         dob: dob || todayStr,
@@ -1598,7 +1835,6 @@ async function startServer() {
         updatedAt: new Date().toISOString()
       };
 
-      const defaultPass = "Sunshine123";
       const hashedPassword = simpleSecureHash(defaultPass);
       const passwordHash = await PasswordService.hashPassword(defaultPass);
       const newUser = {
@@ -1612,6 +1848,7 @@ async function startServer() {
         passwordHash: passwordHash,
         mustChangePassword: true,
         active: true,
+        status: 'ACTIVE',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -1636,9 +1873,10 @@ async function startServer() {
         const billMonthName = `${MONTH_NAMES[feeMonth]} ${feeYear}`;
         const monthPadded = String(feeMonth + 1).padStart(2, '0');
         const dueDate = `${feeYear}-${monthPadded}-${String(newStudent.dueDay).padStart(2, '0')}`;
+        const feeId = crypto.randomUUID();
 
         newFeeRecords.push({
-          id: `fee-${studentId}-${feeMonth}-${feeYear}-${i}`,
+          id: feeId,
           studentId: studentId,
           studentName: sName,
           class: sClass,
@@ -1702,16 +1940,16 @@ async function startServer() {
         targetClass: sClass
       };
 
+      const auditLogId = crypto.randomUUID();
       const newAuditLog = {
-        id: `L-${Date.now()}`,
-        userId: 'admin',
+        id: auditLogId,
+        userId: authUserId,
         username: 'admin',
         action: 'ADMIN_STUDENT_REGISTRATION',
         details: `Manual Admin Student Registration processed for ${sName} (${sClass}). Enrolled as Roll No ${rollNo}. Assigned to batch "${newSubscription.batchName}" under teacher ${teacherName}.`,
         timestamp: new Date().toISOString()
       };
 
-      const admissionId = `adm-${studentId}`;
       const newAdmission = {
         id: admissionId,
         admissionNo: rollNo,
@@ -1747,6 +1985,103 @@ async function startServer() {
       };
 
       verifyEnrollmentIntegrity(newStudent, newAdmission, newUser, newFeeRecords, newAuditLog);
+
+      // Direct write to Supabase PostgreSQL
+      try {
+        await serverSupabase.from('users').upsert({
+          id: authUserId,
+          username: generatedUsername,
+          name: sName,
+          email: finalEmail,
+          role: 'STUDENT',
+          phone: sMobile,
+          status: 'ACTIVE',
+          must_change_password: true,
+          updated_at: new Date().toISOString()
+        });
+      } catch (uErr: any) {
+        console.warn('[enroll-student] users table sync note:', uErr?.message);
+      }
+
+      try {
+        await serverSupabase.from('students').upsert({
+          id: studentId,
+          user_id: authUserId,
+          roll_no: rollNo,
+          name: sName,
+          class_name: sClass,
+          preferred_batch: newStudent.preferredBatch,
+          father_name: newStudent.fatherName,
+          mother_name: newStudent.motherName,
+          dob: newStudent.dob,
+          gender: newStudent.gender,
+          address: newStudent.address,
+          mobile: sMobile,
+          whatsapp: newStudent.whatsapp,
+          email: finalEmail,
+          admission_date: todayStr,
+          status: 'ACTIVE',
+          monthly_fee: classTuitionFee,
+          photo_url: newStudent.photoUrl
+        });
+      } catch (sErr: any) {
+        console.warn('[enroll-student] students table sync note:', sErr?.message);
+      }
+
+      try {
+        const feeRows = newFeeRecords.map(fee => ({
+          id: fee.id,
+          student_id: studentId,
+          student_name: sName,
+          month: fee.month,
+          total_fee: fee.totalFee,
+          paid_fee: 0,
+          pending_fee: fee.totalFee,
+          status: 'PENDING',
+          due_date: fee.dueDate,
+          payment_history: []
+        }));
+        await serverSupabase.from('fee_statuses').upsert(feeRows);
+      } catch (fErr: any) {
+        console.warn('[enroll-student] fee_statuses table sync note:', fErr?.message);
+      }
+
+      try {
+        await serverSupabase.from('admissions').insert({
+          id: admissionId,
+          student_name: sName,
+          class_name: sClass,
+          mobile: sMobile,
+          father_name: newAdmission.fatherName,
+          mother_name: newAdmission.motherName,
+          dob: newAdmission.dob,
+          gender: newAdmission.gender,
+          address: newAdmission.address,
+          whatsapp: newAdmission.whatsapp,
+          email: finalEmail,
+          preferred_batch: newAdmission.preferredBatch,
+          preferred_timing: newAdmission.preferredTiming,
+          roll_no: rollNo,
+          status: 'APPROVED',
+          reviewed_by: 'ADMIN',
+          reviewed_at: new Date().toISOString()
+        });
+      } catch (aErr: any) {
+        console.warn('[enroll-student] admissions table sync note:', aErr?.message);
+      }
+
+      try {
+        await serverSupabase.from('audit_logs').insert({
+          id: auditLogId,
+          user_id: authUserId,
+          username: 'admin',
+          action: 'ADMIN_STUDENT_REGISTRATION',
+          details: newAuditLog.details,
+          performed_by: 'ADMIN'
+        });
+      } catch (lErr: any) {
+        console.warn('[enroll-student] audit_logs table sync note:', lErr?.message);
+      }
 
       await runTransaction(db, async (transaction) => {
         transaction.set(doc(db, 'admissions', newAdmission.id), newAdmission);
