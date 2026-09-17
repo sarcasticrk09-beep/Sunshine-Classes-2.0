@@ -17,7 +17,8 @@
     "test:regression": "tsx scripts/regression-test.ts",
     "test:security": "tsx scripts/security-audit-test.ts",
     "migrate:staging": "tsx scripts/apply-staging-migrations.ts",
-    "test:staging": "tsx scripts/validate-staging-live.ts"
+    "test:staging": "tsx scripts/validate-staging-live.ts",
+    "staging:test-accounts": "tsx scripts/manage-staging-test-accounts.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

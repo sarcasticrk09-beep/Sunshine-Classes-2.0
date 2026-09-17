@@ -64,18 +64,19 @@
     <meta name="keywords" content="Coaching Institute Pihani, CBSE tuition Pihani, Class 10 Math Pihani, Class 9 Science Hardoi, Sunshine Classes, Pihani Coaching Center" />
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
-    <link rel="canonical" href="https://sunshineclasses.net/" />
+    <!-- Canonical URL Tag -->
+    <link id="canonical-tag" rel="canonical" href="https://sunshineclasses.net/" />
 
-    <!-- Canonical URL Generation -->
+    <!-- Canonical URL Dynamic Resolution -->
     <script>
       (function() {
         const rawUrl = "%VITE_SITE_URL%";
-        const canonicalUrl = (rawUrl && !rawUrl.startsWith('%')) ? rawUrl : "https://sunshineclasses.net";
-        const cleanUrl = canonicalUrl.endsWith('/') ? canonicalUrl.slice(0, -1) : canonicalUrl;
-        const link = document.createElement('link');
-        link.setAttribute('rel', 'canonical');
-        link.setAttribute('href', cleanUrl + window.location.pathname);
-        document.head.appendChild(link);
+        const canonicalBase = (rawUrl && !rawUrl.startsWith('%')) ? rawUrl : "https://sunshineclasses.net";
+        const cleanBase = canonicalBase.endsWith('/') ? canonicalBase.slice(0, -1) : canonicalBase;
+        const canonicalTag = document.getElementById('canonical-tag');
+        if (canonicalTag) {
+          canonicalTag.setAttribute('href', cleanBase + (window.location.pathname === '/' ? '/' : window.location.pathname));
+        }
       })();
     </script>
 
@@ -221,7 +222,21 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Semantic Initial Content for Search Engine Crawlers (replaced when React mounts) -->
+      <header style="display:none;">
+        <h1>Sunshine Classes - Best Coaching Institute & Tuitions in Pihani, Hardoi</h1>
+        <p>Premier coaching center in Pihani for CBSE & State Board Classes 1 to 10. Comprehensive preparation for Mathematics, Science, English, and Board Examinations.</p>
+        <p>Address: Mohalla Mishrana, Opposite Subhash Park, Pihani, Hardoi, Uttar Pradesh 241406 | Phone: +91 8707738284 | Email: contact@sunshineclasses.org</p>
+      </header>
+    </div>
+    <noscript>
+      <div style="padding: 20px; font-family: sans-serif; text-align: center;">
+        <h2>Sunshine Classes - Coaching Institute in Pihani, Hardoi</h2>
+        <p>Expert tuitions for Classes 1 to 10 with offline coaching and digital ERP. Please enable JavaScript to access full student portal and online admissions.</p>
+        <p>Address: Mohalla Mishrana, Opp. Subhash Park, Pihani, Hardoi, UP 241406 | Contact: +91 8707738284</p>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

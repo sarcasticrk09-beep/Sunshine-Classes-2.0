@@ -114,7 +114,7 @@ import { PrivacyPolicyPage } from './components/legal/PrivacyPolicyPage';
 import { TermsConditionsPage } from './components/legal/TermsConditionsPage';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
 
-import { db, getCachedIdToken } from './lib/supabase';
+import { db, getCachedIdToken, isSupabaseConfigured, supabaseUrl } from './lib/supabase';
 import { SyncService } from './services/SyncService';
 import { interpolateWhatsAppTemplate, sendWhatsAppMessage } from './lib/whatsappService';
 import {
@@ -1448,8 +1448,130 @@ export default function App() {
     loadStateAndData();
   }, []);
 
-  // Database Connection Watchdog to monitor listener health and auto-recover on stalls
-  const { reconnectSignal } = useDbConnectionWatchdog(30000);
+  // Database Connection Watchdog to monitor Supabase health, auto-recover on stalls, and log connection diagnostics
+  const watchdog = useDbConnectionWatchdog(30000, {
+    onError: (errEvent) => {
+      console.group(
+        `%c[Supabase Watchdog ERROR]%c ${errEvent.source.toUpperCase()} check failed (${errEvent.latencyMs}ms)`,
+        'background: #fee2e2; color: #b91c1c; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
+        'color: #b91c1c; font-weight: 600;'
+      );
+      console.error('Error message:', errEvent.errorMessage);
+      if (errEvent.errorCode) console.error('Error code:', errEvent.errorCode);
+      console.error('Full error object:', errEvent.error);
+      console.error('Timestamp:', errEvent.timestamp);
+      if (errEvent.errorCode === '42501') {
+        console.warn(
+          '[Supabase Diagnostic Notice] Error 42501 indicates PostgreSQL permission denied. ' +
+          'Execute /supabase/production_fix_permissions_and_schema.sql in the Supabase SQL editor to grant permissions to the authenticated and service_role roles.'
+        );
+      }
+      console.groupEnd();
+    },
+    onStatusChange: (isHealthy, details) => {
+      if (!isHealthy) {
+        console.warn(
+          `%c[Supabase Watchdog STATUS]%c Connection marked UNHEALTHY`,
+          'background: #fef3c7; color: #b45309; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
+          'color: #b45309; font-weight: 600;',
+          details
+        );
+      } else {
+        console.log(
+          `%c[Supabase Watchdog STATUS]%c Connection healthy (latency: ${details?.latencyMs ?? 0}ms)`,
+          'background: #dcfce7; color: #15803d; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
+          'color: #15803d; font-weight: 600;'
+        );
+      }
+    }
+  });
+
+  const { reconnectSignal } = watchdog;
+
+  // Telemetry: monitor and log all SyncService errors and provide active connection diagnostics
+  useEffect(() => {
+    const maskedUrl = supabaseUrl
+      ? supabaseUrl.replace(/^(https?:\/\/[^.]+)\..*$/, '$1.supabase.co')
+      : '(not configured)';
+
+    console.groupCollapsed(
+      '%c[Supabase Diagnostic Monitor]%c Initializing production connection telemetry...',
+      'background: #e0e7ff; color: #4338ca; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
+      'color: #4338ca;'
+    );
+    console.log('Supabase Configured:', isSupabaseConfigured);
+    console.log('Supabase Host:', maskedUrl);
+    console.log('Environment Mode:', (import.meta as any).env?.MODE || 'production');
+    console.log('Online Status:', typeof navigator !== 'undefined' && navigator.onLine ? 'ONLINE' : 'OFFLINE');
+    console.groupEnd();
+
+    // Initial explicit connection probe to verify table access
+    SyncService.checkConnection().then((result) => {
+      if (result.connected) {
+        console.log(
+          `%c[Supabase Connection Test PASS]%c Active query verified in ${result.latencyMs}ms.`,
+          'background: #dcfce7; color: #166534; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
+          'color: inherit;',
+          result.details
+        );
+      } else {
+        console.group(
+          `%c[Supabase Connection Test FAIL]%c Active query failed in ${result.latencyMs}ms:`,
+          'background: #fee2e2; color: #991b1b; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
+          'color: #991b1b;'
+        );
+        console.error('Error:', result.error);
+        if (result.details) console.error('Details:', result.details);
+        if (result.error?.code === '42501') {
+          console.error(
+            'CAUSE: PostgreSQL Permission Denied (42501). PostgREST cannot read tables. ' +
+            'Please run supabase/production_fix_permissions_and_schema.sql in the Supabase SQL editor.'
+          );
+        }
+        console.groupEnd();
+      }
+    });
+
+    // Subscribe to SyncService error stream
+    const unsubscribeSyncErrors = SyncService.onError((event) => {
+      console.group(
+        `%c[SyncService Error Event]%c ${event.operation.toUpperCase()} on "${event.collectionName}" failed:`,
+        'background: #fee2e2; color: #dc2626; font-weight: bold; padding: 2px 6px; border-radius: 3px;',
+        'color: #dc2626; font-weight: bold;'
+      );
+      console.error('Operation:', event.operation);
+      console.error('Collection:', event.collectionName);
+      if (event.docId) console.error('Target ID:', event.docId);
+      if (event.errorCode) console.error('Error Code:', event.errorCode);
+      console.error('Message:', event.errorMessage);
+      console.error('Raw Error:', event.error);
+      console.error('Timestamp:', event.timestamp);
+      console.groupEnd();
+    });
+
+    // Provide browser console debugging tools on window
+    if (typeof window !== 'undefined') {
+      (window as any).__SUNSHINE_DB_DIAGNOSTICS__ = {
+        testConnection: () => SyncService.checkConnection(),
+        reconnect: () => watchdog.triggerReconnect(),
+        getWatchdogState: () => ({
+          isHealthy: watchdog.isHealthy,
+          lastCheck: new Date(watchdog.lastCheck).toISOString(),
+          lastError: watchdog.lastError,
+          latencyMs: watchdog.latencyMs,
+          consecutiveFailures: watchdog.consecutiveFailures
+        }),
+        supabaseConfig: {
+          configured: isSupabaseConfigured,
+          host: maskedUrl
+        }
+      };
+    }
+
+    return () => {
+      unsubscribeSyncErrors();
+    };
+  }, [watchdog]);
 
   // Real-time collection listeners with automatic connection recovery and proper cleanup
   useStudentsListener(setStudents, reconnectSignal);

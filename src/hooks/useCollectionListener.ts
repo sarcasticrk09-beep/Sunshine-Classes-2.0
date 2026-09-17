@@ -10,16 +10,51 @@ interface UseCollectionListenerOptions<T> {
   onHeartbeat?: (collectionName: string) => void;
 }
 
+export interface DbWatchdogErrorEvent {
+  error: any;
+  errorMessage: string;
+  errorCode?: string;
+  latencyMs: number;
+  timestamp: string;
+  source: 'probe' | 'network' | 'manual';
+}
+
+export interface DbWatchdogStatusEvent {
+  isHealthy: boolean;
+  latencyMs?: number;
+  lastCheck: number;
+  consecutiveFailures: number;
+  details?: any;
+}
+
+export interface DbWatchdogOptions {
+  onError?: (event: DbWatchdogErrorEvent) => void;
+  onStatusChange?: (isHealthy: boolean, details: any) => void;
+  enabled?: boolean;
+}
+
 // Global registry for heartbeat timestamps
 const listenerHeartbeats: Record<string, number> = {};
 
 /**
  * Hook to manage Database Connection Watchdog (Supabase / Network).
+ * Actively monitors Supabase connection health, round-trip timing, and errors.
  */
-export function useDbConnectionWatchdog(_checkIntervalMs: number = 30000) {
+export function useDbConnectionWatchdog(
+  checkIntervalMs: number = 30000,
+  options?: DbWatchdogOptions
+) {
   const [reconnectSignal, setReconnectSignal] = useState<number>(0);
   const [isHealthy, setIsHealthy] = useState<boolean>(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [lastError, setLastError] = useState<any>(null);
+  const [latencyMs, setLatencyMs] = useState<number | null>(null);
+  const [consecutiveFailures, setConsecutiveFailures] = useState<number>(0);
   const lastCheckRef = useRef<number>(Date.now());
+  const optionsRef = useRef(options);
+
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
 
   const recordHeartbeat = useCallback((collectionName: string) => {
     listenerHeartbeats[collectionName] = Date.now();
@@ -29,16 +64,96 @@ export function useDbConnectionWatchdog(_checkIntervalMs: number = 30000) {
     setReconnectSignal((prev) => prev + 1);
   }, []);
 
+  const checkConnection = useCallback(async (source: 'probe' | 'network' | 'manual' = 'probe') => {
+    lastCheckRef.current = Date.now();
+    try {
+      const res = await SyncService.checkConnection();
+      setLatencyMs(res.latencyMs);
+
+      if (res.connected) {
+        setLastError(null);
+        setConsecutiveFailures(0);
+        setIsHealthy((prev) => {
+          if (!prev) {
+            triggerReconnect();
+            optionsRef.current?.onStatusChange?.(true, { latencyMs: res.latencyMs, details: res.details });
+          }
+          return true;
+        });
+        return res;
+      } else {
+        const errorInfo: DbWatchdogErrorEvent = {
+          error: res.error,
+          errorMessage: res.error?.message || (typeof res.error === 'string' ? res.error : JSON.stringify(res.error)),
+          errorCode: res.error?.code || res.details?.code,
+          latencyMs: res.latencyMs,
+          timestamp: new Date().toISOString(),
+          source
+        };
+        setLastError(res.error);
+        setConsecutiveFailures((prev) => prev + 1);
+        setIsHealthy((prev) => {
+          if (prev) {
+            optionsRef.current?.onStatusChange?.(false, { error: res.error, latencyMs: res.latencyMs, details: res.details });
+          }
+          return false;
+        });
+        optionsRef.current?.onError?.(errorInfo);
+        return res;
+      }
+    } catch (err: any) {
+      const errorInfo: DbWatchdogErrorEvent = {
+        error: err,
+        errorMessage: err?.message || String(err),
+        errorCode: err?.code,
+        latencyMs: 0,
+        timestamp: new Date().toISOString(),
+        source
+      };
+      setLastError(err);
+      setConsecutiveFailures((prev) => prev + 1);
+      setIsHealthy(false);
+      optionsRef.current?.onError?.(errorInfo);
+      return { connected: false, latencyMs: 0, error: err };
+    }
+  }, [triggerReconnect]);
+
+  // Periodic health probe
+  useEffect(() => {
+    if (options?.enabled === false) return;
+
+    // Run initial probe on mount
+    checkConnection('probe');
+
+    const intervalId = setInterval(() => {
+      checkConnection('probe');
+    }, Math.max(checkIntervalMs, 5000));
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [checkIntervalMs, options?.enabled, checkConnection]);
+
+  // Online / Offline listener
   useEffect(() => {
     const handleOnline = () => {
-      setIsHealthy(true);
       lastCheckRef.current = Date.now();
-      triggerReconnect();
+      checkConnection('network');
     };
 
     const handleOffline = () => {
       setIsHealthy(false);
       lastCheckRef.current = Date.now();
+      const offlineErr = new Error('Browser is offline');
+      setLastError(offlineErr);
+      optionsRef.current?.onError?.({
+        error: offlineErr,
+        errorMessage: 'Browser is offline',
+        latencyMs: 0,
+        timestamp: new Date().toISOString(),
+        source: 'network'
+      });
+      optionsRef.current?.onStatusChange?.(false, { error: offlineErr });
     };
 
     window.addEventListener('online', handleOnline);
@@ -48,14 +163,18 @@ export function useDbConnectionWatchdog(_checkIntervalMs: number = 30000) {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [triggerReconnect]);
+  }, [checkConnection]);
 
   return {
     reconnectSignal,
     isHealthy,
     lastCheck: lastCheckRef.current,
+    lastError,
+    latencyMs,
+    consecutiveFailures,
     recordHeartbeat,
     triggerReconnect,
+    checkNow: () => checkConnection('manual'),
   };
 }
 

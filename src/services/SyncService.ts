@@ -1,4 +1,33 @@
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
+import {
+  SEED_USERS,
+  SEED_STUDENTS,
+  SEED_TEACHERS,
+  SEED_BATCHES,
+  SEED_CLASSES,
+  SEED_COURSES,
+  SEED_ADMISSIONS,
+  SEED_ATTENDANCE,
+  SEED_FEE_STATUS,
+  SEED_FEE_RECEIPTS,
+  SEED_TESTS,
+  SEED_STUDENT_MARKS,
+  SEED_HOMEWORK,
+  SEED_HOMEWORK_SUBMISSIONS,
+  SEED_BLOGS,
+  SEED_TESTIMONIALS,
+  SEED_TOPPERS,
+  SEED_STUDY_MATERIALS,
+  SEED_FOUNDERS,
+  SEED_GALLERY,
+  SEED_NOTIFICATIONS,
+  SEED_INQUIRIES,
+  SEED_AUDIT_LOGS,
+  SEED_STUDENT_SUBSCRIPTIONS,
+  SEED_SUBSCRIPTION_PAYMENTS,
+  SEED_SUBSCRIPTION_RECEIPTS,
+  SEED_SUBSCRIPTION_NOTIFICATIONS
+} from "../data";
 
 export interface SyncOperationResult<T = any> {
   success: boolean;
@@ -8,7 +37,18 @@ export interface SyncOperationResult<T = any> {
   timestamp: string;
 }
 
+export interface SyncErrorEvent {
+  operation: 'get' | 'list' | 'set' | 'update' | 'add' | 'delete' | 'checkConnection';
+  collectionName: string;
+  docId?: string;
+  error: any;
+  errorMessage: string;
+  errorCode?: string;
+  timestamp: string;
+}
+
 export type SyncListener<T = any> = (collectionName: string, docId: string, data: T | null) => void;
+export type SyncErrorListener = (event: SyncErrorEvent) => void;
 
 // ====================================================================
 // Bidirectional Mapping: Client UI models <-> PostgreSQL V2 rows
@@ -186,7 +226,97 @@ export function fromPostgresRow(collectionName: string, row: any): any {
 class SyncServiceClass {
   private queue: Promise<any> = Promise.resolve();
   private listeners: Set<SyncListener> = new Set();
+  private errorListeners: Set<SyncErrorListener> = new Set();
   private cache: Map<string, Map<string, any>> = new Map();
+
+  /**
+   * Diagnostic probe: actively tests Supabase connection, timing, and error details.
+   */
+  public async checkConnection(): Promise<{
+    connected: boolean;
+    latencyMs: number;
+    error?: any;
+    details?: any;
+  }> {
+    if (!isSupabaseConfigured) {
+      const err = new Error('Supabase is not configured (missing URL or anon key)');
+      this.notifyError('checkConnection', 'system', err);
+      return { connected: false, latencyMs: 0, error: err };
+    }
+
+    const start = performance.now();
+    try {
+      // Test querying students with limit 1
+      const { data, error, status, statusText } = await supabase
+        .from('students')
+        .select('id')
+        .limit(1);
+
+      const latencyMs = Math.round(performance.now() - start);
+
+      if (error) {
+        this.notifyError('checkConnection', 'students', error);
+        return {
+          connected: false,
+          latencyMs,
+          error,
+          details: { status, statusText, code: error.code, message: error.message }
+        };
+      }
+
+      return {
+        connected: true,
+        latencyMs,
+        details: { count: data ? data.length : 0, status, statusText }
+      };
+    } catch (err: any) {
+      const latencyMs = Math.round(performance.now() - start);
+      this.notifyError('checkConnection', 'system', err);
+      return {
+        connected: false,
+        latencyMs,
+        error: err,
+        details: { message: err?.message || String(err) }
+      };
+    }
+  }
+
+  /**
+   * Subscribes to database and synchronization error events for diagnostic reporting.
+   */
+  public onError(listener: SyncErrorListener): () => void {
+    this.errorListeners.add(listener);
+    return () => {
+      this.errorListeners.delete(listener);
+    };
+  }
+
+  private notifyError(
+    operation: SyncErrorEvent['operation'],
+    collectionName: string,
+    error: any,
+    docId?: string
+  ): void {
+    const errorMessage = error?.message || (typeof error === 'string' ? error : JSON.stringify(error));
+    const errorCode = error?.code || error?.status || undefined;
+    const event: SyncErrorEvent = {
+      operation,
+      collectionName,
+      docId,
+      error,
+      errorMessage,
+      errorCode,
+      timestamp: new Date().toISOString()
+    };
+
+    this.errorListeners.forEach(listener => {
+      try {
+        listener(event);
+      } catch (err) {
+        console.error('[SyncService] Error in errorListener callback:', err);
+      }
+    });
+  }
 
   /**
    * Serializes write/mutation execution via a task queue to prevent race conditions.
@@ -294,6 +424,7 @@ class SyncServiceClass {
           .maybeSingle();
 
         if (error) {
+          this.notifyError('get', collectionName, error, docId);
           // Fall back to memory or localStorage
           const localItem = this.getCached<T>(collectionName, docId);
           if (localItem) return localItem;
@@ -311,12 +442,46 @@ class SyncServiceClass {
         this.cache.get(collectionName)!.set(docId, clean);
         return clean;
       } catch (err) {
+        this.notifyError('get', collectionName, err, docId);
         console.error(`[SyncService.get - Supabase] Error for ${collectionName}/${docId}:`, err);
         return this.getLocalDoc<T>(collectionName, docId);
       }
     } else {
       return this.getLocalDoc<T>(collectionName, docId);
     }
+  }
+
+  private getSeedFallback<T = any>(collectionName: string): T[] {
+    const seedMap: Record<string, any[]> = {
+      students: SEED_STUDENTS,
+      teachers: SEED_TEACHERS,
+      users: SEED_USERS,
+      admissions: SEED_ADMISSIONS,
+      batches: SEED_BATCHES,
+      classes: SEED_CLASSES,
+      courses: SEED_COURSES,
+      attendance: SEED_ATTENDANCE,
+      fee_statuses: SEED_FEE_STATUS,
+      fee_receipts: SEED_FEE_RECEIPTS,
+      receipts: SEED_SUBSCRIPTION_RECEIPTS,
+      tests: SEED_TESTS,
+      student_marks: SEED_STUDENT_MARKS,
+      homework: SEED_HOMEWORK,
+      submissions: SEED_HOMEWORK_SUBMISSIONS,
+      blogs: SEED_BLOGS,
+      testimonials: SEED_TESTIMONIALS,
+      toppers: SEED_TOPPERS,
+      study_materials: SEED_STUDY_MATERIALS,
+      founders: SEED_FOUNDERS,
+      gallery: SEED_GALLERY,
+      notifications: SEED_NOTIFICATIONS,
+      inquiries: SEED_INQUIRIES,
+      audit_logs: SEED_AUDIT_LOGS,
+      student_subscriptions: SEED_STUDENT_SUBSCRIPTIONS,
+      payments: SEED_SUBSCRIPTION_PAYMENTS,
+      payment_notifications: SEED_SUBSCRIPTION_NOTIFICATIONS
+    };
+    return (seedMap[collectionName] || []) as T[];
   }
 
   private getLocalDoc<T = any>(collectionName: string, docId: string): T | null {
@@ -326,7 +491,7 @@ class SyncServiceClass {
         if (stored) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed)) {
-            const found = parsed.find((item: any) => (item.id || item.studentId || item.rollNo) === docId);
+            const found = parsed.find((item: any) => (item.id || item.studentId || item.rollNo || item.userId) === docId);
             if (found) {
               return found as T;
             }
@@ -336,7 +501,11 @@ class SyncServiceClass {
         }
       }
     } catch (e) {}
-    return null;
+
+    // Fallback to static seed data
+    const seed = this.getSeedFallback<T>(collectionName);
+    const foundSeed = seed.find((item: any) => (item.id || item.studentId || item.rollNo || item.userId) === docId);
+    return foundSeed || null;
   }
 
   /**
@@ -350,6 +519,7 @@ class SyncServiceClass {
           .select('*');
 
         if (error) {
+          this.notifyError('list', collectionName, error);
           return this.getLocalList<T>(collectionName);
         }
 
@@ -370,7 +540,7 @@ class SyncServiceClass {
           return clean;
         });
       } catch (err) {
-        console.error(`[SyncService.list - Supabase] Error for ${collectionName}:`, err);
+        this.notifyError('list', collectionName, err);
         return this.getLocalList<T>(collectionName);
       }
     } else {
@@ -384,13 +554,13 @@ class SyncServiceClass {
         const stored = localStorage.getItem(`sunshine_${collectionName}`);
         if (stored) {
           const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
+          if (Array.isArray(parsed) && parsed.length > 0) {
             return parsed as T[];
           }
         }
       }
     } catch (e) {}
-    return [];
+    return this.getSeedFallback<T>(collectionName);
   }
 
   /**
@@ -415,7 +585,10 @@ class SyncServiceClass {
             .maybeSingle();
 
           if (error) {
-            console.warn(`[SyncService.set - Supabase] Upsert warning for ${collectionName}/${docId}:`, error.message);
+            this.notifyError('set', collectionName, error, docId);
+            if (error.code !== 'PGRST205') {
+              console.warn(`[SyncService.set - Supabase] Upsert warning for ${collectionName}/${docId}:`, error.message);
+            }
             this.notifyListeners(collectionName, docId, fullData as T);
             return { success: true, data: fullData as T, verified: true, timestamp: new Date().toISOString() };
           }
@@ -430,6 +603,7 @@ class SyncServiceClass {
             timestamp: new Date().toISOString()
           };
         } catch (err: any) {
+          this.notifyError('set', collectionName, err, docId);
           console.warn(`[SyncService.set] Supabase write notice for ${collectionName}/${docId}:`, err?.message || err);
           this.notifyListeners(collectionName, docId, fullData as T);
           return { success: true, data: fullData as T, verified: true, timestamp: new Date().toISOString() };
@@ -468,7 +642,10 @@ class SyncServiceClass {
             .maybeSingle();
 
           if (error) {
-            console.warn(`[SyncService.update] Update notice for ${collectionName}/${docId}:`, error.message);
+            this.notifyError('update', collectionName, error, docId);
+            if (error.code !== 'PGRST205') {
+              console.warn(`[SyncService.update] Update notice for ${collectionName}/${docId}:`, error.message);
+            }
             const current = this.getCached<T>(collectionName, docId) || {};
             const merged = { ...current, ...updatedFields } as T;
             this.notifyListeners(collectionName, docId, merged);
@@ -485,6 +662,7 @@ class SyncServiceClass {
             timestamp: new Date().toISOString()
           };
         } catch (err: any) {
+          this.notifyError('update', collectionName, err, docId);
           console.warn(`[SyncService.update] Supabase update notice:`, err?.message || err);
           const current = this.getCached<T>(collectionName, docId) || {};
           const merged = { ...current, ...updatedFields } as T;
@@ -527,7 +705,10 @@ class SyncServiceClass {
             .maybeSingle();
 
           if (error) {
-            console.warn(`[SyncService.add] Insert notice for ${collectionName}:`, error.message);
+            this.notifyError('add', collectionName, error, targetId);
+            if (error.code !== 'PGRST205') {
+              console.warn(`[SyncService.add] Insert notice for ${collectionName}:`, error.message);
+            }
             this.notifyListeners(collectionName, targetId, fullData as T);
             return { success: true, data: fullData as T, verified: true, timestamp: new Date().toISOString() };
           }
@@ -542,6 +723,7 @@ class SyncServiceClass {
             timestamp: new Date().toISOString()
           };
         } catch (err: any) {
+          this.notifyError('add', collectionName, err, targetId);
           console.warn(`[SyncService.add] Supabase add notice:`, err?.message || err);
           this.notifyListeners(collectionName, targetId, fullData as T);
           return { success: true, data: fullData as T, verified: true, timestamp: new Date().toISOString() };
@@ -574,9 +756,13 @@ class SyncServiceClass {
             .eq('id', docId);
 
           if (error) {
-            console.warn(`[SyncService.delete] Delete notice for ${collectionName}/${docId}:`, error.message);
+            this.notifyError('delete', collectionName, error, docId);
+            if (error.code !== 'PGRST205') {
+              console.warn(`[SyncService.delete] Delete notice for ${collectionName}/${docId}:`, error.message);
+            }
           }
         } catch (err: any) {
+          this.notifyError('delete', collectionName, err, docId);
           console.warn(`[SyncService.delete] Supabase delete notice:`, err?.message || err);
         }
       }
