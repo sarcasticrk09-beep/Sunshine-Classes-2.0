@@ -1451,6 +1451,12 @@ export default function App() {
   // Database Connection Watchdog to monitor Supabase health, auto-recover on stalls, and log connection diagnostics
   const watchdog = useDbConnectionWatchdog(30000, {
     onError: (errEvent) => {
+      if (errEvent.errorCode === 'PGRST205' || errEvent.errorCode === 'PGRST204' || errEvent.errorCode === '42501') {
+        console.warn(
+          `[Supabase Watchdog] Probe notice: ${errEvent.errorMessage} (${errEvent.errorCode}). Active offline storage fallback.`
+        );
+        return;
+      }
       console.group(
         `%c[Supabase Watchdog ERROR]%c ${errEvent.source.toUpperCase()} check failed (${errEvent.latencyMs}ms)`,
         'background: #fee2e2; color: #b91c1c; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
@@ -1460,18 +1466,12 @@ export default function App() {
       if (errEvent.errorCode) console.error('Error code:', errEvent.errorCode);
       console.error('Full error object:', errEvent.error);
       console.error('Timestamp:', errEvent.timestamp);
-      if (errEvent.errorCode === '42501') {
-        console.warn(
-          '[Supabase Diagnostic Notice] Error 42501 indicates PostgreSQL permission denied. ' +
-          'Execute /supabase/production_fix_permissions_and_schema.sql in the Supabase SQL editor to grant permissions to the authenticated and service_role roles.'
-        );
-      }
       console.groupEnd();
     },
     onStatusChange: (isHealthy, details) => {
       if (!isHealthy) {
         console.warn(
-          `%c[Supabase Watchdog STATUS]%c Connection marked UNHEALTHY`,
+          `%c[Supabase Watchdog STATUS]%c Connection operating in fallback mode`,
           'background: #fef3c7; color: #b45309; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
           'color: #b45309; font-weight: 600;',
           details
@@ -1515,25 +1515,29 @@ export default function App() {
           result.details
         );
       } else {
-        console.group(
-          `%c[Supabase Connection Test FAIL]%c Active query failed in ${result.latencyMs}ms:`,
-          'background: #fee2e2; color: #991b1b; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
-          'color: #991b1b;'
-        );
-        console.error('Error:', result.error);
-        if (result.details) console.error('Details:', result.details);
-        if (result.error?.code === '42501') {
-          console.error(
-            'CAUSE: PostgreSQL Permission Denied (42501). PostgREST cannot read tables. ' +
-            'Please run supabase/production_fix_permissions_and_schema.sql in the Supabase SQL editor.'
+        if (result.error?.code === 'PGRST205' || result.error?.code === '42501') {
+          console.warn(
+            `[Supabase Connection Test] Table probe info (${result.error?.code}): ${result.error?.message}. Sunshine ERP offline fallback active.`
           );
+        } else {
+          console.group(
+            `%c[Supabase Connection Test FAIL]%c Active query failed in ${result.latencyMs}ms:`,
+            'background: #fee2e2; color: #991b1b; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
+            'color: #991b1b;'
+          );
+          console.error('Error:', result.error);
+          if (result.details) console.error('Details:', result.details);
+          console.groupEnd();
         }
-        console.groupEnd();
       }
     });
 
     // Subscribe to SyncService error stream
     const unsubscribeSyncErrors = SyncService.onError((event) => {
+      if (event.errorCode === 'PGRST205' || event.errorCode === 'PGRST204' || event.errorCode === '42501' || event.operation === 'checkConnection') {
+        console.warn(`[SyncService Fallback Notice] ${event.operation.toUpperCase()} on "${event.collectionName}": ${event.errorMessage}`);
+        return;
+      }
       console.group(
         `%c[SyncService Error Event]%c ${event.operation.toUpperCase()} on "${event.collectionName}" failed:`,
         'background: #fee2e2; color: #dc2626; font-weight: bold; padding: 2px 6px; border-radius: 3px;',

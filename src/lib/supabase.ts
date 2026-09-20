@@ -21,6 +21,16 @@ const PROD_PROJECT_REF = 'nqxthuycvltpuptejjot';
 let finalUrl = envUrl || localUrl;
 let finalAnonKey = envAnonKey || localAnonKey;
 
+// Ensure production environment always targets the authoritative production project
+if (!isStaging && envUrl) {
+  finalUrl = envUrl;
+  finalAnonKey = envAnonKey;
+  if (typeof window !== 'undefined' && localUrl && localUrl.includes('rhscrvrgtcsotakdyswx')) {
+    localStorage.setItem('sunshine_supabase_url', envUrl);
+    if (envAnonKey) localStorage.setItem('sunshine_supabase_anon_key', envAnonKey);
+  }
+}
+
 // Strict safety isolation: In staging mode, never touch production project reference
 if (isStaging && finalUrl.includes(PROD_PROJECT_REF)) {
   console.warn('[Supabase Client Safety] Detected production project reference in staging mode. Enforcing dedicated staging Supabase URL.');

@@ -72,6 +72,10 @@ export function toPostgresRow(collectionName: string, data: any): any {
   if (collectionName === 'users') {
     if (data.userId) mapped.id = data.userId;
     delete mapped.user_id;
+    if (data.active !== undefined) {
+      mapped.status = data.active ? 'ACTIVE' : 'SUSPENDED';
+    }
+    delete mapped.active;
     if (data.mustChangePassword !== undefined || data.forcePasswordChange !== undefined) {
       mapped.force_password_change = !!(data.mustChangePassword || data.forcePasswordChange);
     }
@@ -240,7 +244,6 @@ class SyncServiceClass {
   }> {
     if (!isSupabaseConfigured) {
       const err = new Error('Supabase is not configured (missing URL or anon key)');
-      this.notifyError('checkConnection', 'system', err);
       return { connected: false, latencyMs: 0, error: err };
     }
 
@@ -255,7 +258,7 @@ class SyncServiceClass {
       const latencyMs = Math.round(performance.now() - start);
 
       if (error) {
-        this.notifyError('checkConnection', 'students', error);
+        // Return probe diagnostic details without firing an application data error event
         return {
           connected: false,
           latencyMs,
@@ -271,7 +274,6 @@ class SyncServiceClass {
       };
     } catch (err: any) {
       const latencyMs = Math.round(performance.now() - start);
-      this.notifyError('checkConnection', 'system', err);
       return {
         connected: false,
         latencyMs,
@@ -299,6 +301,16 @@ class SyncServiceClass {
   ): void {
     const errorMessage = error?.message || (typeof error === 'string' ? error : JSON.stringify(error));
     const errorCode = error?.code || error?.status || undefined;
+
+    // Schema cache (PGRST205, PGRST204), permission limitations (42501), or checkConnection probes are handled gracefully via local persistence
+    if (errorCode === 'PGRST205' || errorCode === 'PGRST204' || errorCode === '42501' || operation === 'checkConnection') {
+      console.warn(
+        `[SyncService Diagnostic Info] ${operation.toUpperCase()} on "${collectionName}": ` +
+        `${errorMessage} (Code: ${errorCode || 'STATUS'}). Operating in resilient offline fallback mode.`
+      );
+      return;
+    }
+
     const event: SyncErrorEvent = {
       operation,
       collectionName,

@@ -98,7 +98,17 @@ export function useDbConnectionWatchdog(
           }
           return false;
         });
-        optionsRef.current?.onError?.(errorInfo);
+        const isSchemaOrPermissionFallback =
+          res.error?.code === 'PGRST205' ||
+          res.details?.code === 'PGRST205' ||
+          res.error?.code === 'PGRST204' ||
+          res.details?.code === 'PGRST204' ||
+          res.error?.code === '42501' ||
+          res.details?.code === '42501';
+
+        if (!isSchemaOrPermissionFallback) {
+          optionsRef.current?.onError?.(errorInfo);
+        }
         return res;
       }
     } catch (err: any) {

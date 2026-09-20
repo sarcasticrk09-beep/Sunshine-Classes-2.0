@@ -6,7 +6,9 @@ import {defineConfig} from 'vite';
 export default defineConfig(() => {
   return {
     define: {
-      'import.meta.env.VITE_APP_ENV': JSON.stringify(process.env.APP_ENV || 'staging'),
+      'import.meta.env.VITE_APP_ENV': JSON.stringify(process.env.VITE_APP_ENV || (process.env.VITE_SUPABASE_URL ? 'production' : (process.env.APP_ENV || 'production'))),
+      'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || ''),
+      'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || ''),
       'import.meta.env.VITE_STAGING_SUPABASE_URL': JSON.stringify(process.env.STAGING_SUPABASE_URL || ''),
       'import.meta.env.VITE_STAGING_SUPABASE_ANON_KEY': JSON.stringify(process.env.STAGING_SUPABASE_ANON_KEY || ''),
     },
