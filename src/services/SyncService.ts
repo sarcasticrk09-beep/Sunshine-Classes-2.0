@@ -50,6 +50,10 @@ export interface SyncErrorEvent {
 export type SyncListener<T = any> = (collectionName: string, docId: string, data: T | null) => void;
 export type SyncErrorListener = (event: SyncErrorEvent) => void;
 
+// Helper to determine if a string is a valid PostgreSQL UUID
+export const isPostgresUUID = (val: any): boolean =>
+  typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
+
 // ====================================================================
 // Bidirectional Mapping: Client UI models <-> PostgreSQL V2 rows
 // ====================================================================
@@ -147,12 +151,14 @@ export function toPostgresRow(collectionName: string, data: any): any {
   }
 
   // Ensure UUID keys are clean, remove invalid/empty string IDs that PostgreSQL won't accept
-  const isUUID = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
-  if (mapped.id && !isUUID(mapped.id) && collectionName !== 'classes' && collectionName !== 'settings') {
-    // Keep custom string IDs for non-UUID schemas
-  }
-  if (mapped.user_id && !isUUID(mapped.user_id)) {
-    // Preserve string IDs
+  const isUUIDTable = ['students', 'admissions', 'fee_statuses', 'fee_receipts', 'tests', 'student_marks', 'study_materials', 'toppers'].includes(collectionName);
+  if (isUUIDTable) {
+    if (mapped.id && !isPostgresUUID(mapped.id)) {
+      delete mapped.id;
+    }
+    if (mapped.user_id && !isPostgresUUID(mapped.user_id)) {
+      delete mapped.user_id;
+    }
   }
 
   return mapped;
@@ -302,8 +308,8 @@ class SyncServiceClass {
     const errorMessage = error?.message || (typeof error === 'string' ? error : JSON.stringify(error));
     const errorCode = error?.code || error?.status || undefined;
 
-    // Schema cache (PGRST205, PGRST204), permission limitations (42501), or checkConnection probes are handled gracefully via local persistence
-    if (errorCode === 'PGRST205' || errorCode === 'PGRST204' || errorCode === '42501' || operation === 'checkConnection') {
+    // Schema cache (PGRST205, PGRST204), syntax/UUID limits (22P02), permission limitations (42501), or checkConnection probes are handled gracefully via local persistence
+    if (errorCode === 'PGRST205' || errorCode === 'PGRST204' || errorCode === '22P02' || errorCode === '42501' || operation === 'checkConnection') {
       console.warn(
         `[SyncService Diagnostic Info] ${operation.toUpperCase()} on "${collectionName}": ` +
         `${errorMessage} (Code: ${errorCode || 'STATUS'}). Operating in resilient offline fallback mode.`
@@ -427,7 +433,10 @@ class SyncServiceClass {
   public async get<T = any>(collectionName: string, docId: string): Promise<T | null> {
     if (!docId) return null;
 
-    if (isSupabaseConfigured) {
+    const isUUIDTable = ['students', 'admissions', 'fee_statuses', 'fee_receipts', 'tests', 'student_marks', 'study_materials', 'toppers'].includes(collectionName);
+    const shouldQuerySupabase = isSupabaseConfigured && (!isUUIDTable || isPostgresUUID(docId));
+
+    if (shouldQuerySupabase) {
       try {
         const { data, error } = await supabase
           .from(collectionName)
@@ -590,30 +599,35 @@ class SyncServiceClass {
       if (isSupabaseConfigured) {
         try {
           const payload = toPostgresRow(collectionName, fullData);
-          const { data: upserted, error } = await supabase
-            .from(collectionName)
-            .upsert(payload)
-            .select()
-            .maybeSingle();
+          const isUUIDTable = ['students', 'admissions', 'fee_statuses', 'fee_receipts', 'tests', 'student_marks', 'study_materials', 'toppers'].includes(collectionName);
+          const shouldUpsertSupabase = !isUUIDTable || (payload.id && isPostgresUUID(payload.id));
 
-          if (error) {
-            this.notifyError('set', collectionName, error, docId);
-            if (error.code !== 'PGRST205') {
-              console.warn(`[SyncService.set - Supabase] Upsert warning for ${collectionName}/${docId}:`, error.message);
+          if (shouldUpsertSupabase) {
+            const { data: upserted, error } = await supabase
+              .from(collectionName)
+              .upsert(payload)
+              .select()
+              .maybeSingle();
+
+            if (error) {
+              this.notifyError('set', collectionName, error, docId);
+              if (error.code !== 'PGRST205' && error.code !== '22P02') {
+                console.warn(`[SyncService.set - Supabase] Upsert warning for ${collectionName}/${docId}:`, error.message);
+              }
+              this.notifyListeners(collectionName, docId, fullData as T);
+              return { success: true, data: fullData as T, verified: true, timestamp: new Date().toISOString() };
             }
-            this.notifyListeners(collectionName, docId, fullData as T);
-            return { success: true, data: fullData as T, verified: true, timestamp: new Date().toISOString() };
+
+            const clean = upserted ? (fromPostgresRow(collectionName, upserted) as T) : (fullData as T);
+            this.notifyListeners(collectionName, docId, clean);
+
+            return {
+              success: true,
+              data: clean,
+              verified: true,
+              timestamp: new Date().toISOString()
+            };
           }
-
-          const clean = upserted ? (fromPostgresRow(collectionName, upserted) as T) : (fullData as T);
-          this.notifyListeners(collectionName, docId, clean);
-
-          return {
-            success: true,
-            data: clean,
-            verified: true,
-            timestamp: new Date().toISOString()
-          };
         } catch (err: any) {
           this.notifyError('set', collectionName, err, docId);
           console.warn(`[SyncService.set] Supabase write notice for ${collectionName}/${docId}:`, err?.message || err);
@@ -642,8 +656,10 @@ class SyncServiceClass {
   ): Promise<SyncOperationResult<T>> {
     return this.enqueue(async () => {
       const updatedFields = { ...updates, updatedAt: new Date().toISOString() };
+      const isUUIDTable = ['students', 'admissions', 'fee_statuses', 'fee_receipts', 'tests', 'student_marks', 'study_materials', 'toppers'].includes(collectionName);
+      const shouldQuerySupabase = isSupabaseConfigured && (!isUUIDTable || isPostgresUUID(docId));
 
-      if (isSupabaseConfigured) {
+      if (shouldQuerySupabase) {
         try {
           const payload = toPostgresRow(collectionName, updatedFields);
           const { data: updated, error } = await supabase
@@ -655,7 +671,7 @@ class SyncServiceClass {
 
           if (error) {
             this.notifyError('update', collectionName, error, docId);
-            if (error.code !== 'PGRST205') {
+            if (error.code !== 'PGRST205' && error.code !== '22P02') {
               console.warn(`[SyncService.update] Update notice for ${collectionName}/${docId}:`, error.message);
             }
             const current = this.getCached<T>(collectionName, docId) || {};
@@ -760,7 +776,11 @@ class SyncServiceClass {
     docId: string
   ): Promise<SyncOperationResult<void>> {
     return this.enqueue(async () => {
-      if (isSupabaseConfigured) {
+      // If collection requires UUID primary keys (like students, admissions, fee_statuses) and docId is a local/mock slug, avoid sending invalid UUID syntax to Supabase
+      const isUUIDTable = ['students', 'admissions', 'fee_statuses', 'fee_receipts', 'tests', 'student_marks', 'study_materials', 'toppers'].includes(collectionName);
+      const shouldQuerySupabase = isSupabaseConfigured && (!isUUIDTable || isPostgresUUID(docId));
+
+      if (shouldQuerySupabase) {
         try {
           const { error } = await supabase
             .from(collectionName)
@@ -769,7 +789,7 @@ class SyncServiceClass {
 
           if (error) {
             this.notifyError('delete', collectionName, error, docId);
-            if (error.code !== 'PGRST205') {
+            if (error.code !== 'PGRST205' && error.code !== '22P02') {
               console.warn(`[SyncService.delete] Delete notice for ${collectionName}/${docId}:`, error.message);
             }
           }

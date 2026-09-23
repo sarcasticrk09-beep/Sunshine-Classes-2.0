@@ -103,6 +103,8 @@ export function useDbConnectionWatchdog(
           res.details?.code === 'PGRST205' ||
           res.error?.code === 'PGRST204' ||
           res.details?.code === 'PGRST204' ||
+          res.error?.code === '22P02' ||
+          res.details?.code === '22P02' ||
           res.error?.code === '42501' ||
           res.details?.code === '42501';
 

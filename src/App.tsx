@@ -1451,7 +1451,7 @@ export default function App() {
   // Database Connection Watchdog to monitor Supabase health, auto-recover on stalls, and log connection diagnostics
   const watchdog = useDbConnectionWatchdog(30000, {
     onError: (errEvent) => {
-      if (errEvent.errorCode === 'PGRST205' || errEvent.errorCode === 'PGRST204' || errEvent.errorCode === '42501') {
+      if (errEvent.errorCode === 'PGRST205' || errEvent.errorCode === 'PGRST204' || errEvent.errorCode === '22P02' || errEvent.errorCode === '42501') {
         console.warn(
           `[Supabase Watchdog] Probe notice: ${errEvent.errorMessage} (${errEvent.errorCode}). Active offline storage fallback.`
         );
@@ -1534,7 +1534,7 @@ export default function App() {
 
     // Subscribe to SyncService error stream
     const unsubscribeSyncErrors = SyncService.onError((event) => {
-      if (event.errorCode === 'PGRST205' || event.errorCode === 'PGRST204' || event.errorCode === '42501' || event.operation === 'checkConnection') {
+      if (event.errorCode === 'PGRST205' || event.errorCode === 'PGRST204' || event.errorCode === '22P02' || event.errorCode === '42501' || event.operation === 'checkConnection') {
         console.warn(`[SyncService Fallback Notice] ${event.operation.toUpperCase()} on "${event.collectionName}": ${event.errorMessage}`);
         return;
       }
