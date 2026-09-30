@@ -28,9 +28,11 @@ import {
   AlertTriangle,
   Clock,
   MessageSquare,
-  CheckSquare
+  CheckSquare,
+  BookOpen,
+  X
 } from 'lucide-react';
-import { Admission, Student, FeeStatus, FeeReceipt, Inquiry, Batch, StudentSubscription, SubscriptionPayment, SubscriptionReceipt, SubscriptionNotification, SubscriptionConfig } from '../types';
+import { Admission, Student, Teacher, FeeStatus, FeeReceipt, Inquiry, Batch, StudentSubscription, SubscriptionPayment, SubscriptionReceipt, SubscriptionNotification, SubscriptionConfig } from '../types';
 import { getFeeForClass } from '../data';
 import SunshineLogo from './SunshineLogo';
 import { WhatsAppCommunication } from './WhatsAppCommunication';
@@ -56,6 +58,7 @@ interface ReceptionDashboardProps {
   subNotifications: SubscriptionNotification[];
   subConfig: SubscriptionConfig;
   onPaySubscription: (subId: string, paymentMethod: 'CASH' | 'UPI' | 'ONLINE' | 'CARD' | 'NET_BANKING', amount: number) => void;
+  teachers?: Teacher[];
 }
 
 export default function ReceptionDashboard({
@@ -74,11 +77,13 @@ export default function ReceptionDashboard({
   subReceipts,
   subNotifications,
   subConfig,
-  onPaySubscription
+  onPaySubscription,
+  teachers = []
 }: ReceptionDashboardProps) {
   const [activeTab, setActiveTab] = useState<'admissions' | 'inquiries' | 'fees' | 'search' | 'whatsapp'>('admissions');
   const [isTabDropdownOpen, setIsTabDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [receptionGlobalSearchQuery, setReceptionGlobalSearchQuery] = useState('');
 
   // Helper for CSV download
   const exportToCSV = (data: any[], filename: string, headers: string[], keys: string[]) => {
@@ -763,6 +768,320 @@ export default function ReceptionDashboard({
           <span className="font-display text-2xl font-black text-slate-800">{totalDailyInquiries} Logged</span>
           <span className="text-[10px] text-indigo-600 font-semibold block mt-1">Average conversion 85%</span>
         </div>
+      </div>
+
+      {/* ⚡ Reception Real-Time Desk Search Center */}
+      <div id="reception-global-search-container" className="mb-6 rounded-3xl border border-amber-200/70 bg-gradient-to-br from-amber-50/50 via-white to-slate-50/40 p-5 shadow-sm">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-4">
+          <div>
+            <h4 className="font-display font-black text-sm text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500 text-white text-xs shadow-xs">
+                <Search size={14} />
+              </span>
+              Reception Real-Time Search Center
+            </h4>
+            <p className="text-xs text-slate-500 mt-1">
+              Instantly find enrolled students, teaching faculty, or admission applications by name or ID.
+            </p>
+          </div>
+          <div className="relative flex-1 max-w-lg w-full">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+              <Search size={16} />
+            </span>
+            <input
+              type="text"
+              id="reception-global-search-input"
+              value={receptionGlobalSearchQuery}
+              onChange={(e) => setReceptionGlobalSearchQuery(e.target.value)}
+              placeholder="Search students, teachers, or admissions by name or ID..."
+              className="w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-10 py-3 text-xs text-slate-800 outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-500 shadow-sm transition-all"
+            />
+            {receptionGlobalSearchQuery && (
+              <button
+                type="button"
+                id="btn-clear-reception-search"
+                onClick={() => setReceptionGlobalSearchQuery('')}
+                className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                aria-label="Clear Search Input"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Real-Time Categorized Results */}
+        {receptionGlobalSearchQuery.trim() !== '' && (() => {
+          const q = receptionGlobalSearchQuery.toLowerCase();
+
+          const filteredStudents = (students || []).filter(student => {
+            const batchName = student.preferredBatch || '';
+            const roll = student.rollNo || '';
+            const stdId = student.id || '';
+            const mobile = student.mobile || '';
+            const father = student.fatherName || '';
+            return (
+              student.name.toLowerCase().includes(q) ||
+              roll.toLowerCase().includes(q) ||
+              stdId.toLowerCase().includes(q) ||
+              student.class.toLowerCase().includes(q) ||
+              batchName.toLowerCase().includes(q) ||
+              mobile.toLowerCase().includes(q) ||
+              father.toLowerCase().includes(q)
+            );
+          });
+
+          const filteredTeachers = (teachers || []).filter(teacher => {
+            const specialties = teacher.specialty ? teacher.specialty.join(' ') : '';
+            const tchId = teacher.id || '';
+            const phone = teacher.phone || '';
+            const qual = teacher.qualification || '';
+            return (
+              teacher.name.toLowerCase().includes(q) ||
+              tchId.toLowerCase().includes(q) ||
+              specialties.toLowerCase().includes(q) ||
+              qual.toLowerCase().includes(q) ||
+              phone.toLowerCase().includes(q)
+            );
+          });
+
+          const filteredAdmissions = (admissions || []).filter(adm => {
+            const studentName = adm.studentName || '';
+            const admId = adm.id || '';
+            const enrollmentId = adm.enrollmentId || '';
+            const className = adm.className || '';
+            const mobile = adm.mobile || '';
+            const father = adm.fatherName || '';
+            return (
+              studentName.toLowerCase().includes(q) ||
+              admId.toLowerCase().includes(q) ||
+              enrollmentId.toLowerCase().includes(q) ||
+              className.toLowerCase().includes(q) ||
+              mobile.toLowerCase().includes(q) ||
+              father.toLowerCase().includes(q)
+            );
+          });
+
+          const hasMatches = filteredStudents.length > 0 || filteredTeachers.length > 0 || filteredAdmissions.length > 0;
+
+          if (!hasMatches) {
+            return (
+              <div id="reception-search-no-results" className="mt-3 text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <span className="text-xl">🔍</span>
+                <p className="text-xs font-bold text-slate-700 mt-1">No matching records found</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  No students, faculty members, or admissions matched "{receptionGlobalSearchQuery}".
+                </p>
+              </div>
+            );
+          }
+
+          return (
+            <div id="reception-search-results-grid" className="mt-4 border-t border-amber-100/70 pt-4 grid gap-4 grid-cols-1 md:grid-cols-3">
+              {/* Students Column */}
+              <div className="rounded-2xl bg-white border border-slate-150 p-4 shadow-2xs flex flex-col">
+                <h5 className="font-display font-bold text-xs text-amber-900 border-b border-amber-100 pb-2 mb-3 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Users size={14} className="text-amber-600" />
+                    Enrolled Students
+                  </span>
+                  <span className="bg-amber-100 text-amber-800 rounded-full px-2 py-0.5 text-[10px] font-bold">
+                    {filteredStudents.length}
+                  </span>
+                </h5>
+                {filteredStudents.length === 0 ? (
+                  <p className="text-[10px] text-slate-400 py-3 text-center">No student matches</p>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {filteredStudents.slice(0, 5).map(student => (
+                      <div
+                        key={student.id}
+                        className="p-2.5 rounded-xl bg-slate-50 hover:bg-amber-50/50 border border-slate-100 hover:border-amber-200 transition-all flex items-center justify-between gap-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-800 truncate">{student.name}</p>
+                          <p className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1.5 flex-wrap">
+                            <span>ID: {student.rollNo || student.id}</span>
+                            <span className="inline-block h-1 w-1 rounded-full bg-slate-300"></span>
+                            <span>{student.class}</span>
+                            {student.preferredBatch && (
+                              <>
+                                <span className="inline-block h-1 w-1 rounded-full bg-slate-300"></span>
+                                <span className="text-amber-700 font-semibold">{student.preferredBatch}</span>
+                              </>
+                            )}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            id={`btn-reception-search-view-${student.id.toLowerCase()}`}
+                            onClick={() => {
+                              setSearchQuery(student.name);
+                              setActiveTab('search');
+                              setReceptionGlobalSearchQuery('');
+                            }}
+                            className="rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[9px] px-2 py-1 cursor-pointer transition-all shadow-xs"
+                            title="View student profile in directory"
+                          >
+                            Profile
+                          </button>
+                          <button
+                            type="button"
+                            id={`btn-reception-search-fee-${student.id.toLowerCase()}`}
+                            onClick={() => {
+                              setSelectedStudentId(student.id);
+                              setActiveTab('fees');
+                              setReceptionGlobalSearchQuery('');
+                            }}
+                            className="rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-bold text-[9px] px-2 py-1 cursor-pointer transition-all shadow-xs"
+                            title="Collect monthly fees for this student"
+                          >
+                            Fees
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {filteredStudents.length > 5 && (
+                      <button
+                        type="button"
+                        id="btn-reception-view-all-students-search"
+                        onClick={() => {
+                          setSearchQuery(receptionGlobalSearchQuery);
+                          setActiveTab('search');
+                          setReceptionGlobalSearchQuery('');
+                        }}
+                        className="w-full text-center py-1.5 text-[10px] text-amber-700 hover:text-amber-900 font-bold transition-colors cursor-pointer"
+                      >
+                        + View All {filteredStudents.length} Students in Directory
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Teaching Faculty Column */}
+              <div className="rounded-2xl bg-white border border-slate-150 p-4 shadow-2xs flex flex-col">
+                <h5 className="font-display font-bold text-xs text-indigo-900 border-b border-indigo-100 pb-2 mb-3 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <BookOpen size={14} className="text-indigo-600" />
+                    Teaching Faculty
+                  </span>
+                  <span className="bg-indigo-100 text-indigo-800 rounded-full px-2 py-0.5 text-[10px] font-bold">
+                    {filteredTeachers.length}
+                  </span>
+                </h5>
+                {filteredTeachers.length === 0 ? (
+                  <p className="text-[10px] text-slate-400 py-3 text-center">No teacher matches</p>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {filteredTeachers.slice(0, 5).map(teacher => (
+                      <div
+                        key={teacher.id}
+                        className="p-2.5 rounded-xl bg-slate-50 hover:bg-indigo-50/50 border border-slate-100 hover:border-indigo-200 transition-all flex items-center justify-between gap-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-800 truncate">{teacher.name}</p>
+                          <p className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1.5 flex-wrap">
+                            <span className="text-indigo-700 font-bold">{teacher.qualification}</span>
+                            <span className="inline-block h-1 w-1 rounded-full bg-slate-300"></span>
+                            <span className="text-slate-600">{(teacher.specialty || []).join(', ') || 'Faculty'}</span>
+                          </p>
+                        </div>
+                        {teacher.phone && (
+                          <a
+                            id={`link-reception-call-teacher-${teacher.id.toLowerCase()}`}
+                            href={`tel:${teacher.phone}`}
+                            className="shrink-0 flex items-center gap-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-[9px] font-bold px-2 py-1 transition-colors"
+                            title={`Call ${teacher.name}`}
+                          >
+                            <Phone size={10} />
+                            <span>{teacher.phone}</span>
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Admissions Desk Column */}
+              <div className="rounded-2xl bg-white border border-slate-150 p-4 shadow-2xs flex flex-col">
+                <h5 className="font-display font-bold text-xs text-emerald-900 border-b border-emerald-100 pb-2 mb-3 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <FileText size={14} className="text-emerald-600" />
+                    Admissions Applications
+                  </span>
+                  <span className="bg-emerald-100 text-emerald-800 rounded-full px-2 py-0.5 text-[10px] font-bold">
+                    {filteredAdmissions.length}
+                  </span>
+                </h5>
+                {filteredAdmissions.length === 0 ? (
+                  <p className="text-[10px] text-slate-400 py-3 text-center">No admission matches</p>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {filteredAdmissions.slice(0, 5).map(adm => {
+                      const isPending = adm.status === 'PENDING';
+                      return (
+                        <div
+                          key={adm.id}
+                          className="p-2.5 rounded-xl bg-slate-50 hover:bg-emerald-50/50 border border-slate-100 hover:border-emerald-200 transition-all flex items-center justify-between gap-2"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-xs font-bold text-slate-800 truncate">{adm.studentName}</p>
+                              <span
+                                className={`text-[8px] font-extrabold uppercase px-1.5 py-0.2 rounded-full ${
+                                  isPending
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : adm.status === 'APPROVED'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-rose-100 text-rose-800'
+                                }`}
+                              >
+                                {adm.status || 'PENDING'}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1.5 flex-wrap">
+                              <span>ID: {adm.id}</span>
+                              <span className="inline-block h-1 w-1 rounded-full bg-slate-300"></span>
+                              <span>{adm.className}</span>
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            id={`btn-reception-search-adm-${adm.id.toLowerCase()}`}
+                            onClick={() => {
+                              setActiveTab('admissions');
+                              setReceptionGlobalSearchQuery('');
+                            }}
+                            className="shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[9px] px-2 py-1 cursor-pointer transition-all shadow-xs"
+                            title="Open admissions desk to view details"
+                          >
+                            Open Desk
+                          </button>
+                        </div>
+                      );
+                    })}
+                    {filteredAdmissions.length > 5 && (
+                      <button
+                        type="button"
+                        id="btn-reception-view-all-admissions-search"
+                        onClick={() => {
+                          setActiveTab('admissions');
+                          setReceptionGlobalSearchQuery('');
+                        }}
+                        className="w-full text-center py-1.5 text-[10px] text-emerald-700 hover:text-emerald-900 font-bold transition-colors cursor-pointer"
+                      >
+                        + View All {filteredAdmissions.length} Admissions
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Main Grid */}

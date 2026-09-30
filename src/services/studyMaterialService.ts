@@ -58,7 +58,7 @@ export async function createStudyMaterial(
     id?: string;
   }
 ): Promise<StudyMaterial> {
-  const newId = materialData.id || `mat-${Date.now()}`;
+  const newId = materialData.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `mat-${Date.now()}`);
   const now = new Date().toISOString();
   const slug = materialData.slug || generateSlug(materialData.title);
 

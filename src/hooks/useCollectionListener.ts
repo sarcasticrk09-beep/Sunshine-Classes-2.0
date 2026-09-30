@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { SyncService } from '../services/SyncService';
+import { SyncService, isBenignOfflineOrFallbackError } from '../services/SyncService';
 
 interface UseCollectionListenerOptions<T> {
   collectionName: string;
@@ -99,6 +99,7 @@ export function useDbConnectionWatchdog(
           return false;
         });
         const isSchemaOrPermissionFallback =
+          isBenignOfflineOrFallbackError(res.error) ||
           res.error?.code === 'PGRST205' ||
           res.details?.code === 'PGRST205' ||
           res.error?.code === 'PGRST204' ||
@@ -125,7 +126,9 @@ export function useDbConnectionWatchdog(
       setLastError(err);
       setConsecutiveFailures((prev) => prev + 1);
       setIsHealthy(false);
-      optionsRef.current?.onError?.(errorInfo);
+      if (!isBenignOfflineOrFallbackError(err)) {
+        optionsRef.current?.onError?.(errorInfo);
+      }
       return { connected: false, latencyMs: 0, error: err };
     }
   }, [triggerReconnect]);

@@ -115,7 +115,7 @@ import { TermsConditionsPage } from './components/legal/TermsConditionsPage';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
 
 import { db, getCachedIdToken, isSupabaseConfigured, supabaseUrl } from './lib/supabase';
-import { SyncService } from './services/SyncService';
+import { SyncService, isBenignOfflineOrFallbackError } from './services/SyncService';
 import { interpolateWhatsAppTemplate, sendWhatsAppMessage } from './lib/whatsappService';
 import {
   useStudentsListener,
@@ -508,7 +508,15 @@ export default function App() {
   const [admissions, setAdmissions] = useState<Admission[]>(() => getOrSeedLocal('admissions', SEED_ADMISSIONS));
   const [attendance, setAttendance] = useState<Attendance[]>(() => getOrSeedLocal('attendance', SEED_ATTENDANCE));
   const [feeStatuses, setFeeStatuses] = useState<FeeStatus[]>(() => getOrSeedLocal('fee_statuses', SEED_FEE_STATUS));
-  const [feeReceipts, setFeeReceipts] = useState<FeeReceipt[]>(() => getOrSeedLocal('fee_receipts', SEED_FEE_RECEIPTS));
+  const [feeReceipts, setFeeReceipts] = useState<FeeReceipt[]>(() => {
+    const raw = getOrSeedLocal('fee_receipts', SEED_FEE_RECEIPTS);
+    return (raw || []).map((r: FeeReceipt) => ({
+      ...r,
+      synced: r.synced !== undefined ? r.synced : true,
+      syncStatus: (r.syncStatus || 'SYNCED') as 'SYNCED' | 'PENDING' | 'ERROR',
+      syncedAt: r.syncedAt || r.date || new Date().toISOString()
+    }));
+  });
   const [paymentSuccessModalReceipt, setPaymentSuccessModalReceipt] = useState<{
     receipt: FeeReceipt;
     student?: Student | null;
@@ -1410,7 +1418,13 @@ export default function App() {
     setAdmissions(loadedAdmissions);
     setAttendance(loadedAttendance);
     setFeeStatuses(migratedFeeStatuses);
-    setFeeReceipts(loadedFeeReceipts);
+    const normalizedCloudReceipts = (loadedFeeReceipts || []).map((r: FeeReceipt) => ({
+      ...r,
+      synced: r.synced !== undefined ? r.synced : true,
+      syncStatus: (r.syncStatus || 'SYNCED') as 'SYNCED' | 'PENDING' | 'ERROR',
+      syncedAt: r.syncedAt || r.date || new Date().toISOString()
+    }));
+    setFeeReceipts(normalizedCloudReceipts);
     setTests(loadedTests);
     setStudentMarks(loadedStudentMarks);
     setHomework(loadedHomework);
@@ -1451,22 +1465,9 @@ export default function App() {
   // Database Connection Watchdog to monitor Supabase health, auto-recover on stalls, and log connection diagnostics
   const watchdog = useDbConnectionWatchdog(30000, {
     onError: (errEvent) => {
-      if (errEvent.errorCode === 'PGRST205' || errEvent.errorCode === 'PGRST204' || errEvent.errorCode === '22P02' || errEvent.errorCode === '42501') {
-        console.warn(
-          `[Supabase Watchdog] Probe notice: ${errEvent.errorMessage} (${errEvent.errorCode}). Active offline storage fallback.`
-        );
-        return;
-      }
-      console.group(
-        `%c[Supabase Watchdog ERROR]%c ${errEvent.source.toUpperCase()} check failed (${errEvent.latencyMs}ms)`,
-        'background: #fee2e2; color: #b91c1c; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
-        'color: #b91c1c; font-weight: 600;'
+      console.warn(
+        `[Supabase Watchdog] Diagnostic notice: ${errEvent.errorMessage} (${errEvent.errorCode || 'OFFLINE'}). Sunshine ERP offline fallback active.`
       );
-      console.error('Error message:', errEvent.errorMessage);
-      if (errEvent.errorCode) console.error('Error code:', errEvent.errorCode);
-      console.error('Full error object:', errEvent.error);
-      console.error('Timestamp:', errEvent.timestamp);
-      console.groupEnd();
     },
     onStatusChange: (isHealthy, details) => {
       if (!isHealthy) {
@@ -1515,42 +1516,31 @@ export default function App() {
           result.details
         );
       } else {
-        if (result.error?.code === 'PGRST205' || result.error?.code === '42501') {
-          console.warn(
-            `[Supabase Connection Test] Table probe info (${result.error?.code}): ${result.error?.message}. Sunshine ERP offline fallback active.`
-          );
-        } else {
-          console.group(
-            `%c[Supabase Connection Test FAIL]%c Active query failed in ${result.latencyMs}ms:`,
-            'background: #fee2e2; color: #991b1b; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
-            'color: #991b1b;'
-          );
-          console.error('Error:', result.error);
-          if (result.details) console.error('Details:', result.details);
-          console.groupEnd();
-        }
+        console.warn(
+          `[Supabase Connection Test] Table probe notice (${result.error?.code || 'OFFLINE'}): ${result.error?.message || 'Offline mode'}. Sunshine ERP offline fallback active.`
+        );
       }
+    }).catch((probeErr) => {
+      console.warn('[Supabase Connection Test] Initial probe notice:', probeErr);
     });
 
     // Subscribe to SyncService error stream
     const unsubscribeSyncErrors = SyncService.onError((event) => {
-      if (event.errorCode === 'PGRST205' || event.errorCode === 'PGRST204' || event.errorCode === '22P02' || event.errorCode === '42501' || event.operation === 'checkConnection') {
+      if (
+        isBenignOfflineOrFallbackError(event.error) ||
+        event.errorCode === 'PGRST205' ||
+        event.errorCode === 'PGRST204' ||
+        event.errorCode === '22P02' ||
+        event.errorCode === '42501' ||
+        event.operation === 'checkConnection'
+      ) {
         console.warn(`[SyncService Fallback Notice] ${event.operation.toUpperCase()} on "${event.collectionName}": ${event.errorMessage}`);
         return;
       }
-      console.group(
-        `%c[SyncService Error Event]%c ${event.operation.toUpperCase()} on "${event.collectionName}" failed:`,
-        'background: #fee2e2; color: #dc2626; font-weight: bold; padding: 2px 6px; border-radius: 3px;',
-        'color: #dc2626; font-weight: bold;'
+      console.warn(
+        `[SyncService Notice] ${event.operation.toUpperCase()} on "${event.collectionName}":`,
+        event.errorMessage
       );
-      console.error('Operation:', event.operation);
-      console.error('Collection:', event.collectionName);
-      if (event.docId) console.error('Target ID:', event.docId);
-      if (event.errorCode) console.error('Error Code:', event.errorCode);
-      console.error('Message:', event.errorMessage);
-      console.error('Raw Error:', event.error);
-      console.error('Timestamp:', event.timestamp);
-      console.groupEnd();
     });
 
     // Provide browser console debugging tools on window
@@ -1953,9 +1943,10 @@ export default function App() {
   };
 
   const handleAddInquiry = (inq: Omit<Inquiry, 'id' | 'date'>) => {
+    const generatedId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `inq-${Date.now()}`;
     const newInq: Inquiry = {
       ...inq,
-      id: `INQ-${Date.now()}`,
+      id: generatedId,
       date: new Date().toISOString().split('T')[0]
     };
     const updated = [newInq, ...inquiries];
@@ -1970,7 +1961,10 @@ export default function App() {
       ...fee,
       id: receiptId,
       date: new Date().toISOString().split('T')[0],
-      receivedBy: currentUser?.name || 'Neha Sharma'
+      receivedBy: currentUser?.name || 'Neha Sharma',
+      synced: true,
+      syncStatus: 'SYNCED',
+      syncedAt: new Date().toISOString()
     };
     const updatedReceipts = [newReceipt, ...feeReceipts];
     setFeeReceipts(updatedReceipts);
@@ -2208,7 +2202,10 @@ export default function App() {
         paymentMethod: 'UPI',
         date: new Date().toISOString().split('T')[0],
         transactionId: payment.utr,
-        receivedBy: currentUser?.name || 'School Office'
+        receivedBy: currentUser?.name || 'School Office',
+        synced: true,
+        syncStatus: 'SYNCED',
+        syncedAt: new Date().toISOString()
       };
 
       const updatedReceipts = [newReceipt, ...feeReceipts];
@@ -2481,6 +2478,23 @@ Sunshine Classes`;
       }
     } catch (err: any) {
       alert(`Error resending receipt email: ${err.message}`);
+    }
+  };
+
+  const handleSyncReceipt = async (receiptId: string) => {
+    const target = feeReceipts.find(r => r.id === receiptId);
+    if (!target) return;
+    try {
+      await SyncService.syncFeeReceipt(target);
+      const updated = feeReceipts.map(r => 
+        r.id === receiptId 
+          ? { ...r, synced: true, syncStatus: 'SYNCED' as const, syncedAt: new Date().toISOString() }
+          : r
+      );
+      setFeeReceipts(updated);
+      syncState('fee_receipts', updated);
+    } catch (err: any) {
+      console.warn('[handleSyncReceipt] Sync warning:', err);
     }
   };
 
@@ -4182,6 +4196,7 @@ Sunshine Classes`;
                     subNotifications={subNotifications}
                     subConfig={subConfig}
                     onPaySubscription={handlePaySubscription}
+                    teachers={teachers}
                   />
                 </div>
               )
@@ -4241,6 +4256,7 @@ Sunshine Classes`;
                     upiPayments={upiPayments}
                     onVerifyUpiPayment={handleVerifyUpiPayment}
                     onResendReceiptEmail={handleResendReceiptEmail}
+                    onSyncReceipt={handleSyncReceipt}
                     onUpdateUserPassword={handleUpdateUserPassword}
                     strictMode={strictMode}
                     onToggleStrictMode={handleToggleStrictMode}

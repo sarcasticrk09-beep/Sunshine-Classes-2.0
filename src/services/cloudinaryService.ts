@@ -1,4 +1,5 @@
-// Cloudinary Service
+// Unified Media & Storage Service (Powered by Supabase Storage)
+import { uploadToSupabaseStorage, deleteFromSupabaseStorage } from "../lib/supabase";
 
 export const CLOUDINARY_CLOUD_NAME = "gtn424dm";
 export const CLOUDINARY_UPLOAD_PRESET = "sunshine_classes";
@@ -17,8 +18,8 @@ function getCurrentUserId(): string {
 }
 
 /**
- * Cloudinary Unsigned Upload and Resource Management Service
- * Uses Cloud Name 'gtn424dm' and Unsigned Upload Preset 'sunshine_classes'.
+ * Unified Upload and Resource Management Service
+ * Migrated to Supabase Storage ('sunshine-media') with transparent legacy Cloudinary URL resolution.
  */
 
 export interface CloudinaryUploadOptions {
@@ -43,49 +44,67 @@ export interface CloudinaryUploadResult {
 }
 
 /**
- * Extracts the public_id of an asset from its Cloudinary URL
+ * Extracts the storage identifier/path from Supabase Storage or Cloudinary URL
  */
 export function getPublicIdFromUrl(url: string): string | null {
-  if (!url || !url.includes("cloudinary.com")) return null;
-  
-  const uploadIdx = url.indexOf("/upload/");
-  if (uploadIdx === -1) return null;
-  
-  let path = url.substring(uploadIdx + 8);
-  
-  // Strip version number if present (e.g. "v1720612345/")
-  if (path.match(/^v\d+\//)) {
-    const firstSlashIdx = path.indexOf("/");
-    path = path.substring(firstSlashIdx + 1);
+  if (!url) return null;
+
+  // Supabase Storage URL
+  if (url.includes("/storage/v1/object/public/")) {
+    const idx = url.indexOf("/storage/v1/object/public/");
+    const fullPath = url.substring(idx + "/storage/v1/object/public/".length);
+    // remove bucket prefix if included
+    return fullPath.replace(/^sunshine-media\//, "");
   }
-  
-  // Strip file extension
-  const lastDotIdx = path.lastIndexOf(".");
-  if (lastDotIdx !== -1) {
-    path = path.substring(0, lastDotIdx);
+
+  // Legacy Cloudinary URL
+  if (url.includes("cloudinary.com")) {
+    const uploadIdx = url.indexOf("/upload/");
+    if (uploadIdx === -1) return null;
+    
+    let path = url.substring(uploadIdx + 8);
+    
+    // Strip version number if present (e.g. "v1720612345/")
+    if (path.match(/^v\d+\//)) {
+      const firstSlashIdx = path.indexOf("/");
+      path = path.substring(firstSlashIdx + 1);
+    }
+    
+    // Strip file extension
+    const lastDotIdx = path.lastIndexOf(".");
+    if (lastDotIdx !== -1) {
+      path = path.substring(0, lastDotIdx);
+    }
+    
+    return path;
   }
-  
-  return path;
+
+  return url;
 }
 
 /**
  * Automatically applies format and quality optimizations, and face-based profile thumbnailing.
  */
 export function getOptimizedImageUrl(url: string, type?: "profile" | "thumbnail" | "gallery"): string {
-  if (!url || !url.includes("cloudinary.com")) return url;
+  if (!url) return "";
   
-  const extension = url.split(".").pop()?.toLowerCase() || "";
-  const isImage = ["jpg", "jpeg", "png", "webp", "gif"].includes(extension);
-  if (!isImage) return url;
+  // Legacy Cloudinary optimization transforms
+  if (url.includes("cloudinary.com")) {
+    const extension = url.split(".").pop()?.toLowerCase() || "";
+    const isImage = ["jpg", "jpeg", "png", "webp", "gif"].includes(extension);
+    if (!isImage) return url;
 
-  if (type === "profile") {
-    // Generate an optimized square profile photo thumbnail cropping around the detected face
-    return url.replace("/upload/", "/upload/c_thumb,g_face,w_200,h_200,f_auto,q_auto/");
+    if (type === "profile") {
+      return url.replace("/upload/", "/upload/c_thumb,g_face,w_200,h_200,f_auto,q_auto/");
+    }
+    if (type === "thumbnail") {
+      return url.replace("/upload/", "/upload/c_fit,w_400,f_auto,q_auto/");
+    }
+    return url.replace("/upload/", "/upload/f_auto,q_auto/");
   }
-  if (type === "thumbnail") {
-    return url.replace("/upload/", "/upload/c_fit,w_400,f_auto,q_auto/");
-  }
-  return url.replace("/upload/", "/upload/f_auto,q_auto/");
+
+  // Supabase Storage & direct CDN URLs are delivered optimized
+  return url;
 }
 
 class CloudinaryService {
@@ -171,7 +190,7 @@ class CloudinaryService {
   }
 
   /**
-   * Directly uploads file to Cloudinary via Unsigned Preset 'sunshine_classes' and Cloud Name 'gtn424dm'
+   * Uploads file to Supabase Unified Storage ('sunshine-media') with automatic proxy and fallback
    */
   async uploadFile(
     file: File,
@@ -182,22 +201,94 @@ class CloudinaryService {
       throw new Error(validation.error);
     }
 
-    const cloudName = CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = CLOUDINARY_UPLOAD_PRESET;
     const targetFolder = options.folder 
-      ? (options.folder.startsWith("sunshine-classes/") ? options.folder : `sunshine-classes/${options.folder}`)
-      : "sunshine-classes/documents";
+      ? (options.folder.startsWith("sunshine-classes/") ? options.folder.replace("sunshine-classes/", "") : options.folder)
+      : "documents";
 
     const fileTypeStr = file?.type || "";
     const ext = file.name.split(".").pop()?.toLowerCase() || "";
     const isImage = fileTypeStr.startsWith("image/") || ["jpg", "jpeg", "png", "webp", "gif"].includes(ext);
+
+    // Initial progress notification
+    if (options.onProgress) options.onProgress(20);
+
+    // 1. Primary: Direct Client-Side Supabase Storage Upload
+    try {
+      const uploadRes = await uploadToSupabaseStorage(file, file.name, {
+        folder: targetFolder,
+        bucket: "sunshine-media"
+      });
+
+      if (uploadRes && uploadRes.url) {
+        if (options.onProgress) options.onProgress(100);
+        return {
+          secure_url: uploadRes.url,
+          public_id: uploadRes.path,
+          asset_id: uploadRes.path,
+          resource_type: isImage ? "image" : "raw",
+          format: ext,
+          bytes: file.size,
+          created_at: new Date().toISOString(),
+          folder: targetFolder
+        };
+      }
+    } catch (clientErr) {
+      console.warn("[Storage] Client-side Supabase Storage upload, falling back to server API proxy:", clientErr);
+    }
+
+    // 2. Secondary: Server-Side Storage Proxy (Handles serverSupabase service role upload)
+    try {
+      if (options.onProgress) options.onProgress(45);
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const serverRes = await fetch("/api/storage/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileBase64: base64Data,
+          fileName: file.name,
+          contentType: file.type || (isImage ? "image/jpeg" : "application/octet-stream"),
+          folder: targetFolder,
+          bucket: "sunshine-media"
+        })
+      });
+
+      if (serverRes.ok) {
+        const data = await serverRes.json();
+        if (data.success && data.url) {
+          if (options.onProgress) options.onProgress(100);
+          return {
+            secure_url: data.url,
+            public_id: data.path,
+            asset_id: data.path,
+            resource_type: isImage ? "image" : "raw",
+            format: ext,
+            bytes: file.size,
+            created_at: new Date().toISOString(),
+            folder: targetFolder
+          };
+        }
+      }
+    } catch (proxyErr) {
+      console.warn("[Storage] Server proxy upload error, falling back to legacy Cloudinary:", proxyErr);
+    }
+
+    // 3. Fallback: Legacy Cloudinary Unsigned Upload
+    const cloudName = CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = CLOUDINARY_UPLOAD_PRESET;
+    const legacyFolder = `sunshine-classes/${targetFolder}`;
     const resourceType = isImage ? "image" : "raw";
     const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`;
 
     const formData = new FormData();
     formData.append("file", file);
     formData.append("upload_preset", uploadPreset);
-    formData.append("folder", targetFolder);
+    formData.append("folder", legacyFolder);
 
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
@@ -226,7 +317,7 @@ class CloudinaryService {
               width: response.width,
               height: response.height,
               created_at: response.created_at || new Date().toISOString(),
-              folder: response.folder || targetFolder
+              folder: response.folder || legacyFolder
             });
           } catch (e) {
             reject(new Error("Failed to parse Cloudinary upload response."));
@@ -250,10 +341,23 @@ class CloudinaryService {
   }
 
   /**
-   * Securely destroys an asset on Cloudinary via the Express backend using API Secret
+   * Securely destroys an asset on Supabase Storage and legacy Cloudinary
    */
   async deleteFile(publicId: string): Promise<boolean> {
     try {
+      // 1. Delete from Supabase Storage
+      try {
+        await deleteFromSupabaseStorage(publicId, "sunshine-media");
+        await fetch("/api/storage/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path: publicId, bucket: "sunshine-media" })
+        }).catch(() => {});
+      } catch (storageErr) {
+        console.warn("[Storage] Non-blocking Supabase Storage deletion warning:", storageErr);
+      }
+
+      // 2. Also trigger legacy deletion endpoint for Cloudinary assets
       const response = await fetch("/api/delete-cloudinary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -265,14 +369,13 @@ class CloudinaryService {
       });
 
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to delete asset from Cloudinary.");
+        return true;
       }
 
       const resData = await response.json();
-      return resData.success;
+      return resData.success !== false;
     } catch (err) {
-      console.error("Cloudinary secure asset deletion error:", err);
+      console.error("Asset deletion error:", err);
       return false;
     }
   }

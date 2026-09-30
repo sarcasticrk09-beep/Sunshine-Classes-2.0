@@ -3472,6 +3472,16 @@ How can I help you towards your academic success today? Feel free to ask!`;
       const isRaw = publicId.endsWith(".pdf") || publicId.endsWith(".docx") || publicId.endsWith(".xlsx") || publicId.includes("/documents/") || publicId.includes("/assignments/");
       const resourceType = isRaw ? "raw" : "image";
 
+      // Also clean up from Supabase Storage if this asset was hosted on Supabase
+      if (publicId.includes("sunshine-media") || publicId.includes("sunshine-classes/")) {
+        try {
+          const cleanPath = publicId.replace(/^sunshine-media\//, "");
+          await serverSupabase.storage.from("sunshine-media").remove([cleanPath]);
+        } catch (storageErr) {
+          console.warn("[Storage] Non-blocking Supabase remove error:", storageErr);
+        }
+      }
+
       const resData = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
       const wasDeleted = resData.result === "ok" || resData.result === "not_found";
 
@@ -3485,6 +3495,71 @@ How can I help you towards your academic success today? Feel free to ask!`;
     } catch (err: any) {
       console.error("[Cloudinary Secure Deletion Error]:", err);
       return res.status(500).json({ error: "Internal processing failure: " + err.message });
+    }
+  });
+
+  // 1.6b Unified Supabase Storage File Upload API
+  app.post("/api/storage/upload", async (req, res) => {
+    try {
+      const { fileBase64, fileName, contentType, folder, bucket = "sunshine-media" } = req.body;
+      if (!fileBase64 || !fileName) {
+        return res.status(400).json({ success: false, error: "fileBase64 and fileName are required." });
+      }
+
+      // Convert Base64 or DataURL to Buffer
+      const base64Data = fileBase64.includes(",") ? fileBase64.split(",")[1] : fileBase64;
+      const buffer = Buffer.from(base64Data, "base64");
+
+      const cleanFolder = folder ? `${String(folder).replace(/\/+$/, "")}/` : "";
+      const cleanName = String(fileName).replace(/[^a-zA-Z0-9._-]/g, "_");
+      const filePath = `${cleanFolder}${Date.now()}_${cleanName}`;
+
+      const { data, error } = await serverSupabase.storage
+        .from(bucket)
+        .upload(filePath, buffer, {
+          upsert: true,
+          contentType: contentType || "application/octet-stream"
+        });
+
+      if (error) {
+        console.error("[Supabase Storage API] Upload error:", error);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+
+      const { data: urlData } = serverSupabase.storage.from(bucket).getPublicUrl(data?.path || filePath);
+
+      return res.json({
+        success: true,
+        url: urlData.publicUrl,
+        path: data?.path || filePath,
+        bucket,
+        name: cleanName,
+        size: buffer.length
+      });
+    } catch (err: any) {
+      console.error("[Supabase Storage API] Internal error:", err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // 1.6c Unified Supabase Storage File Deletion API
+  app.post("/api/storage/delete", async (req, res) => {
+    try {
+      const { path, bucket = "sunshine-media" } = req.body;
+      if (!path) {
+        return res.status(400).json({ success: false, error: "path is required." });
+      }
+
+      const { error } = await serverSupabase.storage.from(bucket).remove([path]);
+      if (error) {
+        console.error("[Supabase Storage API] Remove error:", error);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+
+      return res.json({ success: true, message: "File removed successfully." });
+    } catch (err: any) {
+      console.error("[Supabase Storage API] Delete internal error:", err);
+      return res.status(500).json({ success: false, error: err.message });
     }
   });
 
@@ -4058,9 +4133,24 @@ Sunshine Classes — *Excellence in Education* ☀️`;
     }
   };
 
+  const ensureStorageBucketExists = async () => {
+    try {
+      const { data: buckets, error } = await serverSupabase.storage.listBuckets();
+      if (!error && buckets && !buckets.some(b => b.name === "sunshine-media")) {
+        await serverSupabase.storage.createBucket("sunshine-media", { public: true });
+        console.log('[Supabase Storage] Provisioned public storage bucket "sunshine-media"');
+      }
+    } catch (err: any) {
+      console.warn("[Supabase Storage] Non-blocking bucket check:", err.message);
+    }
+  };
+
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Sunshine Classes Full-Stack Server running on http://localhost:${PORT} in ${isProduction ? 'production' : 'development'} mode`);
   });
+
+  // Ensure storage bucket is ready
+  ensureStorageBucketExists().catch(() => {});
 
   if (!isProduction || process.env.FORCE_SEED_USERS === "true") {
     ensureSeedUsersExist().catch((err) => {

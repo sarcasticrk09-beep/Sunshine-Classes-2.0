@@ -14,6 +14,7 @@ import {
   bulkUpdateStatus, 
   generateSlug 
 } from '../services/studyMaterialService';
+import { uploadToSupabaseStorage } from '../lib/supabase';
 import { SEED_STUDY_MATERIALS } from '../data';
 import { 
   FileText, 
@@ -318,7 +319,7 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
     }));
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -343,26 +344,36 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
 
     const sizeInMB = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
 
-    // Simulate upload reading as data URL for instant offline capability or storage link
-    const reader = new FileReader();
-    reader.onprogress = (event) => {
-      if (event.lengthComputable) {
-        const percent = Math.round((event.loaded / event.total) * 100);
-        setFileUploadProgress(percent);
-      }
-    };
-    reader.onload = () => {
+    try {
+      // First attempt direct Supabase Storage upload
+      const res = await uploadToSupabaseStorage(file, file.name, {
+        bucket: 'sunshine-media',
+        folder: 'study-materials'
+      });
+
+      setFileUploadProgress(100);
+      setTimeout(() => setFileUploadProgress(null), 500);
+
+      const isDataUrl = res.url && res.url.startsWith('data:');
+      setFormData(prev => ({
+        ...prev,
+        fileName: file.name,
+        fileSize: sizeInMB,
+        fileUrl: res.url,
+        // Only keep fileData if size is under 1MB to prevent QuotaExceededError in localStorage
+        fileData: (file.size < 1024 * 1024 && isDataUrl) ? res.url : ''
+      }));
+    } catch (uploadErr) {
+      console.warn('[StudyMaterialCMS] Direct upload notice, fallback to preview link:', uploadErr);
       setFileUploadProgress(100);
       setTimeout(() => setFileUploadProgress(null), 500);
       setFormData(prev => ({
         ...prev,
         fileName: file.name,
         fileSize: sizeInMB,
-        fileData: reader.result as string,
         fileUrl: URL.createObjectURL(file)
       }));
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {

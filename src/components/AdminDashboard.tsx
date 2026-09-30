@@ -13,6 +13,7 @@ import { StudyMaterialCMS } from './StudyMaterialCMS';
 import { SunshineStoreAdmin } from './SunshineStoreAdmin';
 import { AdminMeritManager } from './merit/AdminMeritManager';
 import { AdminCourseManager } from './cms/AdminCourseManager';
+import { FeeReceiptQrScannerModal } from './common/FeeReceiptQrScannerModal';
 
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -144,6 +145,7 @@ interface AdminDashboardProps {
   onUpdateConfig: (cfg: SubscriptionConfig) => void;
   onPaySubscription: (subId: string, paymentMethod: 'CASH' | 'UPI' | 'ONLINE' | 'CARD' | 'NET_BANKING', amount: number) => void;
   onCollectFee: (fee: Omit<FeeReceipt, 'id' | 'date' | 'receivedBy'> & { skipWhatsApp?: boolean }) => void;
+  onSyncReceipt?: (receiptId: string) => Promise<void> | void;
   onUpdateUserPassword: (userId: string, newPassword: string) => void;
   strictMode: boolean;
   onToggleStrictMode: () => void;
@@ -223,6 +225,7 @@ export default function AdminDashboard({
   onUpdateConfig,
   onPaySubscription,
   onCollectFee,
+  onSyncReceipt,
   onUpdateUserPassword,
   strictMode,
   onToggleStrictMode,
@@ -292,8 +295,83 @@ export default function AdminDashboard({
   const [paymentHistorySearch, setPaymentHistorySearch] = useState('');
   const [paymentHistoryMonth, setPaymentHistoryMonth] = useState('ALL');
   const [paymentHistoryMethod, setPaymentHistoryMethod] = useState<'ALL' | 'CASH' | 'UPI' | 'ONLINE'>('ALL');
+  const [paymentHistorySyncStatus, setPaymentHistorySyncStatus] = useState<'ALL' | 'SYNCED' | 'PENDING'>('ALL');
+  const [syncingReceiptId, setSyncingReceiptId] = useState<string | null>(null);
+  const [isSyncingAllReceipts, setIsSyncingAllReceipts] = useState(false);
+  const [syncFeedbackToast, setSyncFeedbackToast] = useState<{ id: string; message: string; type: 'success' | 'info' | 'error' } | null>(null);
   const [selectedReceiptAdmin, setSelectedReceiptAdmin] = useState<FeeReceipt | null>(null);
   const [selectedUpiScreenshot, setSelectedUpiScreenshot] = useState<string | null>(null);
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
+
+  const handleTriggerReceiptSync = async (receiptId: string) => {
+    try {
+      setSyncingReceiptId(receiptId);
+      const target = feeReceipts.find(r => r.id === receiptId);
+      if (onSyncReceipt) {
+        await onSyncReceipt(receiptId);
+      } else if (target) {
+        await SyncService.syncFeeReceipt(target);
+        const updated = feeReceipts.map(r => 
+          r.id === receiptId 
+            ? { ...r, synced: true, syncStatus: 'SYNCED' as const, syncedAt: new Date().toISOString() }
+            : r
+        );
+        onHealState('fee_receipts', updated);
+      }
+      setSyncFeedbackToast({
+        id: `toast-${Date.now()}`,
+        message: `Receipt ${receiptId} verified & synced to Supabase backend!`,
+        type: 'success'
+      });
+      setTimeout(() => setSyncFeedbackToast(null), 3500);
+    } catch (err: any) {
+      setSyncFeedbackToast({
+        id: `toast-${Date.now()}`,
+        message: `Failed to sync receipt ${receiptId}: ${err?.message || 'Network error'}`,
+        type: 'error'
+      });
+      setTimeout(() => setSyncFeedbackToast(null), 4000);
+    } finally {
+      setSyncingReceiptId(null);
+    }
+  };
+
+  const handleSyncAllPendingReceipts = async () => {
+    const pendingReceipts = feeReceipts.filter(r => r.synced === false);
+    if (pendingReceipts.length === 0) return;
+    try {
+      setIsSyncingAllReceipts(true);
+      for (const rec of pendingReceipts) {
+        if (onSyncReceipt) {
+          await onSyncReceipt(rec.id);
+        } else {
+          await SyncService.syncFeeReceipt(rec);
+        }
+      }
+      const updated = feeReceipts.map(r => ({
+        ...r,
+        synced: true,
+        syncStatus: 'SYNCED' as const,
+        syncedAt: new Date().toISOString()
+      }));
+      onHealState('fee_receipts', updated);
+      setSyncFeedbackToast({
+        id: `toast-${Date.now()}`,
+        message: `Successfully synchronized ${pendingReceipts.length} pending receipt(s) to Supabase!`,
+        type: 'success'
+      });
+      setTimeout(() => setSyncFeedbackToast(null), 4000);
+    } catch (err: any) {
+      setSyncFeedbackToast({
+        id: `toast-${Date.now()}`,
+        message: `Sync operation encountered an error: ${err?.message || 'Network failure'}`,
+        type: 'error'
+      });
+      setTimeout(() => setSyncFeedbackToast(null), 4000);
+    } finally {
+      setIsSyncingAllReceipts(false);
+    }
+  };
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>(() => {
     const saved = localStorage.getItem('sunshine_email_logs');
     return saved ? JSON.parse(saved) : [];
@@ -5832,27 +5910,40 @@ ${data.log}`
               Filter student directories, coaching faculty, and monthly tuition bills by name, ID, or batch instantly.
             </p>
           </div>
-          <div className="relative flex-1 max-w-md w-full">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
-              <Search size={16} />
-            </span>
-            <input
-              type="text"
-              id="admin-global-search-input"
-              value={adminGlobalSearchQuery}
-              onChange={(e) => setAdminGlobalSearchQuery(e.target.value)}
-              placeholder="Search students, teachers, fee bills by name, ID, subject..."
-              className="w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-10 py-3 text-xs text-slate-800 outline-none focus:border-indigo-900 focus:ring-1 focus:ring-indigo-900 shadow-sm transition-all"
-            />
-            {adminGlobalSearchQuery && (
-              <button
-                type="button"
-                onClick={() => setAdminGlobalSearchQuery('')}
-                className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-            )}
+          <div className="flex items-center gap-2.5 flex-1 max-w-lg w-full">
+            <div className="relative flex-1 w-full">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+                <Search size={16} />
+              </span>
+              <input
+                type="text"
+                id="admin-global-search-input"
+                value={adminGlobalSearchQuery}
+                onChange={(e) => setAdminGlobalSearchQuery(e.target.value)}
+                placeholder="Search students, teachers, admissions, or fees by name or ID..."
+                className="w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-10 py-3 text-xs text-slate-800 outline-none focus:border-indigo-900 focus:ring-1 focus:ring-indigo-900 shadow-sm transition-all"
+              />
+              {adminGlobalSearchQuery && (
+                <button
+                  type="button"
+                  id="btn-clear-global-search"
+                  onClick={() => setAdminGlobalSearchQuery('')}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+            <button
+              id="btn-header-scan-receipt-qr"
+              type="button"
+              onClick={() => setIsQrScannerOpen(true)}
+              className="shrink-0 flex items-center gap-1.5 rounded-2xl bg-indigo-950 hover:bg-indigo-900 text-white px-3.5 py-3 text-xs font-bold shadow-sm transition-all cursor-pointer"
+              title="Scan Fee Receipt QR Code for Instant Payment Verification"
+            >
+              <QrCode size={15} className="text-amber-400" />
+              <span className="hidden sm:inline">Scan QR</span>
+            </button>
           </div>
         </div>
 
@@ -5881,6 +5972,23 @@ ${data.log}`
             );
           });
 
+          const filteredAdmissions = (admissions || []).filter(adm => {
+            const studentName = adm.studentName || '';
+            const admId = adm.id || '';
+            const enrollmentId = adm.enrollmentId || '';
+            const className = adm.className || '';
+            const mobile = adm.mobile || '';
+            const father = adm.fatherName || '';
+            return (
+              studentName.toLowerCase().includes(q) ||
+              admId.toLowerCase().includes(q) ||
+              enrollmentId.toLowerCase().includes(q) ||
+              className.toLowerCase().includes(q) ||
+              mobile.toLowerCase().includes(q) ||
+              father.toLowerCase().includes(q)
+            );
+          });
+
           const filteredFees = feeStatuses.filter(fee => {
             return (
               fee.studentName.toLowerCase().includes(q) ||
@@ -5892,7 +6000,7 @@ ${data.log}`
             );
           });
 
-          const hasAnyResults = filteredStudents.length > 0 || filteredTeachers.length > 0 || filteredFees.length > 0;
+          const hasAnyResults = filteredStudents.length > 0 || filteredTeachers.length > 0 || filteredAdmissions.length > 0 || filteredFees.length > 0;
 
           return (
             <div className="mt-4 border-t border-indigo-50 pt-4">
@@ -5900,10 +6008,10 @@ ${data.log}`
                 <div className="text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                   <span className="text-xl">🔍</span>
                   <p className="text-xs font-bold text-slate-600 mt-1">No matches found</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">We couldn't find any students, teachers, or fee logs for "{adminGlobalSearchQuery}".</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">We couldn't find any students, teachers, admissions, or fee logs for "{adminGlobalSearchQuery}".</p>
                 </div>
               ) : (
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
                   {/* Students Column */}
                   <div className="rounded-2xl bg-white border border-slate-150 p-4 shadow-2xs">
                     <h5 className="font-display font-bold text-xs text-indigo-900 border-b border-indigo-50 pb-2 mb-3 flex items-center justify-between">
@@ -6025,6 +6133,83 @@ ${data.log}`
                             className="w-full text-center py-1.5 text-[10px] text-indigo-600 hover:text-indigo-800 font-bold transition-colors cursor-pointer"
                           >
                             + View All {filteredTeachers.length} Teachers
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Admissions Desk Column */}
+                  <div className="rounded-2xl bg-white border border-slate-150 p-4 shadow-2xs">
+                    <h5 className="font-display font-bold text-xs text-indigo-900 border-b border-indigo-50 pb-2 mb-3 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <FileText size={14} className="text-indigo-600" />
+                        Admissions Desk
+                      </span>
+                      <span className="bg-indigo-50 text-indigo-700 rounded-full px-2 py-0.5 text-[10px] font-bold">
+                        {filteredAdmissions.length}
+                      </span>
+                    </h5>
+                    {filteredAdmissions.length === 0 ? (
+                      <p className="text-[10px] text-slate-400 py-3 text-center">No admission matches</p>
+                    ) : (
+                      <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                        {filteredAdmissions.slice(0, 5).map((adm, idx) => {
+                          const isPending = adm.status === 'PENDING';
+                          return (
+                            <motion.div
+                              key={adm.id}
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.2, delay: idx * 0.04 }}
+                              className="group p-2.5 rounded-xl bg-slate-50 hover:bg-indigo-50/50 border border-transparent hover:border-indigo-100 transition-all flex items-center justify-between gap-2"
+                            >
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <p className="text-xs font-bold text-slate-800 truncate">{adm.studentName}</p>
+                                  <span
+                                    className={`text-[8px] font-extrabold uppercase px-1.5 py-0.2 rounded-full ${
+                                      isPending
+                                        ? 'bg-amber-100 text-amber-800'
+                                        : adm.status === 'APPROVED'
+                                        ? 'bg-emerald-100 text-emerald-800'
+                                        : 'bg-rose-100 text-rose-800'
+                                    }`}
+                                  >
+                                    {adm.status || 'PENDING'}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1.5 flex-wrap">
+                                  <span>ID: {adm.id}</span>
+                                  <span className="inline-block h-1 w-1 rounded-full bg-slate-300"></span>
+                                  <span className="truncate max-w-[110px]">{adm.className}</span>
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                id={`btn-admin-search-adm-${adm.id.toLowerCase()}`}
+                                onClick={() => {
+                                  setActiveTab('admissions');
+                                  setAdminGlobalSearchQuery('');
+                                }}
+                                className="shrink-0 rounded-lg bg-indigo-900 hover:bg-indigo-950 text-white font-bold text-[9px] px-2.5 py-1.5 cursor-pointer transition-all shadow-sm group-hover:scale-105"
+                              >
+                                View Desk
+                              </button>
+                            </motion.div>
+                          );
+                        })}
+                        {filteredAdmissions.length > 5 && (
+                          <button
+                            type="button"
+                            id="btn-admin-view-all-admissions-search"
+                            onClick={() => {
+                              setActiveTab('admissions');
+                              setAdminGlobalSearchQuery('');
+                            }}
+                            className="w-full text-center py-1.5 text-[10px] text-indigo-600 hover:text-indigo-800 font-bold transition-colors cursor-pointer"
+                          >
+                            + View All {filteredAdmissions.length} Admissions
                           </button>
                         )}
                       </div>
@@ -6992,6 +7177,7 @@ ${data.log}`
                         <th className="p-2">Amount</th>
                         <th className="p-2">Mode</th>
                         <th className="p-2">Received By</th>
+                        <th className="p-2 text-center">Sync Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50 text-[11px] text-slate-700">
@@ -7009,11 +7195,25 @@ ${data.log}`
                           <td className="p-2 font-bold text-emerald-600">₹{rec.amountPaid}</td>
                           <td className="p-2 text-slate-500 font-mono text-[9px]">{rec.paymentMethod}</td>
                           <td className="p-2 text-slate-400">{rec.receivedBy}</td>
+                          <td className="p-2 text-center">
+                            <span
+                              id={`badge-overview-sync-${rec.id.toLowerCase()}`}
+                              className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full border ${
+                                rec.synced !== false
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-amber-50 text-amber-700 border-amber-200'
+                              }`}
+                              title={rec.synced !== false ? 'Confirmed synced in Supabase backend' : 'Pending backend push'}
+                            >
+                              <span className={`h-1.5 w-1.5 rounded-full ${rec.synced !== false ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></span>
+                              {rec.synced !== false ? 'Synced' : 'Pending'}
+                            </span>
+                          </td>
                         </motion.tr>
                       ))}
                       {feeReceipts.length === 0 && (
                         <tr>
-                          <td colSpan={6} className="p-3 text-center text-slate-400">No payment records found.</td>
+                          <td colSpan={7} className="p-3 text-center text-slate-400">No payment records found.</td>
                         </tr>
                       )}
                     </tbody>
@@ -9331,6 +9531,15 @@ ${data.log}`
                       >
                         <Printer size={13} /> Monthly Summary PDF
                       </button>
+
+                      <button
+                        id="btn-open-fee-qr-scanner"
+                        onClick={() => setIsQrScannerOpen(true)}
+                        className="rounded-lg bg-amber-500 hover:bg-amber-600 px-3 py-1.5 text-xs font-bold text-white flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                        title="Scan fee receipt QR code for payment verification"
+                      >
+                        <QrCode size={13} /> Scan Receipt QR
+                      </button>
                     </div>
                   </div>
 
@@ -9691,6 +9900,7 @@ ${data.log}`
                                                 <th className="pb-2 text-center">Method</th>
                                                 <th className="pb-2 text-left">Transaction ID</th>
                                                 <th className="pb-2 text-left">Received By</th>
+                                                <th className="pb-2 text-center">Backend Sync</th>
                                                 <th className="pb-2 text-right">Actions</th>
                                               </tr>
                                             </thead>
@@ -9727,6 +9937,20 @@ ${data.log}`
                                                     </td>
                                                     <td className="py-2.5 font-medium text-slate-500">
                                                       {rec.receivedBy || 'Administrative Office'}
+                                                    </td>
+                                                    <td className="py-2.5 text-center">
+                                                      <span
+                                                        id={`badge-drawer-sync-${rec.id.toLowerCase()}`}
+                                                        className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full border ${
+                                                          rec.synced !== false
+                                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                                                        }`}
+                                                        title={rec.synced !== false ? 'Confirmed synced in Supabase backend' : 'Pending backend push'}
+                                                      >
+                                                        <span className={`h-1.5 w-1.5 rounded-full ${rec.synced !== false ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></span>
+                                                        {rec.synced !== false ? 'Synced' : 'Pending'}
+                                                      </span>
                                                     </td>
                                                     <td className="py-2.5 text-right">
                                                       <button
@@ -9934,10 +10158,45 @@ ${data.log}`
                         <option value="UPI">UPI Receipts Only</option>
                         <option value="ONLINE">Online Bank Transfers</option>
                       </select>
+
+                      {/* Backend Supabase Sync Filter */}
+                      <select
+                        id="select-filter-payment-sync-status"
+                        value={paymentHistorySyncStatus}
+                        onChange={(e) => setPaymentHistorySyncStatus(e.target.value as any)}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-900"
+                      >
+                        <option value="ALL">All Sync States</option>
+                        <option value="SYNCED">✓ Synced to Supabase ({feeReceipts.filter(r => r.synced !== false).length})</option>
+                        <option value="PENDING">⚡ Pending Backend Push ({feeReceipts.filter(r => r.synced === false).length})</option>
+                      </select>
                     </div>
 
-                    <div className="text-right text-[10px] text-slate-400 font-bold uppercase sm:text-left">
-                      Total: {feeReceipts.length} logged records
+                    <div className="flex flex-wrap items-center gap-3 justify-end text-right text-[10px] text-slate-400 font-bold uppercase sm:text-left">
+                      <div>
+                        <span>Total: {feeReceipts.length} records</span>
+                        <span className="mx-1.5 text-slate-300">•</span>
+                        <span className="text-emerald-600 font-extrabold">{feeReceipts.filter(r => r.synced !== false).length} Synced</span>
+                        {feeReceipts.some(r => r.synced === false) && (
+                          <>
+                            <span className="mx-1.5 text-slate-300">•</span>
+                            <span className="text-amber-600 font-extrabold">{feeReceipts.filter(r => r.synced === false).length} Pending</span>
+                          </>
+                        )}
+                      </div>
+                      {feeReceipts.some(r => r.synced === false) && (
+                        <button
+                          type="button"
+                          id="btn-sync-all-pending-receipts"
+                          disabled={isSyncingAllReceipts}
+                          onClick={handleSyncAllPendingReceipts}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+                          title="Push all pending receipts to Supabase cloud backend"
+                        >
+                          <RefreshCw size={12} className={isSyncingAllReceipts ? 'animate-spin' : ''} />
+                          {isSyncingAllReceipts ? 'Syncing...' : `Sync All Pending (${feeReceipts.filter(r => r.synced === false).length})`}
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -9954,6 +10213,7 @@ ${data.log}`
                             <th className="px-4 py-3 text-center">Payment Method</th>
                             <th className="px-4 py-3 font-mono">Reference Txn ID</th>
                             <th className="px-4 py-3">Collected By</th>
+                            <th className="px-4 py-3 text-center">Supabase Sync</th>
                             <th className="px-4 py-3 text-center">Audit Actions</th>
                           </tr>
                         </thead>
@@ -9969,14 +10229,18 @@ ${data.log}`
                               
                               const matchesMonth = paymentHistoryMonth === 'ALL' || rec.month === paymentHistoryMonth;
                               const matchesMethod = paymentHistoryMethod === 'ALL' || rec.paymentMethod === paymentHistoryMethod;
+                              const matchesSync = 
+                                paymentHistorySyncStatus === 'ALL' ||
+                                (paymentHistorySyncStatus === 'SYNCED' && rec.synced !== false) ||
+                                (paymentHistorySyncStatus === 'PENDING' && rec.synced === false);
                               
-                              return matchesSearch && matchesMonth && matchesMethod;
+                              return matchesSearch && matchesMonth && matchesMethod && matchesSync;
                             });
 
                             if (filteredReceipts.length === 0) {
                               return (
                                 <tr>
-                                  <td colSpan={8} className="py-12 text-center text-slate-400 font-medium">
+                                  <td colSpan={9} className="py-12 text-center text-slate-400 font-medium">
                                     <Receipt size={28} className="mx-auto text-slate-300 mb-2" />
                                     No logged receipts match your search & filter criteria.
                                   </td>
@@ -10016,6 +10280,45 @@ ${data.log}`
                                 </td>
                                 <td className="px-4 py-3 text-slate-600">
                                   {rec.receivedBy}
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  {rec.synced !== false ? (
+                                    <div className="inline-flex flex-col items-center">
+                                      <span
+                                        id={`badge-receipt-sync-${rec.id.toLowerCase()}`}
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-3xs"
+                                        title={`Confirmed synced to Supabase backend${rec.syncedAt ? ` on ${new Date(rec.syncedAt).toLocaleString()}` : ''}`}
+                                      >
+                                        <CheckCircle size={11} className="text-emerald-600 shrink-0" />
+                                        <span>Synced</span>
+                                      </span>
+                                      <span className="text-[9px] text-emerald-600/90 font-mono mt-0.5 font-bold tracking-tight">
+                                        Supabase ✓
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <div className="inline-flex flex-col items-center gap-1">
+                                      <span
+                                        id={`badge-receipt-sync-${rec.id.toLowerCase()}`}
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-50 text-amber-800 border border-amber-300 shadow-3xs"
+                                        title="Receipt recorded locally; pending synchronization to Supabase backend"
+                                      >
+                                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                        <span>Pending Sync</span>
+                                      </span>
+                                      <button
+                                        type="button"
+                                        id={`btn-sync-receipt-${rec.id.toLowerCase()}`}
+                                        disabled={syncingReceiptId === rec.id}
+                                        onClick={() => handleTriggerReceiptSync(rec.id)}
+                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-all cursor-pointer disabled:opacity-50"
+                                        title="Push this receipt to Supabase backend now"
+                                      >
+                                        <RefreshCw size={9} className={syncingReceiptId === rec.id ? 'animate-spin' : ''} />
+                                        {syncingReceiptId === rec.id ? 'Pushing...' : 'Sync Now'}
+                                      </button>
+                                    </div>
+                                  )}
                                 </td>
                                 <td className="px-4 py-3 text-center">
                                   <div className="flex items-center justify-center gap-1.5">
@@ -10128,27 +10431,71 @@ ${data.log}`
                           <div>• Transaction Method: <strong>{selectedReceiptAdmin.paymentMethod}</strong></div>
                           {selectedReceiptAdmin.transactionId && <div>• Reference Trans ID: <strong>{selectedReceiptAdmin.transactionId}</strong></div>}
                           <div>• Payment Status: <strong>Completed & Reconciled</strong></div>
+                          <div className="flex items-center gap-1.5 pt-1">
+                            <span>• Supabase Backend:</span>
+                            {selectedReceiptAdmin.synced !== false ? (
+                              <span
+                                id={`badge-modal-sync-${selectedReceiptAdmin.id.toLowerCase()}`}
+                                className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full"
+                              >
+                                <CheckCircle size={10} className="text-emerald-600" />
+                                Synced to Supabase {selectedReceiptAdmin.syncedAt ? `(${new Date(selectedReceiptAdmin.syncedAt).toLocaleDateString()})` : '✓'}
+                              </span>
+                            ) : (
+                              <span
+                                id={`badge-modal-sync-${selectedReceiptAdmin.id.toLowerCase()}`}
+                                className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded-full"
+                              >
+                                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                Pending Backend Sync
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         {/* Bottom buttons */}
-                        <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
-                          <button
-                            id="btn-print-admin-cancel"
-                            onClick={() => setSelectedReceiptAdmin(null)}
-                            className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
-                          >
-                            Close
-                          </button>
-                          <button
-                            id="btn-print-admin-pdf-trigger"
-                            onClick={() => {
-                              alert("Voucher file sent to local system printer successfully.");
-                              setSelectedReceiptAdmin(null);
-                            }}
-                            className="rounded-xl bg-indigo-900 px-4 py-2 text-xs font-bold text-white shadow hover:bg-indigo-950"
-                          >
-                            Print Receipt
-                          </button>
+                        <div className="flex justify-between items-center border-t border-slate-100 pt-4">
+                          <div>
+                            {selectedReceiptAdmin.synced === false && (
+                              <button
+                                type="button"
+                                id={`btn-modal-sync-action-${selectedReceiptAdmin.id.toLowerCase()}`}
+                                disabled={syncingReceiptId === selectedReceiptAdmin.id}
+                                onClick={async () => {
+                                  await handleTriggerReceiptSync(selectedReceiptAdmin.id);
+                                  setSelectedReceiptAdmin({
+                                    ...selectedReceiptAdmin,
+                                    synced: true,
+                                    syncStatus: 'SYNCED',
+                                    syncedAt: new Date().toISOString()
+                                  });
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 px-3 py-2 text-xs font-bold text-amber-800 transition cursor-pointer"
+                              >
+                                <RefreshCw size={12} className={syncingReceiptId === selectedReceiptAdmin.id ? 'animate-spin' : ''} />
+                                {syncingReceiptId === selectedReceiptAdmin.id ? 'Syncing...' : 'Sync to Supabase'}
+                              </button>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              id="btn-print-admin-cancel"
+                              onClick={() => setSelectedReceiptAdmin(null)}
+                              className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                            >
+                              Close
+                            </button>
+                            <button
+                              id="btn-print-admin-pdf-trigger"
+                              onClick={() => {
+                                alert("Voucher file sent to local system printer successfully.");
+                                setSelectedReceiptAdmin(null);
+                              }}
+                              className="rounded-xl bg-indigo-900 px-4 py-2 text-xs font-bold text-white shadow hover:bg-indigo-950 cursor-pointer"
+                            >
+                              Print Receipt
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -17919,12 +18266,13 @@ ${data.log}`
                           <th className="p-3">Method</th>
                           <th className="p-3">Transaction Info</th>
                           <th className="p-3">Collected On</th>
+                          <th className="p-3 text-center">Supabase Sync</th>
                         </tr>
                       </thead>
                       <tbody>
                         {feeReceipts.filter(r => r.studentId === editingStudent?.id).length === 0 ? (
                           <tr>
-                            <td colSpan={6} className="p-6 text-center text-slate-400 font-medium">
+                            <td colSpan={7} className="p-6 text-center text-slate-400 font-medium">
                               No payment receipts found. Use "Quick Collect" from dashboard to capture real transactions.
                             </td>
                           </tr>
@@ -17942,6 +18290,20 @@ ${data.log}`
                               <td className="p-3 font-mono text-slate-500">{r.transactionId || '—'}</td>
                               <td className="p-3 text-slate-500 font-mono">
                                 {r.date || new Date().toISOString().split('T')[0]}
+                              </td>
+                              <td className="p-3 text-center">
+                                <span
+                                  id={`badge-edit-student-sync-${r.id.toLowerCase()}`}
+                                  className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full border ${
+                                    r.synced !== false
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                      : 'bg-amber-50 text-amber-700 border-amber-200'
+                                  }`}
+                                  title={r.synced !== false ? 'Confirmed synced to Supabase backend' : 'Pending backend sync'}
+                                >
+                                  <span className={`h-1.5 w-1.5 rounded-full ${r.synced !== false ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></span>
+                                  {r.synced !== false ? 'Synced' : 'Pending'}
+                                </span>
                               </td>
                             </tr>
                           ))
@@ -19539,6 +19901,26 @@ ${data.log}`
                 </span>
               </motion.button>
 
+              {/* Scan Fee Receipt QR */}
+              <motion.button
+                key="btn-quick-scan-qr"
+                id="btn-quick-scan-fee-receipt-qr"
+                initial={{ opacity: 0, y: 15, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 15, scale: 0.9 }}
+                transition={{ duration: 0.15, delay: 0.08 }}
+                onClick={() => {
+                  setIsQuickActionOpen(false);
+                  setIsQrScannerOpen(true);
+                }}
+                className="flex items-center gap-2.5 rounded-2xl bg-white border border-slate-200 px-4 py-3 shadow-lg hover:border-amber-500 hover:shadow-xl transition-all cursor-pointer group"
+              >
+                <span className="text-[11px] font-extrabold text-slate-700 tracking-wide group-hover:text-indigo-900">Scan Fee Receipt QR</span>
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-all">
+                  <QrCode size={16} />
+                </span>
+              </motion.button>
+
               {/* Send Global Announcement */}
               <motion.button
                 key="btn-quick-announcement"
@@ -19580,6 +19962,58 @@ ${data.log}`
           )}
         </button>
       </div>
+
+      {/* Rapid Fee Receipt QR Scanner Modal */}
+      <FeeReceiptQrScannerModal
+        isOpen={isQrScannerOpen}
+        onClose={() => setIsQrScannerOpen(false)}
+        feeReceipts={feeReceipts}
+        students={students}
+        jwtToken={getCachedIdToken() || ''}
+        onViewInLedger={(receipt) => {
+          setFeeSearchQuery(receipt.studentName || '');
+          setActiveTab('fees');
+          setFeeSubTab('payment-history');
+        }}
+      />
+
+      {/* Real-time Supabase Sync Toast Notification */}
+      <AnimatePresence>
+        {syncFeedbackToast && (
+          <motion.div
+            id="toast-sync-feedback"
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 15, scale: 0.95 }}
+            className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl px-5 py-3.5 text-xs font-bold shadow-2xl border backdrop-blur-md ${
+              syncFeedbackToast.type === 'success'
+                ? 'bg-slate-950/95 text-emerald-300 border-emerald-500/40 shadow-emerald-950/40'
+                : syncFeedbackToast.type === 'error'
+                ? 'bg-slate-950/95 text-rose-300 border-rose-500/40 shadow-rose-950/40'
+                : 'bg-slate-950/95 text-indigo-300 border-indigo-500/40 shadow-indigo-950/40'
+            }`}
+          >
+            {syncFeedbackToast.type === 'success' ? (
+              <CheckCircle size={17} className="text-emerald-400 shrink-0" />
+            ) : (
+              <AlertCircle size={17} className="text-rose-400 shrink-0" />
+            )}
+            <div className="flex flex-col">
+              <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">Supabase Backend Sync</span>
+              <span className="text-white text-xs">{syncFeedbackToast.message}</span>
+            </div>
+            <button
+              type="button"
+              id="btn-dismiss-sync-toast"
+              onClick={() => setSyncFeedbackToast(null)}
+              className="ml-3 text-slate-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+              title="Dismiss notification"
+            >
+              <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

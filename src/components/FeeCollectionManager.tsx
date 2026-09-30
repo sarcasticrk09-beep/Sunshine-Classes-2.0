@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Search, CreditCard, CheckCircle2, XCircle, AlertCircle, FileText, Printer, History, ClipboardCheck, ArrowRight, ArrowLeft, Download, Send, ExternalLink, Lock } from 'lucide-react';
+import { Search, CreditCard, CheckCircle2, XCircle, AlertCircle, FileText, Printer, History, ClipboardCheck, ArrowRight, ArrowLeft, Download, Send, ExternalLink, Lock, QrCode } from 'lucide-react';
 import { generateReceiptPdf } from '../lib/pdfGenerator';
 import QRCode from 'qrcode';
+import { FeeReceiptQrScannerModal } from './common/FeeReceiptQrScannerModal';
 
 interface Student {
   id: string;
@@ -85,6 +86,7 @@ export function FeeCollectionManager({ jwtToken }: { jwtToken: string }) {
   // Receipt Lookup state
   const [lookupReceiptNumber, setLookupReceiptNumber] = useState('');
   const [lookupResult, setLookupResult] = useState<Receipt | null>(null);
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
 
   // Dynamic QR and PDF Download Handler
   const handleDownloadPDF = async (receipt: any) => {
@@ -1015,9 +1017,18 @@ export function FeeCollectionManager({ jwtToken }: { jwtToken: string }) {
             <button
               type="submit"
               id="lookup-receipt-submit-btn"
-              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg transition shadow-md"
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg transition shadow-md cursor-pointer"
             >
               Lookup Receipt
+            </button>
+            <button
+              type="button"
+              id="btn-lookup-scan-qr"
+              onClick={() => setIsQrScannerOpen(true)}
+              className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3.5 py-2.5 rounded-lg transition shadow-md flex items-center gap-1.5 cursor-pointer"
+              title="Scan QR Code on Fee Receipt"
+            >
+              <QrCode className="w-4 h-4" /> Scan QR
             </button>
           </form>
 
@@ -1272,6 +1283,18 @@ export function FeeCollectionManager({ jwtToken }: { jwtToken: string }) {
           </div>
         </div>
       )}
+
+      {/* QR Code Scanner Modal */}
+      <FeeReceiptQrScannerModal
+        isOpen={isQrScannerOpen}
+        onClose={() => setIsQrScannerOpen(false)}
+        jwtToken={jwtToken}
+        onViewInLedger={(receipt) => {
+          setLookupReceiptNumber(receipt.receiptNumber || receipt.id);
+          setActiveSubTab('lookup');
+          handleViewReceiptDirectly(receipt.receiptNumber || receipt.id);
+        }}
+      />
     </div>
   );
 

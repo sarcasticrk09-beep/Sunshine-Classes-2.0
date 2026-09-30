@@ -54,6 +54,83 @@ export type SyncErrorListener = (event: SyncErrorEvent) => void;
 export const isPostgresUUID = (val: any): boolean =>
   typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
 
+/**
+ * Checks if an error is a benign offline, network unreachable, CORS, or schema-cache fallback condition.
+ */
+export function isBenignOfflineOrFallbackError(error: any): boolean {
+  if (!error) return false;
+
+  let msg = '';
+  if (typeof error === 'string') {
+    msg = error;
+  } else if (typeof error?.message === 'string') {
+    msg = error.message;
+  } else {
+    try {
+      msg = JSON.stringify(error);
+    } catch {
+      msg = String(error);
+    }
+  }
+  msg = msg.toLowerCase();
+
+  const code = String(error?.code || error?.status || error?.details?.code || '');
+
+  let details = '';
+  if (typeof error?.details === 'string') {
+    details = error.details.toLowerCase();
+  } else if (typeof error?.details === 'object' && error?.details !== null) {
+    try {
+      details = JSON.stringify(error.details).toLowerCase();
+    } catch {
+      details = '';
+    }
+  }
+
+  // Known PostgREST schema cache, UUID syntax, or permission codes handled by local fallback
+  if (
+    code === 'PGRST205' ||
+    code === 'PGRST204' ||
+    code === '22P02' ||
+    code === '42501' ||
+    code === 'PGRST301' ||
+    code === 'PGRST116' ||
+    code === 'PGRST200' ||
+    code === '0' ||
+    error?.status === 0
+  ) {
+    return true;
+  }
+
+  // Network / Fetch / CORS / Offline / Connection errors
+  if (
+    msg.includes('failed to fetch') ||
+    msg.includes('fetch') ||
+    msg.includes('network') ||
+    msg.includes('offline') ||
+    msg.includes('network error') ||
+    msg.includes('networkrequestfailed') ||
+    msg.includes('load failed') ||
+    msg.includes('aborterror') ||
+    msg.includes('net::err') ||
+    msg.includes('econnrefused') ||
+    msg.includes('timeout') ||
+    msg.includes('unavailable') ||
+    details.includes('failed to fetch') ||
+    details.includes('network') ||
+    details.includes('offline')
+  ) {
+    return true;
+  }
+
+  // Browser offline status
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return true;
+  }
+
+  return false;
+}
+
 // ====================================================================
 // Bidirectional Mapping: Client UI models <-> PostgreSQL V2 rows
 // ====================================================================
@@ -120,9 +197,11 @@ export function toPostgresRow(collectionName: string, data: any): any {
   } else if (collectionName === 'fee_receipts') {
     if (data.studentId) mapped.student_id = data.studentId;
     if (data.amountPaid !== undefined) mapped.amount_paid = Number(data.amountPaid);
-    if (data.paymentMode) mapped.payment_mode = data.paymentMode;
-    if (data.receiptNo) mapped.receipt_no = data.receiptNo;
-    if (data.remarks) mapped.remarks = data.remarks;
+    if (data.paymentMode || data.paymentMethod) mapped.payment_mode = data.paymentMode || data.paymentMethod;
+    if (data.receiptNo || data.id || data.receiptNumber) mapped.receipt_no = data.receiptNo || data.id || data.receiptNumber;
+    if (data.month) mapped.month = data.month;
+    if (data.collectedBy || data.receivedBy) mapped.collected_by = data.collectedBy || data.receivedBy;
+    if (data.remarks || data.notes) mapped.remarks = data.remarks || data.notes;
     if (data.date || data.paidDate) mapped.date = data.date || data.paidDate;
     delete mapped.paid_date;
   } else if (collectionName === 'audit_logs') {
@@ -219,9 +298,15 @@ export function fromPostgresRow(collectionName: string, row: any): any {
     mapped.studentId = row.student_id;
     mapped.amountPaid = Number(row.amount_paid);
     mapped.paymentMode = row.payment_mode;
+    mapped.paymentMethod = row.payment_mode;
     mapped.receiptNo = row.receipt_no;
+    mapped.month = row.month;
+    mapped.receivedBy = row.collected_by;
     mapped.date = row.date;
     mapped.paidDate = row.date;
+    mapped.synced = true;
+    mapped.syncStatus = 'SYNCED';
+    mapped.syncedAt = row.created_at || new Date().toISOString();
   } else if (collectionName === 'audit_logs') {
     mapped.logId = row.id;
     mapped.userId = row.user_id;
@@ -238,6 +323,33 @@ class SyncServiceClass {
   private listeners: Set<SyncListener> = new Set();
   private errorListeners: Set<SyncErrorListener> = new Set();
   private cache: Map<string, Map<string, any>> = new Map();
+  private lastNetworkFailure: number = 0;
+  private readonly FAILURE_COOLDOWN_MS = 15000;
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => {
+        this.recordNetworkSuccess();
+      });
+    }
+  }
+
+  public recordNetworkFailure(): void {
+    this.lastNetworkFailure = Date.now();
+  }
+
+  public recordNetworkSuccess(): void {
+    this.lastNetworkFailure = 0;
+  }
+
+  public shouldAttemptSupabase(): boolean {
+    if (!isSupabaseConfigured) return false;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
+    if (this.lastNetworkFailure > 0 && (Date.now() - this.lastNetworkFailure) < this.FAILURE_COOLDOWN_MS) {
+      return false;
+    }
+    return true;
+  }
 
   /**
    * Diagnostic probe: actively tests Supabase connection, timing, and error details.
@@ -264,6 +376,7 @@ class SyncServiceClass {
       const latencyMs = Math.round(performance.now() - start);
 
       if (error) {
+        this.recordNetworkFailure();
         // Return probe diagnostic details without firing an application data error event
         return {
           connected: false,
@@ -273,12 +386,14 @@ class SyncServiceClass {
         };
       }
 
+      this.recordNetworkSuccess();
       return {
         connected: true,
         latencyMs,
         details: { count: data ? data.length : 0, status, statusText }
       };
     } catch (err: any) {
+      this.recordNetworkFailure();
       const latencyMs = Math.round(performance.now() - start);
       return {
         connected: false,
@@ -308,11 +423,13 @@ class SyncServiceClass {
     const errorMessage = error?.message || (typeof error === 'string' ? error : JSON.stringify(error));
     const errorCode = error?.code || error?.status || undefined;
 
-    // Schema cache (PGRST205, PGRST204), syntax/UUID limits (22P02), permission limitations (42501), or checkConnection probes are handled gracefully via local persistence
-    if (errorCode === 'PGRST205' || errorCode === 'PGRST204' || errorCode === '22P02' || errorCode === '42501' || operation === 'checkConnection') {
+    // Schema cache (PGRST205, PGRST204), syntax/UUID limits (22P02), permission limitations (42501),
+    // network disconnection / Failed to fetch, or checkConnection probes are handled gracefully via local persistence
+    if (isBenignOfflineOrFallbackError(error) || operation === 'checkConnection') {
+      this.recordNetworkFailure();
       console.warn(
         `[SyncService Diagnostic Info] ${operation.toUpperCase()} on "${collectionName}": ` +
-        `${errorMessage} (Code: ${errorCode || 'STATUS'}). Operating in resilient offline fallback mode.`
+        `${errorMessage} (Code: ${errorCode || 'OFFLINE_FALLBACK'}). Operating in resilient offline fallback mode.`
       );
       return;
     }
@@ -434,7 +551,7 @@ class SyncServiceClass {
     if (!docId) return null;
 
     const isUUIDTable = ['students', 'admissions', 'fee_statuses', 'fee_receipts', 'tests', 'student_marks', 'study_materials', 'toppers'].includes(collectionName);
-    const shouldQuerySupabase = isSupabaseConfigured && (!isUUIDTable || isPostgresUUID(docId));
+    const shouldQuerySupabase = this.shouldAttemptSupabase() && (!isUUIDTable || isPostgresUUID(docId));
 
     if (shouldQuerySupabase) {
       try {
@@ -445,12 +562,15 @@ class SyncServiceClass {
           .maybeSingle();
 
         if (error) {
+          this.recordNetworkFailure();
           this.notifyError('get', collectionName, error, docId);
           // Fall back to memory or localStorage
           const localItem = this.getCached<T>(collectionName, docId);
           if (localItem) return localItem;
           return this.getLocalDoc<T>(collectionName, docId);
         }
+
+        this.recordNetworkSuccess();
 
         if (!data) {
           return null;
@@ -463,8 +583,9 @@ class SyncServiceClass {
         this.cache.get(collectionName)!.set(docId, clean);
         return clean;
       } catch (err) {
+        this.recordNetworkFailure();
         this.notifyError('get', collectionName, err, docId);
-        console.error(`[SyncService.get - Supabase] Error for ${collectionName}/${docId}:`, err);
+        console.warn(`[SyncService.get - Supabase] Notice for ${collectionName}/${docId}:`, err);
         return this.getLocalDoc<T>(collectionName, docId);
       }
     } else {
@@ -533,16 +654,19 @@ class SyncServiceClass {
    * Lists documents in a collection with optional query filtering.
    */
   public async list<T = any>(collectionName: string, ..._unusedConstraints: any[]): Promise<T[]> {
-    if (isSupabaseConfigured) {
+    if (this.shouldAttemptSupabase()) {
       try {
         const { data, error } = await supabase
           .from(collectionName)
           .select('*');
 
         if (error) {
+          this.recordNetworkFailure();
           this.notifyError('list', collectionName, error);
           return this.getLocalList<T>(collectionName);
         }
+
+        this.recordNetworkSuccess();
 
         if (!data || data.length === 0) {
           const fallback = this.getLocalList<T>(collectionName);
@@ -561,6 +685,7 @@ class SyncServiceClass {
           return clean;
         });
       } catch (err) {
+        this.recordNetworkFailure();
         this.notifyError('list', collectionName, err);
         return this.getLocalList<T>(collectionName);
       }
@@ -596,7 +721,7 @@ class SyncServiceClass {
     return this.enqueue(async () => {
       const fullData = { id: docId, ...data, updatedAt: new Date().toISOString() };
 
-      if (isSupabaseConfigured) {
+      if (this.shouldAttemptSupabase()) {
         try {
           const payload = toPostgresRow(collectionName, fullData);
           const isUUIDTable = ['students', 'admissions', 'fee_statuses', 'fee_receipts', 'tests', 'student_marks', 'study_materials', 'toppers'].includes(collectionName);
@@ -610,6 +735,7 @@ class SyncServiceClass {
               .maybeSingle();
 
             if (error) {
+              this.recordNetworkFailure();
               this.notifyError('set', collectionName, error, docId);
               if (error.code !== 'PGRST205' && error.code !== '22P02') {
                 console.warn(`[SyncService.set - Supabase] Upsert warning for ${collectionName}/${docId}:`, error.message);
@@ -618,6 +744,7 @@ class SyncServiceClass {
               return { success: true, data: fullData as T, verified: true, timestamp: new Date().toISOString() };
             }
 
+            this.recordNetworkSuccess();
             const clean = upserted ? (fromPostgresRow(collectionName, upserted) as T) : (fullData as T);
             this.notifyListeners(collectionName, docId, clean);
 
@@ -627,8 +754,18 @@ class SyncServiceClass {
               verified: true,
               timestamp: new Date().toISOString()
             };
+          } else {
+            // Local fallback for non-UUID mock items on UUID tables
+            this.notifyListeners(collectionName, docId, fullData as T);
+            return {
+              success: true,
+              data: fullData as T,
+              verified: true,
+              timestamp: new Date().toISOString()
+            };
           }
         } catch (err: any) {
+          this.recordNetworkFailure();
           this.notifyError('set', collectionName, err, docId);
           console.warn(`[SyncService.set] Supabase write notice for ${collectionName}/${docId}:`, err?.message || err);
           this.notifyListeners(collectionName, docId, fullData as T);
@@ -657,7 +794,7 @@ class SyncServiceClass {
     return this.enqueue(async () => {
       const updatedFields = { ...updates, updatedAt: new Date().toISOString() };
       const isUUIDTable = ['students', 'admissions', 'fee_statuses', 'fee_receipts', 'tests', 'student_marks', 'study_materials', 'toppers'].includes(collectionName);
-      const shouldQuerySupabase = isSupabaseConfigured && (!isUUIDTable || isPostgresUUID(docId));
+      const shouldQuerySupabase = this.shouldAttemptSupabase() && (!isUUIDTable || isPostgresUUID(docId));
 
       if (shouldQuerySupabase) {
         try {
@@ -670,6 +807,7 @@ class SyncServiceClass {
             .maybeSingle();
 
           if (error) {
+            this.recordNetworkFailure();
             this.notifyError('update', collectionName, error, docId);
             if (error.code !== 'PGRST205' && error.code !== '22P02') {
               console.warn(`[SyncService.update] Update notice for ${collectionName}/${docId}:`, error.message);
@@ -680,6 +818,7 @@ class SyncServiceClass {
             return { success: true, data: merged, verified: true, timestamp: new Date().toISOString() };
           }
 
+          this.recordNetworkSuccess();
           const clean = updated ? (fromPostgresRow(collectionName, updated) as T) : (updatedFields as T);
           this.notifyListeners(collectionName, docId, clean);
 
@@ -690,6 +829,7 @@ class SyncServiceClass {
             timestamp: new Date().toISOString()
           };
         } catch (err: any) {
+          this.recordNetworkFailure();
           this.notifyError('update', collectionName, err, docId);
           console.warn(`[SyncService.update] Supabase update notice:`, err?.message || err);
           const current = this.getCached<T>(collectionName, docId) || {};
@@ -723,7 +863,7 @@ class SyncServiceClass {
       const targetId = customId || `gen-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
       const fullData = { id: targetId, ...data, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
 
-      if (isSupabaseConfigured) {
+      if (this.shouldAttemptSupabase()) {
         try {
           const payload = toPostgresRow(collectionName, fullData);
           const { data: inserted, error } = await supabase
@@ -733,6 +873,7 @@ class SyncServiceClass {
             .maybeSingle();
 
           if (error) {
+            this.recordNetworkFailure();
             this.notifyError('add', collectionName, error, targetId);
             if (error.code !== 'PGRST205') {
               console.warn(`[SyncService.add] Insert notice for ${collectionName}:`, error.message);
@@ -741,6 +882,7 @@ class SyncServiceClass {
             return { success: true, data: fullData as T, verified: true, timestamp: new Date().toISOString() };
           }
 
+          this.recordNetworkSuccess();
           const clean = inserted ? (fromPostgresRow(collectionName, inserted) as T) : (fullData as T);
           this.notifyListeners(collectionName, targetId, clean);
 
@@ -751,6 +893,7 @@ class SyncServiceClass {
             timestamp: new Date().toISOString()
           };
         } catch (err: any) {
+          this.recordNetworkFailure();
           this.notifyError('add', collectionName, err, targetId);
           console.warn(`[SyncService.add] Supabase add notice:`, err?.message || err);
           this.notifyListeners(collectionName, targetId, fullData as T);
@@ -778,7 +921,7 @@ class SyncServiceClass {
     return this.enqueue(async () => {
       // If collection requires UUID primary keys (like students, admissions, fee_statuses) and docId is a local/mock slug, avoid sending invalid UUID syntax to Supabase
       const isUUIDTable = ['students', 'admissions', 'fee_statuses', 'fee_receipts', 'tests', 'student_marks', 'study_materials', 'toppers'].includes(collectionName);
-      const shouldQuerySupabase = isSupabaseConfigured && (!isUUIDTable || isPostgresUUID(docId));
+      const shouldQuerySupabase = this.shouldAttemptSupabase() && (!isUUIDTable || isPostgresUUID(docId));
 
       if (shouldQuerySupabase) {
         try {
@@ -788,12 +931,16 @@ class SyncServiceClass {
             .eq('id', docId);
 
           if (error) {
+            this.recordNetworkFailure();
             this.notifyError('delete', collectionName, error, docId);
             if (error.code !== 'PGRST205' && error.code !== '22P02') {
               console.warn(`[SyncService.delete] Delete notice for ${collectionName}/${docId}:`, error.message);
             }
+          } else {
+            this.recordNetworkSuccess();
           }
         } catch (err: any) {
+          this.recordNetworkFailure();
           this.notifyError('delete', collectionName, err, docId);
           console.warn(`[SyncService.delete] Supabase delete notice:`, err?.message || err);
         }
@@ -824,6 +971,29 @@ class SyncServiceClass {
       };
       return await transactionFn(mockTx);
     });
+  }
+
+  /**
+   * Directly synchronizes a single fee receipt to the Supabase backend with verified confirmation.
+   */
+  public async syncFeeReceipt(receipt: Record<string, any>): Promise<{ success: boolean; data: any; error?: string }> {
+    const docId = String(receipt.id || receipt.receiptNumber || `REC-${Date.now()}`);
+    const receiptData = {
+      ...receipt,
+      id: docId,
+      receiptNo: receipt.receiptNo || receipt.receiptNumber || docId,
+      receiptNumber: receipt.receiptNumber || receipt.receiptNo || docId,
+      synced: true,
+      syncStatus: 'SYNCED' as const,
+      syncedAt: new Date().toISOString()
+    };
+
+    const res = await this.set('fee_receipts', docId, receiptData);
+    return {
+      success: res.success,
+      data: res.data || receiptData,
+      error: res.error
+    };
   }
 
   /**

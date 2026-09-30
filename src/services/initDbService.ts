@@ -75,6 +75,18 @@ export async function initializeAndSeedDatabase(): Promise<MigrationReport> {
   const seededUsersList: string[] = [];
   const seededSettingsList: string[] = [];
 
+  if (typeof window !== 'undefined' && localStorage.getItem('sunshine_db_seed_completed_v1') === 'true') {
+    return {
+      timestamp,
+      collectionsCreated,
+      seededClasses: SEEDED_CLASSES.map(c => c.className),
+      seededUsers: ['Priyanshu Gupta', 'Rajeev Kumar Verma'],
+      seededSettings: ['settings/permissions', 'settings/institute'],
+      status: 'SUCCESS',
+      message: 'Database architecture already verified and initialized.'
+    };
+  }
+
   try {
     // 1. Seed Classes (Class 1 to Class 10)
     for (const cls of SEEDED_CLASSES) {
@@ -221,6 +233,10 @@ export async function initializeAndSeedDatabase(): Promise<MigrationReport> {
       message: "Database architecture migrated and verified successfully with read-after-write verification."
     };
 
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sunshine_db_seed_completed_v1', 'true');
+    }
+
     console.log("[Migration] Database Architecture Seeded:", report);
     return report;
   } catch (err: any) {
@@ -239,6 +255,9 @@ export async function initializeAndSeedDatabase(): Promise<MigrationReport> {
 
 export async function forceResetDatabase(): Promise<void> {
   console.log("Starting forced database reset to clean up fake data and update credentials...");
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('sunshine_db_seed_completed_v1');
+  }
   
   const collectionsToReset = [
     { key: 'students', seed: SEED_STUDENTS },

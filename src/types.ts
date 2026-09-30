@@ -374,6 +374,11 @@ export interface FeeReceipt {
   issuedAt?: string;
   verificationHash?: string;
   status?: 'VALID' | 'VOID' | 'REFUNDED';
+
+  // Backend Sync Status
+  synced?: boolean;
+  syncedAt?: string;
+  syncStatus?: 'SYNCED' | 'PENDING' | 'ERROR';
 }
 
 export interface FeeStatus {
