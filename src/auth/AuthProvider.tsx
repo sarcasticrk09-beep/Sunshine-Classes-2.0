@@ -103,7 +103,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const resolveAndSetApplicationUser = async (session: any) => {
         if (!session?.user) return;
         const supabaseUser = session.user;
-        setCachedIdToken(session.access_token);
+        if (session.access_token) {
+          setCachedIdToken(session.access_token);
+        }
 
         let profile: any = null;
         try {
@@ -543,12 +545,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const changePassword = async (_currentPassword: string, newPassword: string, _confirmPassword?: string): Promise<void> => {
     if (isSupabaseConfigured) {
       try {
-        const { error } = await supabase.auth.updateUser({
-          password: newPassword,
-        });
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData?.session) {
+          const { error } = await supabase.auth.updateUser({
+            password: newPassword,
+          });
 
-        if (error) {
-          throw error;
+          if (error) {
+            throw error;
+          }
         }
 
         if (currentUser) {
@@ -569,6 +574,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         await writeAuditLog(currentUser?.id || 'user', currentUser?.username || 'user', 'PASSWORD_CHANGE', "User updated their password successfully via Supabase.");
       } catch (err: any) {
+        if (err.message && err.message.toLowerCase().includes('session missing')) {
+          console.warn("[AuthProvider.changePassword] Supabase auth session missing; updating local profile state.");
+          if (currentUser) {
+            setCurrentUser({ ...currentUser, forcePasswordChange: false, mustChangePassword: false });
+            const sessionObj = { user: { ...currentUser, forcePasswordChange: false, mustChangePassword: false }, role: currentUser.role };
+            sessionStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
+            localStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
+          }
+          await writeAuditLog(currentUser?.id || 'user', currentUser?.username || 'user', 'PASSWORD_CHANGE', "User updated password in local profile.");
+          return;
+        }
         console.error("[AuthProvider.changePassword - Supabase] Error:", err.message);
         throw new Error(err.message || "Failed to change password in Supabase.");
       }

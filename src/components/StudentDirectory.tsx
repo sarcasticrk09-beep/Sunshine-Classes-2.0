@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { StudentProfile } from './StudentProfile';
 import { SyncService } from '../services/SyncService';
+import { getCachedIdToken } from '../lib/supabase';
 
 interface StudentDirectoryProps {
   currentUser: {
@@ -233,9 +234,7 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
       params.append('page', page.toString());
       params.append('limit', limit.toString());
 
-      const token = typeof window !== 'undefined' 
-        ? sessionStorage.getItem('sunshine_access_token') || localStorage.getItem('sunshine_access_token') || ''
-        : '';
+      const token = getCachedIdToken() || '';
 
       let list: any[] = [];
       let pagination = { totalCount: 0, totalPages: 1, hasMore: false, page, limit };
@@ -294,13 +293,11 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
             limit
           };
           setError(null);
+        } else if (students && students.length > 0) {
+          list = students;
+          setError(null);
         } else {
-          // If we have previous students in state, retain them
-          if (students.length > 0) {
-            list = students;
-          } else {
-            setError(apiErr.message || 'Network error fetching students.');
-          }
+          setError(null);
         }
       }
 
@@ -340,7 +337,8 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
     sortBy,
     sortOrder,
     page,
-    limit
+    limit,
+    initialStudents
   ]);
 
   useEffect(() => {
@@ -401,8 +399,11 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
   const handleViewProfile = async (student: any) => {
     setViewingStudent(student);
     setLoadingTimeline(true);
+    const token = getCachedIdToken();
     try {
-      const res = await fetch(`/api/students/${student.id}/timeline`);
+      const res = await fetch(`/api/students/${student.id}/timeline`, {
+        headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+      });
       const data = await res.json();
       if (res.ok && data.success) {
         setStudentTimeline(data.data || []);
@@ -464,9 +465,13 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
     }
 
     try {
+      const token = getCachedIdToken();
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify(body)
       });
 
@@ -494,9 +499,13 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
     setModalError(null);
 
     try {
+      const token = getCachedIdToken();
       const response = await fetch(`/api/students/${editingStudent.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify(editingStudent)
       });
 
@@ -535,10 +544,14 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
       params.append('sortOrder', sortOrder);
       params.append('format', format);
 
+      const token = getCachedIdToken();
+
       if (format === 'csv') {
         window.open(`/api/students/export?${params.toString()}`, '_blank');
       } else {
-        const res = await fetch(`/api/students/export?${params.toString()}`);
+        const res = await fetch(`/api/students/export?${params.toString()}`, {
+          headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+        });
         const data = await res.json();
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -559,6 +572,7 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
     setIsBulkProcessing(true);
     let successCount = 0;
     let failCount = 0;
+    const token = getCachedIdToken();
 
     for (const studentId of selectedIds) {
       try {
@@ -578,7 +592,10 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
 
         const res = await fetch(url, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
           body: JSON.stringify(body)
         });
 

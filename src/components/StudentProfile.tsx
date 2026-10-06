@@ -43,6 +43,7 @@ import {
   Tag
 } from 'lucide-react';
 import { StudentFeeSettingsView } from './StudentFeeSettingsView';
+import { getCachedIdToken } from '../lib/supabase';
 
 interface StudentProfileProps {
   studentId: string;
@@ -132,8 +133,11 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({
   const fetchClassHistory = useCallback(async () => {
     if (!studentId) return;
     setLoadingClassHistory(true);
+    const token = getCachedIdToken();
     try {
-      const res = await fetch(`/api/students/${studentId}/class-history`);
+      const res = await fetch(`/api/students/${studentId}/class-history`, {
+        headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+      });
       const data = await res.json();
       if (res.ok && data.success) {
         setClassHistory(data.data || []);
@@ -148,8 +152,11 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({
   const fetchTeacherHistory = useCallback(async () => {
     if (!studentId) return;
     setLoadingTeacherHistory(true);
+    const token = getCachedIdToken();
     try {
-      const res = await fetch(`/api/students/${studentId}/teacher-history`);
+      const res = await fetch(`/api/students/${studentId}/teacher-history`, {
+        headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+      });
       const data = await res.json();
       if (res.ok && data.success) {
         setTeacherHistory(data.data || []);
@@ -169,10 +176,14 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({
   const handleAssignTeacherSubmit = async () => {
     setAssignTeacherSubmitting(true);
     setAssignTeacherError(null);
+    const token = getCachedIdToken();
     try {
       const res = await fetch(`/api/students/${studentId}/assign-teacher`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify(assignTeacherForm)
       });
       const data = await res.json();
@@ -196,10 +207,14 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({
   const handleTransferSubmit = async () => {
     setTransferSubmitting(true);
     setTransferError(null);
+    const token = getCachedIdToken();
     try {
       const res = await fetch(`/api/students/${studentId}/change-class`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify(transferForm)
       });
       const data = await res.json();
@@ -444,9 +459,13 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({
         return;
       }
 
+      const token = getCachedIdToken();
       const response = await fetch(`/api/students/${studentId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify(patchPayload)
       });
 
@@ -482,8 +501,11 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({
     setLoading(true);
     setError(null);
 
+    const token = getCachedIdToken();
     try {
-      const res = await fetch(`/api/students/${studentId}`);
+      const res = await fetch(`/api/students/${studentId}`, {
+        headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+      });
       const data = await res.json();
 
       if (!res.ok || !data.success) {
@@ -513,8 +535,11 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({
     if (timelineLoaded || loadingTimeline) return;
     setLoadingTimeline(true);
 
+    const token = getCachedIdToken();
     try {
-      const res = await fetch(`/api/students/${studentId}/timeline`);
+      const res = await fetch(`/api/students/${studentId}/timeline`, {
+        headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+      });
       const data = await res.json();
 
       if (res.ok && data.success) {
@@ -569,9 +594,13 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({
     }
 
     try {
+      const token = getCachedIdToken();
       const response = await fetch(url, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify(body)
       });
 
@@ -596,10 +625,14 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({
   // Handle Document Upload / Replace / Soft Delete
   const handleDocumentUpdate = async (updatedDocs: any) => {
     setLoading(true);
+    const token = getCachedIdToken();
     try {
       const response = await fetch(`/api/students/${studentId}/documents`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify(updatedDocs)
       });
 
