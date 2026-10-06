@@ -38,6 +38,7 @@ import {
 import { StudentProfile } from './StudentProfile';
 import { SyncService } from '../services/SyncService';
 import { getCachedIdToken } from '../lib/supabase';
+import { useStudentDirectory } from '../hooks/useStudentDirectory';
 
 interface StudentDirectoryProps {
   currentUser: {
@@ -111,54 +112,56 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
   const canReassignClassOrTeacher = ['SUPER_ADMIN', 'ADMIN'].includes(role);
   const canDelete = ['SUPER_ADMIN', 'ADMIN'].includes(role);
 
-  // Filters State
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [selectedClass, setSelectedClass] = useState('');
-  const [selectedTeacher, setSelectedTeacher] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('ALL');
-  const [selectedGender, setSelectedGender] = useState('ALL');
-  const [admissionYear, setAdmissionYear] = useState('');
-  const [joinedDate, setJoinedDate] = useState('');
-  const [updatedDate, setUpdatedDate] = useState('');
-  const [hasDocuments, setHasDocuments] = useState('ALL');
-  const [hasPhoto, setHasPhoto] = useState('ALL');
-  const [missingMobile, setMissingMobile] = useState('ALL');
-  const [missingEmail, setMissingEmail] = useState('ALL');
-  const [hasConcession, setHasConcession] = useState('ALL');
-  const [concessionPercentageFilter, setConcessionPercentageFilter] = useState('');
-
-  // Sorting & Pagination State
-  const [sortBy, setSortBy] = useState('rollNo');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState<number>(() => {
-    const saved = localStorage.getItem('sunshine_directory_limit');
-    return saved ? parseInt(saved, 10) : 25;
+  // Hook-powered student data fetching with resilient multi-tier fallback
+  const {
+    students,
+    paginationInfo,
+    loading,
+    networkError,
+    isOfflineFallback,
+    filters: {
+      searchTerm,
+      debouncedSearch,
+      selectedClass,
+      selectedTeacher,
+      selectedStatus,
+      selectedGender,
+      admissionYear,
+      joinedDate,
+      updatedDate,
+      hasDocuments,
+      hasPhoto,
+      missingMobile,
+      missingEmail,
+      hasConcession,
+      concessionPercentageFilter,
+      sortBy,
+      sortOrder,
+      page,
+      limit
+    },
+    setSearchTerm,
+    setSelectedClass,
+    setSelectedTeacher,
+    setSelectedStatus,
+    setSelectedGender,
+    setAdmissionYear,
+    setHasDocuments,
+    setHasPhoto,
+    setMissingMobile,
+    setMissingEmail,
+    setHasConcession,
+    setConcessionPercentageFilter,
+    setPage,
+    handleSort,
+    handleLimitChange,
+    handleResetFilters,
+    refetch,
+    restoreSeedFallback
+  } = useStudentDirectory({
+    initialStudents,
+    defaultLimit: 25
   });
-
-  // Data & API State
-  const [students, setStudents] = useState<any[]>(initialStudents || []);
-  const [paginationInfo, setPaginationInfo] = useState<any>({
-    totalCount: initialStudents?.length || 0,
-    totalPages: Math.max(1, Math.ceil((initialStudents?.length || 0) / limit)),
-    hasMore: false,
-    lastDocId: null
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Sync initial students if provided later and current state is empty
-  useEffect(() => {
-    if (initialStudents && initialStudents.length > 0 && students.length === 0) {
-      setStudents(initialStudents);
-      setPaginationInfo((prev: any) => ({
-        ...prev,
-        totalCount: initialStudents.length,
-        totalPages: Math.max(1, Math.ceil(initialStudents.length / limit))
-      }));
-    }
-  }, [initialStudents, limit, students.length]);
 
   // Selection & Bulk Actions
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -191,184 +194,10 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
   // Filter Bar Expand Toggle
   const [isAdvancedFilterOpen, setIsAdvancedFilterOpen] = useState(false);
 
-  // Save Page Limit
-  const handleLimitChange = (newLimit: number) => {
-    setLimit(newLimit);
-    setPage(1);
-    localStorage.setItem('sunshine_directory_limit', newLimit.toString());
-  };
-
-  // Debounce Search Term
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchTerm);
-      setPage(1);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
-  // Fetch Students
-  const fetchStudents = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const params = new URLSearchParams();
-      if (debouncedSearch) params.append('search', debouncedSearch);
-      if (selectedClass) params.append('className', selectedClass);
-      if (selectedTeacher) params.append('teacherId', selectedTeacher);
-      if (selectedStatus && selectedStatus !== 'ALL') params.append('status', selectedStatus);
-      if (selectedGender && selectedGender !== 'ALL') params.append('gender', selectedGender);
-      if (admissionYear) params.append('admissionYear', admissionYear);
-      if (joinedDate) params.append('joinedDate', joinedDate);
-      if (updatedDate) params.append('updatedDate', updatedDate);
-      if (hasDocuments !== 'ALL') params.append('hasDocuments', hasDocuments);
-      if (hasPhoto !== 'ALL') params.append('hasPhoto', hasPhoto);
-      if (missingMobile !== 'ALL') params.append('missingMobile', missingMobile);
-      if (missingEmail !== 'ALL') params.append('missingEmail', missingEmail);
-      if (hasConcession !== 'ALL') params.append('hasConcession', hasConcession);
-      if (concessionPercentageFilter) params.append('concessionPercentage', concessionPercentageFilter);
-
-      params.append('sortBy', sortBy);
-      params.append('sortOrder', sortOrder);
-      params.append('page', page.toString());
-      params.append('limit', limit.toString());
-
-      const token = getCachedIdToken() || '';
-
-      let list: any[] = [];
-      let pagination = { totalCount: 0, totalPages: 1, hasMore: false, page, limit };
-
-      try {
-        const response = await fetch(`/api/students?${params.toString()}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          credentials: 'include'
-        });
-        const data = await response.json();
-
-        if (response.ok && data.success) {
-          const rawList = Array.isArray(data.data)
-            ? data.data
-            : Array.isArray(data.data?.data)
-            ? data.data.data
-            : Array.isArray(data.students)
-            ? data.students
-            : [];
-          list = rawList;
-          pagination = data.pagination || data.data?.pagination || {
-            totalCount: rawList.length,
-            totalPages: Math.max(1, Math.ceil(rawList.length / limit)),
-            hasMore: false,
-            page,
-            limit
-          };
-          setError(null);
-        } else {
-          throw new Error(data.message || data.error || 'Failed to fetch student directory.');
-        }
-      } catch (apiErr: any) {
-        console.warn('[StudentDirectory] API call failed, falling back to SyncService/local data:', apiErr.message);
-        const localList = await SyncService.list<any>('students').catch(() => []);
-        if (localList && localList.length > 0) {
-          list = localList;
-          pagination = {
-            totalCount: localList.length,
-            totalPages: Math.max(1, Math.ceil(localList.length / limit)),
-            hasMore: false,
-            page,
-            limit
-          };
-          setError(null);
-        } else if (initialStudents && initialStudents.length > 0) {
-          list = initialStudents;
-          pagination = {
-            totalCount: initialStudents.length,
-            totalPages: Math.max(1, Math.ceil(initialStudents.length / limit)),
-            hasMore: false,
-            page,
-            limit
-          };
-          setError(null);
-        } else if (students && students.length > 0) {
-          list = students;
-          setError(null);
-        } else {
-          setError(null);
-        }
-      }
-
-      // Final fallback to initialStudents if list is empty without active filters
-      if (list.length === 0 && initialStudents && initialStudents.length > 0 && !debouncedSearch && !selectedClass && !selectedTeacher && selectedStatus === 'ALL') {
-        list = initialStudents;
-        pagination = {
-          totalCount: initialStudents.length,
-          totalPages: Math.max(1, Math.ceil(initialStudents.length / limit)),
-          hasMore: false,
-          page,
-          limit
-        };
-        setError(null);
-      }
-
-      setStudents(list);
-      setPaginationInfo(pagination);
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    debouncedSearch,
-    selectedClass,
-    selectedTeacher,
-    selectedStatus,
-    selectedGender,
-    admissionYear,
-    joinedDate,
-    updatedDate,
-    hasDocuments,
-    hasPhoto,
-    missingMobile,
-    missingEmail,
-    hasConcession,
-    concessionPercentageFilter,
-    sortBy,
-    sortOrder,
-    page,
-    limit,
-    initialStudents
-  ]);
-
-  useEffect(() => {
-    fetchStudents();
-  }, [fetchStudents]);
-
-  // Reset Filters
-  const handleResetFilters = () => {
-    setSearchTerm('');
-    setDebouncedSearch('');
-    setSelectedClass('');
-    setSelectedTeacher('');
-    setSelectedStatus('ALL');
-    setSelectedGender('ALL');
-    setAdmissionYear('');
-    setJoinedDate('');
-    setUpdatedDate('');
-    setHasDocuments('ALL');
-    setHasPhoto('ALL');
-    setMissingMobile('ALL');
-    setMissingEmail('ALL');
-    setHasConcession('ALL');
-    setConcessionPercentageFilter('');
-    setPage(1);
-  };
-
   // Checkbox Selection
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedIds(students.map(s => s.id));
+      setSelectedIds(students.map(s => s.id || s.studentId).filter(Boolean));
     } else {
       setSelectedIds([]);
     }
@@ -380,33 +209,23 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
     );
   };
 
-  // Sorting Toggle
-  const handleSort = (field: string) => {
-    if (sortBy === field) {
-      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSort(field, 'asc');
-    }
-  };
-
-  const setSort = (field: string, order: 'asc' | 'desc') => {
-    setSortBy(field);
-    setSortOrder(order);
-    setPage(1);
-  };
-
   // Fetch Timeline for View Profile
   const handleViewProfile = async (student: any) => {
     setViewingStudent(student);
     setLoadingTimeline(true);
     const token = getCachedIdToken();
+    const stId = student?.id || student?.studentId;
     try {
-      const res = await fetch(`/api/students/${student.id}/timeline`, {
-        headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setStudentTimeline(data.data || []);
+      if (stId) {
+        const res = await fetch(`/api/students/${stId}/timeline`, {
+          headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+        });
+        const data = await res.json().catch(() => null);
+        if (res.ok && data?.success) {
+          setStudentTimeline(data.data || []);
+        } else {
+          setStudentTimeline([]);
+        }
       } else {
         setStudentTimeline([]);
       }
@@ -422,7 +241,7 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
     setActiveActionModal({ type, student });
     setModalError(null);
     if (type === 'class') {
-      setModalInputClass(student.class || student.className || '');
+      setModalInputClass(student.class || student.className || student.preferredBatch || '');
     } else if (type === 'teacher') {
       setModalInputTeacher(student.assignedTeacher || '');
     } else if (type === 'status') {
@@ -446,21 +265,22 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
     setModalError(null);
 
     const { type, student } = activeActionModal;
+    const sId = student.id || student.studentId;
     let url = '';
     let method = 'PATCH';
     let body: any = {};
 
     if (type === 'class') {
-      url = `/api/students/${student.id}/class`;
+      url = `/api/students/${sId}/class`;
       body = { className: modalInputClass };
     } else if (type === 'teacher') {
-      url = `/api/students/${student.id}/teacher`;
+      url = `/api/students/${sId}/teacher`;
       body = { teacherId: modalInputTeacher };
     } else if (type === 'status') {
-      url = `/api/students/${student.id}/status`;
+      url = `/api/students/${sId}/status`;
       body = { status: modalInputStatus };
     } else if (type === 'documents') {
-      url = `/api/students/${student.id}/documents`;
+      url = `/api/students/${sId}/documents`;
       body = modalInputDocs;
     }
 
@@ -475,13 +295,13 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
         body: JSON.stringify(body)
       });
 
-      const data = await response.json();
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || 'Action failed.');
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.message || 'Action failed.');
       }
 
       setActiveActionModal(null);
-      fetchStudents();
+      refetch();
       if (onRefreshGlobalData) onRefreshGlobalData();
     } catch (err: any) {
       setModalError(err.message || 'Failed to update student record.');
@@ -500,7 +320,8 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
 
     try {
       const token = getCachedIdToken();
-      const response = await fetch(`/api/students/${editingStudent.id}`, {
+      const stId = editingStudent.id || editingStudent.studentId;
+      const response = await fetch(`/api/students/${stId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -509,13 +330,13 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
         body: JSON.stringify(editingStudent)
       });
 
-      const data = await response.json();
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || 'Failed to update profile.');
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.message || 'Failed to update profile.');
       }
 
       setEditingStudent(null);
-      fetchStudents();
+      refetch();
       if (onRefreshGlobalData) onRefreshGlobalData();
     } catch (err: any) {
       setModalError(err.message || 'Profile update failed.');
@@ -610,7 +431,7 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
     setBulkModalType(null);
     setBulkTargetValue('');
     setSelectedIds([]);
-    fetchStudents();
+    refetch();
     if (onRefreshGlobalData) onRefreshGlobalData();
 
     alert(`Bulk Operation Complete:\n- Updated: ${successCount}\n- Failed: ${failCount}`);
@@ -684,6 +505,21 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
     printWindow.document.close();
   };
 
+  const hasActiveFilters = Boolean(
+    searchTerm ||
+    selectedClass ||
+    selectedTeacher ||
+    (selectedStatus && selectedStatus !== 'ALL') ||
+    (selectedGender && selectedGender !== 'ALL') ||
+    admissionYear ||
+    hasDocuments !== 'ALL' ||
+    hasPhoto !== 'ALL' ||
+    missingMobile !== 'ALL' ||
+    missingEmail !== 'ALL' ||
+    hasConcession !== 'ALL' ||
+    concessionPercentageFilter
+  );
+
   return (
     <div className="space-y-6">
       {/* HEADER BAR */}
@@ -705,7 +541,7 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
         <div className="flex items-center gap-2 flex-wrap">
           <button
             id="btn-refresh-directory"
-            onClick={fetchStudents}
+            onClick={() => refetch()}
             disabled={loading}
             className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
           >
@@ -1038,6 +874,45 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
         </div>
       )}
 
+      {/* OFFLINE / LOCAL DATA NOTIFICATION BANNER */}
+      {isOfflineFallback && (
+        <div
+          id="banner-directory-offline-fallback"
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 rounded-2xl text-xs animate-fade-in"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="p-1.5 rounded-lg bg-amber-100 text-amber-700">
+              <ShieldAlert size={16} />
+            </span>
+            <div>
+              <span className="font-bold">Offline / Local Mode Active:</span>
+              <span className="text-amber-700 ml-1.5">
+                {networkError ? `Displaying cached records (${networkError})` : 'Displaying cached local records.'}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              id="btn-retry-sync-banner"
+              type="button"
+              onClick={() => refetch()}
+              disabled={loading}
+              className="inline-flex items-center gap-1 bg-amber-200/80 hover:bg-amber-200 text-amber-950 font-bold px-3 py-1.5 rounded-xl transition-all cursor-pointer text-[11px]"
+            >
+              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> Retry Server Sync
+            </button>
+            <button
+              id="btn-restore-samples-banner"
+              type="button"
+              onClick={restoreSeedFallback}
+              className="bg-white hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold px-3 py-1.5 rounded-xl transition-all cursor-pointer text-[11px]"
+            >
+              Load Default Students
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* MAIN DATA TABLE / SKELETON / EMPTY / ERROR STATES */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         {loading ? (
@@ -1056,38 +931,85 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
               ))}
             </div>
           </div>
-        ) : error ? (
-          /* ERROR STATE */
-          <div className="p-12 text-center space-y-3">
+        ) : students.length === 0 && networkError ? (
+          /* NETWORK ERROR FALLBACK UI */
+          <div id="directory-network-error-fallback" className="p-12 text-center space-y-4">
             <div className="inline-flex p-3 rounded-full bg-rose-50 text-rose-600">
-              <ShieldAlert size={28} />
+              <ShieldAlert size={32} />
             </div>
-            <h3 className="text-sm font-bold text-slate-800">Failed to Load Student Records</h3>
-            <p className="text-xs text-slate-500 max-w-md mx-auto">{error}</p>
-            <button
-              onClick={fetchStudents}
-              className="mt-2 inline-flex items-center gap-1.5 bg-indigo-900 hover:bg-indigo-950 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all cursor-pointer"
-            >
-              <RefreshCw size={14} /> Retry Request
-            </button>
+            <h3 className="text-base font-bold text-slate-800">Unable to Connect to Student Directory Server</h3>
+            <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+              {networkError}. The server could not be reached, and no cached student records were found locally.
+            </p>
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                id="btn-retry-network-error"
+                type="button"
+                onClick={() => refetch()}
+                disabled={loading}
+                className="inline-flex items-center gap-1.5 bg-indigo-900 hover:bg-indigo-950 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Retry Server Connection
+              </button>
+              <button
+                id="btn-restore-seed-on-error"
+                type="button"
+                onClick={restoreSeedFallback}
+                className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 transition-all cursor-pointer"
+              >
+                <BookOpen size={14} /> Load Default Sample Students
+              </button>
+            </div>
           </div>
         ) : students.length === 0 ? (
           /* EMPTY STATE */
-          <div className="p-12 text-center space-y-3">
-            <div className="inline-flex p-3 rounded-full bg-slate-100 text-slate-400">
-              <UserX size={28} />
+          hasActiveFilters ? (
+            <div id="directory-empty-filter-state" className="p-12 text-center space-y-3">
+              <div className="inline-flex p-3 rounded-full bg-slate-100 text-slate-400">
+                <UserX size={28} />
+              </div>
+              <h3 className="text-sm font-bold text-slate-800">No Matching Student Records Found</h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                No students match your active filters or search criteria. Try modifying your search term or clearing filters.
+              </p>
+              <button
+                id="btn-clear-empty-filters"
+                type="button"
+                onClick={handleResetFilters}
+                className="mt-2 inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2 rounded-xl border border-slate-200 transition-all cursor-pointer"
+              >
+                Clear All Filters
+              </button>
             </div>
-            <h3 className="text-sm font-bold text-slate-800">No Student Records Found</h3>
-            <p className="text-xs text-slate-500 max-w-md mx-auto">
-              No students match your active filters or search criteria. Try modifying your search term or clearing filters.
-            </p>
-            <button
-              onClick={handleResetFilters}
-              className="mt-2 inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2 rounded-xl border border-slate-200 transition-all cursor-pointer"
-            >
-              Clear All Filters
-            </button>
-          </div>
+          ) : (
+            <div id="directory-empty-database-state" className="p-12 text-center space-y-3">
+              <div className="inline-flex p-3 rounded-full bg-indigo-50 text-indigo-600">
+                <GraduationCap size={28} />
+              </div>
+              <h3 className="text-sm font-bold text-slate-800">Student Directory is Empty</h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                No active student records exist in the database or local storage yet. You can load sample student profiles to test all ERP features or refresh the directory.
+              </p>
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <button
+                  id="btn-load-seed-empty-state"
+                  type="button"
+                  onClick={restoreSeedFallback}
+                  className="inline-flex items-center gap-1.5 bg-indigo-900 hover:bg-indigo-950 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer"
+                >
+                  <BookOpen size={14} /> Load Default Sample Students
+                </button>
+                <button
+                  id="btn-refresh-empty-state"
+                  type="button"
+                  onClick={() => refetch()}
+                  className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 transition-all cursor-pointer"
+                >
+                  <RefreshCw size={14} /> Refresh Directory
+                </button>
+              </div>
+            </div>
+          )
         ) : (
           /* TABLE CONTENT */
           <div className="overflow-x-auto">
@@ -1142,8 +1064,8 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
                   const isSelected = selectedIds.includes(sId);
                   const name = typeof s.name === 'string' ? s.name : typeof s.personalInfo?.name === 'string' ? s.personalInfo.name : 'Unnamed';
                   const roll = s.rollNo != null ? String(s.rollNo) : s.rollNumber != null ? String(s.rollNumber) : '-';
-                  const cls = typeof s.class === 'string' ? s.class : typeof s.className === 'string' ? s.className : '-';
-                  const teacher = typeof s.assignedTeacher === 'string' ? s.assignedTeacher : 'Unassigned';
+                  const cls = typeof s.class === 'string' && s.class ? s.class : typeof s.className === 'string' && s.className ? s.className : typeof s.preferredBatch === 'string' && s.preferredBatch ? s.preferredBatch : '-';
+                  const teacher = typeof s.assignedTeacher === 'string' && s.assignedTeacher ? s.assignedTeacher : 'Unassigned';
                   const parent = typeof s.fatherName === 'string' ? s.fatherName : typeof s.parentInfo?.fatherName === 'string' ? s.parentInfo.fatherName : typeof s.motherName === 'string' ? s.motherName : '-';
                   const mobile = typeof s.mobile === 'string' ? s.mobile : typeof s.contactInfo?.mobile === 'string' ? s.contactInfo.mobile : '-';
                   const status = typeof s.status === 'string' ? s.status.toUpperCase() : 'ACTIVE';
@@ -1352,7 +1274,7 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
                 <option value={100}>100</option>
               </select>
               <span>
-                Showing <strong>{((page - 1) * limit) + 1}</strong> - <strong>{Math.min(page * limit, paginationInfo.totalCount)}</strong> of <strong>{paginationInfo.totalCount}</strong> students
+                Showing <strong>{paginationInfo.totalCount > 0 ? ((page - 1) * limit) + 1 : 0}</strong> - <strong>{((page - 1) * limit) + students.length}</strong> of <strong>{Math.max(paginationInfo.totalCount, ((page - 1) * limit) + students.length)}</strong> students
               </span>
             </div>
 
@@ -1388,13 +1310,13 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/60 backdrop-blur-xs p-4 sm:p-6 overflow-y-auto animate-fade-in">
           <div className="max-w-5xl w-full my-6">
             <StudentProfile
-              studentId={viewingStudent.id}
+              studentId={viewingStudent.id || viewingStudent.studentId}
               currentUser={currentUser}
               teachersList={teachersList}
               classList={classList}
               onClose={() => setViewingStudent(null)}
               onStudentUpdated={() => {
-                fetchStudents();
+                refetch();
                 if (onRefreshGlobalData) onRefreshGlobalData();
               }}
             />

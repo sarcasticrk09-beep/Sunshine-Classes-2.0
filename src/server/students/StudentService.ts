@@ -66,14 +66,17 @@ export class StudentService {
       q = query(collection(db, 'students'), where('status', '==', statusFilter));
     } else if (statusFilter === 'DELETED') {
       q = query(collection(db, 'students'), where('deleted', '==', true));
-    } else {
-      q = query(collection(db, 'students'), where('deleted', '!=', true));
     }
 
     // Defensive Cap: Retrieve matching records up to 1000 elements to guarantee low memory usage
     const cappedQuery = query(q, limit(1000));
     const snap = await getDocs(cappedQuery);
     let list = snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+
+    // In-memory filter for soft-deleted records to prevent dropping records where deleted is undefined
+    if (statusFilter !== 'DELETED') {
+      list = list.filter(s => s.deleted !== true);
+    }
 
     // 3. Permission-based visibility filter
     const role = (currentUser?.role || '').toUpperCase();
@@ -303,8 +306,27 @@ export class StudentService {
     });
 
     // 16. Localized Capped Pagination
-    const computedTotalCount = Math.max(totalCount, list.length);
-    const totalPages = Math.ceil(list.length / fetchLimit) || 1;
+    const hasFilters = Boolean(
+      (queryOptions.search && queryOptions.search.trim()) ||
+      (queryOptions.className && queryOptions.className.trim()) ||
+      (queryOptions.teacherId && queryOptions.teacherId.trim()) ||
+      (statusFilter && statusFilter !== 'ALL') ||
+      (queryOptions.gender && queryOptions.gender.trim() && queryOptions.gender !== 'ALL') ||
+      (queryOptions.admissionYear && queryOptions.admissionYear.trim()) ||
+      (queryOptions.joinedDate && queryOptions.joinedDate.trim()) ||
+      (queryOptions.updatedDate && queryOptions.updatedDate.trim()) ||
+      (queryOptions.hasDocuments !== undefined && queryOptions.hasDocuments !== '' && queryOptions.hasDocuments !== 'ALL') ||
+      (queryOptions.hasPhoto !== undefined && queryOptions.hasPhoto !== '' && queryOptions.hasPhoto !== 'ALL') ||
+      (queryOptions.missingMobile !== undefined && queryOptions.missingMobile !== '' && queryOptions.missingMobile !== 'ALL') ||
+      (queryOptions.missingEmail !== undefined && queryOptions.missingEmail !== '' && queryOptions.missingEmail !== 'ALL') ||
+      role === 'TEACHER' ||
+      role === 'STUDENT'
+    );
+
+    const computedTotalCount = hasFilters || list.length < fetchLimit
+      ? list.length
+      : Math.max(totalCount, list.length);
+    const totalPages = Math.max(1, Math.ceil(computedTotalCount / fetchLimit));
 
     let paginatedList = list;
     if (queryOptions.lastDocId) {

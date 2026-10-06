@@ -44,6 +44,7 @@ import {
 } from 'lucide-react';
 import { StudentFeeSettingsView } from './StudentFeeSettingsView';
 import { getCachedIdToken } from '../lib/supabase';
+import { CloudinaryUpload } from './CloudinaryUpload';
 
 interface StudentProfileProps {
   studentId: string;
@@ -1707,9 +1708,10 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({
               <div>
                 <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Document Name / Title</label>
                 <input
+                  id="input-new-doc-name"
                   type="text"
                   required
-                  placeholder="e.g. Birth Certificate, Transfer Certificate"
+                  placeholder="e.g. Birth Certificate, Transfer Certificate, Marksheet (PDF)"
                   value={newDocName}
                   onChange={e => setNewDocName(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800"
@@ -1717,28 +1719,45 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Document URL / Image Link</label>
+                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Upload File (PDF / Images) or Enter URL</label>
+                <CloudinaryUpload
+                  id="student-doc-custom-upload"
+                  folder="documents"
+                  allowedTypes={['pdf', 'jpg', 'jpeg', 'png', 'webp']}
+                  initialUrl={newDocUrl}
+                  onUploadSuccess={(url, _publicId, fileName) => {
+                    setNewDocUrl(url);
+                    if (!newDocName && fileName) {
+                      setNewDocName(fileName.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " "));
+                    }
+                  }}
+                  onFileDeleted={() => setNewDocUrl('')}
+                  label="Upload Document (PDF / Image)"
+                />
                 <input
+                  id="input-new-doc-url"
                   type="url"
                   required
-                  placeholder="https://..."
+                  placeholder="https://... (or populated automatically above)"
                   value={newDocUrl}
                   onChange={e => setNewDocUrl(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 mt-2"
                 />
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
+                  id="btn-cancel-add-doc"
                   type="button"
                   onClick={() => setActiveModal(null)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50"
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
+                  id="btn-submit-add-doc"
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-indigo-900 text-white font-bold hover:bg-indigo-950"
+                  className="px-4 py-2 rounded-xl bg-indigo-900 text-white font-bold hover:bg-indigo-950 cursor-pointer"
                 >
                   Attach Document
                 </button>

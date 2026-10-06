@@ -88,6 +88,7 @@ import {
 
 import SunshineLogo from './SunshineLogo';
 import { SEED_WMS_DATA } from '../data/wmsData';
+import { StudyMaterialCMS } from './StudyMaterialCMS';
 
 // Top-Level Content Studio Categories
 export type StudioCategory = 'website' | 'academic' | 'commerce' | 'marketing';
@@ -183,8 +184,34 @@ export const ContentStudio: React.FC<ContentStudioProps> = ({
   };
 
   // Content Studio Navigation
-  const [activeCategory, setActiveCategory] = useState<StudioCategory>('website');
+  const [activeCategory, setActiveCategory] = useState<StudioCategory>(() => {
+    if (['resources', 'courses', 'faculty', 'results', 'faqs'].includes(initialModule)) {
+      return 'academic';
+    }
+    if (['products', 'categories', 'orders', 'inventory', 'coupons'].includes(initialModule)) {
+      return 'commerce';
+    }
+    if (['testimonials', 'gallery', 'events', 'blogs', 'seo'].includes(initialModule)) {
+      return 'marketing';
+    }
+    return 'website';
+  });
   const [activeModule, setActiveModule] = useState<StudioModule>(initialModule);
+
+  React.useEffect(() => {
+    if (initialModule) {
+      setActiveModule(initialModule);
+      if (['resources', 'courses', 'faculty', 'results', 'faqs'].includes(initialModule)) {
+        setActiveCategory('academic');
+      } else if (['products', 'categories', 'orders', 'inventory', 'coupons'].includes(initialModule)) {
+        setActiveCategory('commerce');
+      } else if (['testimonials', 'gallery', 'events', 'blogs', 'seo'].includes(initialModule)) {
+        setActiveCategory('marketing');
+      } else {
+        setActiveCategory('website');
+      }
+    }
+  }, [initialModule]);
 
   // Search & Filter Global State per module
   const [searchQuery, setSearchQuery] = useState('');
@@ -955,9 +982,21 @@ export const ContentStudio: React.FC<ContentStudioProps> = ({
         )}
 
         {/* ---------------------------------------------------- */}
+        {/* MODULE 6: STUDY RESOURCES & PDF CMS */}
+        {/* ---------------------------------------------------- */}
+        {activeModule === 'resources' && (
+          <div id="content-studio-resources-module" className="space-y-4">
+            <StudyMaterialCMS
+              currentUser={currentUser as any}
+              onAuditLog={(action, details) => logAudit(action, details)}
+            />
+          </div>
+        )}
+
+        {/* ---------------------------------------------------- */}
         {/* FALLBACK / OTHER MODULES NOTICE */}
         {/* ---------------------------------------------------- */}
-        {!['homepage', 'banners', 'media', 'products', 'faculty'].includes(activeModule) && (
+        {!['homepage', 'banners', 'media', 'products', 'faculty', 'resources'].includes(activeModule) && (
           <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
             <CheckCircle className="mx-auto text-indigo-600 mb-2" size={32} />
             <h4 className="font-bold text-sm text-slate-800">
