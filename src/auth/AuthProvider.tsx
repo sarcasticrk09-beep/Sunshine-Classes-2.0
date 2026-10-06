@@ -3,7 +3,7 @@ import { supabase, isSupabaseConfigured, setCachedIdToken, getCachedIdToken } fr
 import { auditLogsService } from '../services/dbService';
 import { AuthContext } from './AuthContext';
 import { User, UserRole, AuditLog } from '../types';
-import { SEED_USERS } from '../data';
+import { SEED_USERS, SEED_STUDENTS } from '../data';
 
 // Cryptographically secure synchronous SHA-256 hash implementation placeholder for compatibility
 export function simpleSecureHash(password: string): string {
@@ -149,10 +149,50 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         }
 
-        // Security boundaries:
-        // - Do NOT trust client/Google-provided roles (ignore supabaseUser.user_metadata?.role)
-        // - Never elevate a new Google user to FOUNDER, ADMIN, or other privileged role
-        // - Strictly adhere to the handle_new_user security model: default to STUDENT
+        // 4. Check if this account belongs to an enrolled student in the students table
+        if (!profile && supabaseUser.email) {
+          try {
+            const { data: studentRecord } = await supabase
+              .from('students')
+              .select('*')
+              .ilike('email', supabaseUser.email)
+              .maybeSingle();
+
+            if (studentRecord) {
+              profile = {
+                id: studentRecord.id,
+                username: studentRecord.rollNo || studentRecord.email.split('@')[0],
+                name: studentRecord.name,
+                email: studentRecord.email,
+                role: 'STUDENT',
+                phone: studentRecord.mobile || ''
+              };
+            }
+          } catch (studentErr) {
+            console.warn("[AuthProvider] Error querying students table:", studentErr);
+          }
+
+          // Check fallback seed students
+          if (!profile) {
+            const matchedSeedStudent = SEED_STUDENTS.find(
+              s => s.email && s.email.toLowerCase() === supabaseUser.email.toLowerCase()
+            );
+            if (matchedSeedStudent) {
+              profile = {
+                id: matchedSeedStudent.id,
+                username: matchedSeedStudent.rollNo || matchedSeedStudent.id,
+                name: matchedSeedStudent.name,
+                email: matchedSeedStudent.email || supabaseUser.email,
+                role: 'STUDENT',
+                phone: matchedSeedStudent.mobile || ''
+              };
+            }
+          }
+        }
+
+        // Security boundary:
+        // STRICT ENROLLED-STUDENTS & STAFF ACCESS ENFORCEMENT
+        // If the email does not belong to an enrolled student or faculty record, block access immediately.
         if (profile) {
           const cleanRole = sanitizeRole(profile.role);
           const mustChange = !!(
@@ -177,24 +217,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           sessionStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
           localStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
         } else {
-          console.warn(`[AuthProvider] No authorized user record found for ${supabaseUser.email}. Enforcing default unprivileged STUDENT role in accordance with handle_new_user security model.`);
-          const studentUser: User = {
-            id: supabaseUser.id,
-            uid: supabaseUser.id,
-            username: supabaseUser.email ? supabaseUser.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') : `user_${supabaseUser.id.substring(0, 8)}`,
-            name: supabaseUser.user_metadata?.full_name || supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'Student',
-            email: supabaseUser.email || '',
-            role: 'STUDENT', // Strictly non-privileged default
-            phone: '',
-            forcePasswordChange: false,
-            mustChangePassword: false,
-            activeSessionId: `sess-${Date.now()}`
-          };
-          setCurrentUser(studentUser);
-          setRole('STUDENT');
-          const sessionObj = { user: studentUser, role: 'STUDENT' };
-          sessionStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
-          localStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
+          // Strictly block un-enrolled outsiders!
+          console.warn(`[AuthProvider] Access denied for unauthorized account: ${supabaseUser.email}. Not an enrolled student or staff member.`);
+          try {
+            await supabase.auth.signOut();
+          } catch {}
+          setCachedIdToken(null);
+          sessionStorage.removeItem('sunshine_active_session');
+          localStorage.removeItem('sunshine_active_session');
+          sessionStorage.removeItem('sunshine_access_token');
+          localStorage.removeItem('sunshine_access_token');
+          setCurrentUser(null);
+          setRole(null);
+
+          await writeAuditLog(
+            supabaseUser.id,
+            supabaseUser.email || 'unknown',
+            'BLOCKED_UNAUTHORIZED_LOGIN',
+            `Blocked unauthorized non-enrolled account (${supabaseUser.email}) from accessing Sunshine ERP.`
+          );
+
+          alert(
+            `Access Restricted: The account "${supabaseUser.email}" is not enrolled at Sunshine Classes.\n\nOnly officially enrolled students and faculty members can access this portal. If you are an active student, please contact the administrative counter to register your email.`
+          );
+          return;
         }
       };
 

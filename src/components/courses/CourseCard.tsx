@@ -55,7 +55,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
           </span>
           <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
             <Award size={11} className="text-amber-500 shrink-0" />
-            <span>{course.board.split(' ')[0]}</span>
+            <span>{(course.board || 'CBSE').split(' ')[0]}</span>
           </span>
         </div>
 

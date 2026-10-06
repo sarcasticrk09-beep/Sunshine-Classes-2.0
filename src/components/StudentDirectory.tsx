@@ -54,7 +54,50 @@ interface StudentDirectoryProps {
   onRefreshGlobalData?: () => void;
 }
 
-export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
+class DirectoryErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: any }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error('[StudentDirectory] Uncaught rendering error caught by boundary:', error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div id="directory-error-fallback" className="p-10 text-center bg-white border border-rose-200 rounded-2xl shadow-sm space-y-3 my-4">
+          <div className="inline-flex p-3 rounded-full bg-rose-50 text-rose-600">
+            <ShieldAlert size={28} />
+          </div>
+          <h3 className="text-base font-bold text-slate-800">Student Directory View Restored</h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+            The directory encountered a display issue while rendering individual student fields. Your database records and student details remain safe and intact.
+          </p>
+          <button
+            id="btn-retry-directory-boundary"
+            type="button"
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="mt-2 inline-flex items-center gap-1.5 bg-indigo-900 hover:bg-indigo-950 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all cursor-pointer"
+          >
+            <RefreshCw size={14} /> Reload Directory Table
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export const StudentDirectory: React.FC<StudentDirectoryProps> = (props) => (
+  <DirectoryErrorBoundary>
+    <StudentDirectoryInner {...props} />
+  </DirectoryErrorBoundary>
+);
+
+const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
   currentUser,
   teachersList = [],
   classList = [],
@@ -226,7 +269,7 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
           };
           setError(null);
         } else {
-          throw new Error(data.message || 'Failed to fetch student directory.');
+          throw new Error(data.message || data.error || 'Failed to fetch student directory.');
         }
       } catch (apiErr: any) {
         console.warn('[StudentDirectory] API call failed, falling back to SyncService/local data:', apiErr.message);
@@ -252,8 +295,26 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
           };
           setError(null);
         } else {
-          setError(apiErr.message || 'Network error fetching students.');
+          // If we have previous students in state, retain them
+          if (students.length > 0) {
+            list = students;
+          } else {
+            setError(apiErr.message || 'Network error fetching students.');
+          }
         }
+      }
+
+      // Final fallback to initialStudents if list is empty without active filters
+      if (list.length === 0 && initialStudents && initialStudents.length > 0 && !debouncedSearch && !selectedClass && !selectedTeacher && selectedStatus === 'ALL') {
+        list = initialStudents;
+        pagination = {
+          totalCount: initialStudents.length,
+          totalPages: Math.max(1, Math.ceil(initialStudents.length / limit)),
+          hasMore: false,
+          page,
+          limit
+        };
+        setError(null);
       }
 
       setStudents(list);
@@ -1059,20 +1120,44 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs font-medium">
                 {students.map((s, idx) => {
-                  const isSelected = selectedIds.includes(s.id);
-                  const name = s.name || s.personalInfo?.name || 'Unnamed';
-                  const roll = s.rollNo || s.rollNumber || '-';
-                  const cls = s.class || s.className || '-';
-                  const teacher = s.assignedTeacher || 'Unassigned';
-                  const parent = s.fatherName || s.parentInfo?.fatherName || s.motherName || '-';
-                  const mobile = s.mobile || s.contactInfo?.mobile || '-';
-                  const status = (s.status || 'ACTIVE').toUpperCase();
-                  const admDate = s.admissionDate || s.createdAt || '-';
-                  const photo = s.photoUrl || s.personalInfo?.photoUrl || '';
+                  if (!s) return null;
+                  const sId = s.id || s.studentId || `student-${idx}`;
+                  const isSelected = selectedIds.includes(sId);
+                  const name = typeof s.name === 'string' ? s.name : typeof s.personalInfo?.name === 'string' ? s.personalInfo.name : 'Unnamed';
+                  const roll = s.rollNo != null ? String(s.rollNo) : s.rollNumber != null ? String(s.rollNumber) : '-';
+                  const cls = typeof s.class === 'string' ? s.class : typeof s.className === 'string' ? s.className : '-';
+                  const teacher = typeof s.assignedTeacher === 'string' ? s.assignedTeacher : 'Unassigned';
+                  const parent = typeof s.fatherName === 'string' ? s.fatherName : typeof s.parentInfo?.fatherName === 'string' ? s.parentInfo.fatherName : typeof s.motherName === 'string' ? s.motherName : '-';
+                  const mobile = typeof s.mobile === 'string' ? s.mobile : typeof s.contactInfo?.mobile === 'string' ? s.contactInfo.mobile : '-';
+                  const status = typeof s.status === 'string' ? s.status.toUpperCase() : 'ACTIVE';
+                  
+                  // Format admission date defensively
+                  let formattedAdmDate = '-';
+                  const rawAdm = s.admissionDate || s.createdAt;
+                  if (typeof rawAdm === 'string') {
+                    formattedAdmDate = rawAdm.includes('T') ? rawAdm.split('T')[0] : rawAdm;
+                  } else if (rawAdm instanceof Date && !isNaN(rawAdm.getTime())) {
+                    formattedAdmDate = rawAdm.toISOString().split('T')[0];
+                  } else if (typeof rawAdm === 'number') {
+                    try {
+                      formattedAdmDate = new Date(rawAdm).toISOString().split('T')[0];
+                    } catch {
+                      formattedAdmDate = '-';
+                    }
+                  } else if (rawAdm && typeof rawAdm === 'object' && typeof rawAdm.seconds === 'number') {
+                    try {
+                      formattedAdmDate = new Date(rawAdm.seconds * 1000).toISOString().split('T')[0];
+                    } catch {
+                      formattedAdmDate = '-';
+                    }
+                  }
+
+                  const photo = typeof s.photoUrl === 'string' ? s.photoUrl : typeof s.personalInfo?.photoUrl === 'string' ? s.personalInfo.photoUrl : '';
+                  const initials = (typeof name === 'string' && name.trim()) ? name.trim().slice(0, 2).toUpperCase() : 'ST';
 
                   return (
                     <motion.tr
-                      key={s.id}
+                      key={sId}
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.2, delay: Math.min(idx * 0.02, 0.3) }}
@@ -1080,10 +1165,10 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
                     >
                       <td className="p-3.5 text-center">
                         <input
-                          id={`checkbox-student-${s.id}`}
+                          id={`checkbox-student-${sId}`}
                           type="checkbox"
                           checked={isSelected}
-                          onChange={() => handleSelectOne(s.id)}
+                          onChange={() => handleSelectOne(sId)}
                           className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer h-4 w-4"
                         />
                       </td>
@@ -1098,7 +1183,7 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
                           />
                         ) : (
                           <div className="h-9 w-9 rounded-full bg-slate-100 text-indigo-900 flex items-center justify-center font-bold text-xs border border-slate-200">
-                            {name.slice(0, 2).toUpperCase()}
+                            {initials}
                           </div>
                         )}
                       </td>
@@ -1155,14 +1240,14 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
 
                       {/* Admission Date */}
                       <td className="p-3.5 text-slate-500 font-mono text-[11px]">
-                        {admDate.split('T')[0]}
+                        {formattedAdmDate}
                       </td>
 
                       {/* Actions */}
                       <td className="p-3.5 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button
-                            id={`btn-view-${s.id}`}
+                            id={`btn-view-${sId}`}
                             onClick={() => handleViewProfile(s)}
                             className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
                             title="View Profile & Timeline"
@@ -1172,7 +1257,7 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
 
                           {canEditProfile && (
                             <button
-                              id={`btn-edit-${s.id}`}
+                              id={`btn-edit-${sId}`}
                               onClick={() => setEditingStudent({ ...s })}
                               className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
                               title="Edit Full Profile"
@@ -1183,7 +1268,7 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
 
                           {canReassignClassOrTeacher && (
                             <button
-                              id={`btn-class-${s.id}`}
+                              id={`btn-class-${sId}`}
                               onClick={() => openActionModal('class', s)}
                               className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer"
                               title="Change Class"
@@ -1194,7 +1279,7 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
 
                           {canReassignClassOrTeacher && (
                             <button
-                              id={`btn-teacher-${s.id}`}
+                              id={`btn-teacher-${sId}`}
                               onClick={() => openActionModal('teacher', s)}
                               className="p-1.5 rounded-lg text-teal-600 hover:bg-teal-50 transition-colors cursor-pointer"
                               title="Assign Teacher"
@@ -1205,7 +1290,7 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
 
                           {canEditProfile && (
                             <button
-                              id={`btn-docs-${s.id}`}
+                              id={`btn-docs-${sId}`}
                               onClick={() => openActionModal('documents', s)}
                               className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 transition-colors cursor-pointer"
                               title="Update Documents"
@@ -1216,7 +1301,7 @@ export const StudentDirectory: React.FC<StudentDirectoryProps> = ({
 
                           {canChangeStatus && (
                             <button
-                              id={`btn-status-${s.id}`}
+                              id={`btn-status-${sId}`}
                               onClick={() => openActionModal('status', s)}
                               className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                               title="Update Status"

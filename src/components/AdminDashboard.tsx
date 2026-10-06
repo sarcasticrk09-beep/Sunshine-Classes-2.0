@@ -7820,9 +7820,9 @@ ${data.log}`
               {/* Students Directory Component */}
               <StudentDirectory
                 currentUser={currentUser}
-                teachersList={teachers}
-                classList={Array.from(new Set(['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', ...students.map((s: any) => s.class || s.className || s.preferredBatch || '')])).filter(Boolean)}
-                initialStudents={students}
+                teachersList={Array.isArray(teachers) ? teachers : []}
+                classList={Array.from(new Set(['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', ...(Array.isArray(students) ? students.map((s: any) => s?.class || s?.className || s?.preferredBatch || '') : [])])).filter(Boolean)}
+                initialStudents={Array.isArray(students) ? students : []}
                 onRefreshGlobalData={() => onHealState('students', students)}
               />
 

@@ -127,6 +127,83 @@ export default function StudentDashboard({
   const [bulletinInputText, setBulletinInputText] = useState('');
   const [expandedBulletinReads, setExpandedBulletinReads] = useState<Record<string, boolean>>({});
 
+  const mySubscription = subscriptions.find(s => s.studentId === student.id);
+  const defaultBatchId = mySubscription?.batchId || 'b2';
+  const defaultBatchName = student.preferredBatch || mySubscription?.batchName || 'Class 10 - Evening Stars';
+
+  const [selectedBulletinBatchId, setSelectedBulletinBatchId] = useState<string>(defaultBatchId);
+  const [selectedBulletinBatchName, setSelectedBulletinBatchName] = useState<string>(defaultBatchName);
+
+  // Compile all relevant batches for the student (enrolled batch, subscribed batches, class batches)
+  const studentBatches = React.useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>();
+
+    // 1. Student's preferredBatch
+    if (student.preferredBatch) {
+      const matched = batches.find(b => 
+        b.name.toLowerCase() === student.preferredBatch.toLowerCase() ||
+        b.id === student.preferredBatch
+      );
+      map.set(student.preferredBatch.toLowerCase(), {
+        id: matched?.id || defaultBatchId,
+        name: student.preferredBatch
+      });
+    }
+
+    // 2. Student's subscriptions
+    subscriptions.filter(s => s.studentId === student.id).forEach(sub => {
+      if (sub.batchName) {
+        map.set(sub.batchName.toLowerCase(), {
+          id: sub.batchId || 'b-sub',
+          name: sub.batchName
+        });
+      }
+    });
+
+    // 3. Batches from institute matching student's class
+    batches.filter(b => b.class === student.class).forEach(b => {
+      if (!map.has(b.name.toLowerCase())) {
+        map.set(b.name.toLowerCase(), {
+          id: b.id,
+          name: b.name
+        });
+      }
+    });
+
+    if (map.size === 0) {
+      map.set('default', { id: defaultBatchId, name: defaultBatchName });
+    }
+
+    return Array.from(map.values());
+  }, [student.preferredBatch, student.class, subscriptions, student.id, batches, defaultBatchId, defaultBatchName]);
+
+  // Function to calculate unread bulletin posts count for any batch
+  const getUnreadBulletinsForBatch = React.useCallback((batchId?: string, batchName?: string): number => {
+    if (!batchId && !batchName) return 0;
+    const normalizedName = batchName?.trim().toLowerCase();
+    return batchBulletins.filter(p => {
+      const matchesBatch = 
+        (batchId && p.batchId === batchId) ||
+        (normalizedName && p.batchName && p.batchName.trim().toLowerCase() === normalizedName);
+      if (!matchesBatch) return false;
+      const isRead = p.readBy?.some(r => r.studentId === student.id);
+      return !isRead;
+    }).length;
+  }, [batchBulletins, student.id]);
+
+  // Total unread across all student batches
+  const totalUnreadBulletinsCount = React.useMemo(() => {
+    return batchBulletins.filter(p => {
+      const isRelevant = studentBatches.some(b => 
+        b.id === p.batchId || 
+        (p.batchName && b.name.toLowerCase() === p.batchName.toLowerCase())
+      );
+      if (!isRelevant) return false;
+      const isRead = p.readBy?.some(r => r.studentId === student.id);
+      return !isRead;
+    }).length;
+  }, [batchBulletins, studentBatches, student.id]);
+
   const toggleBulletinReadList = (postId: string) => {
     setExpandedBulletinReads(prev => ({
       ...prev,
@@ -254,16 +331,15 @@ export default function StudentDashboard({
     setProfileSuccessMsg('');
   }, [student.id, student.email, student.mobile, student.photoUrl]);
 
-  // Mark bulletin posts as read when student views the bulletin tab
+  // Mark bulletin posts as read when student views the bulletin tab for the active batch
   React.useEffect(() => {
     if (activeTab === 'bulletin') {
-      const mySubscription = subscriptions.find(s => s.studentId === student.id);
-      const studentBatchId = mySubscription?.batchId || 'b2';
-      const studentBatchName = student.preferredBatch || mySubscription?.batchName || 'Class 10 - Evening Stars';
+      const activeBatchId = selectedBulletinBatchId || defaultBatchId;
+      const activeBatchName = selectedBulletinBatchName || defaultBatchName;
       
       const filtered = batchBulletins.filter(
-        p => p.batchId === studentBatchId || 
-        p.batchName.toLowerCase() === studentBatchName.toLowerCase()
+        p => (activeBatchId && p.batchId === activeBatchId) || 
+        (p.batchName && activeBatchName && p.batchName.toLowerCase() === activeBatchName.toLowerCase())
       );
 
       filtered.forEach(post => {
@@ -273,7 +349,7 @@ export default function StudentDashboard({
         }
       });
     }
-  }, [activeTab, batchBulletins, student.id, student.name, student.preferredBatch, subscriptions, onMarkBulletinAsRead]);
+  }, [activeTab, selectedBulletinBatchId, selectedBulletinBatchName, batchBulletins, student.id, student.name, defaultBatchId, defaultBatchName, onMarkBulletinAsRead]);
 
   // Filter notifications based on target role, batch and class
   const filteredNotifications = notifications.filter(n => {
@@ -431,7 +507,6 @@ export default function StudentDashboard({
   const myMarks = studentMarks.filter((m) => m.studentId === student.id);
 
   // Subscription filters
-  const mySubscription = subscriptions.find((s) => s.studentId === student.id);
   const mySubPayments = subPayments.filter((p) => p.studentId === student.id);
   const mySubReceipts = subReceipts.filter((r) => r.studentId === student.id);
   const isSubscriptionExpired = mySubscription?.status === 'EXPIRED';
@@ -682,7 +757,28 @@ export default function StudentDashboard({
             <p className="text-xs lg:text-sm text-slate-300 mt-1 font-medium flex flex-wrap items-center gap-x-2 gap-y-1">
               <span>Roll No: <strong className="text-white font-bold">{student.rollNo}</strong></span>
               <span className="text-slate-600">•</span>
-              <span>Batch: <strong className="text-amber-400 font-bold">{student.preferredBatch}</strong></span>
+              <span className="inline-flex items-center gap-1.5 flex-wrap">
+                <span>Batch: <strong className="text-amber-400 font-bold">{student.preferredBatch}</strong></span>
+                {(() => {
+                  const unread = getUnreadBulletinsForBatch(mySubscription?.batchId, student.preferredBatch);
+                  if (unread <= 0) return null;
+                  return (
+                    <span
+                      id={`unread-count-badge-header-${student.preferredBatch.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
+                      onClick={() => {
+                        setSelectedBulletinBatchName(student.preferredBatch);
+                        if (mySubscription?.batchId) setSelectedBulletinBatchId(mySubscription.batchId);
+                        setActiveTab('bulletin');
+                      }}
+                      className="ml-1.5 inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-black rounded-full bg-rose-500 hover:bg-rose-600 text-white shadow-xs cursor-pointer animate-pulse transition hover:scale-105"
+                      title={`${unread} new bulletin post(s) in this batch - click to view`}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
+                      {unread} new
+                    </span>
+                  );
+                })()}
+              </span>
               <span className="text-slate-600">•</span>
               <span className="text-emerald-400 font-semibold flex items-center gap-1">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" /> Sunshine ERP Secure
@@ -793,10 +889,7 @@ export default function StudentDashboard({
             const studentBatchId = mySub?.batchId || 'b2';
             const studentBatchName = student.preferredBatch || mySub?.batchName || 'Class 10 - Evening Stars';
             
-            const unreadBulletinsCount = batchBulletins.filter(
-              p => (p.batchId === studentBatchId || p.batchName.toLowerCase() === studentBatchName.toLowerCase()) &&
-                   !p.readBy?.some(r => r.studentId === student.id)
-            ).length;
+            const unreadBulletinsCount = totalUnreadBulletinsCount;
 
             const tabsList = [
               { id: 'overview', label: 'Dashboard Overview', icon: <GraduationCap size={16} /> },
@@ -1309,9 +1402,31 @@ export default function StudentDashboard({
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="rounded-xl bg-slate-50 p-4 border border-slate-100">
                         <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Regular Timing</span>
-                        <span className="font-display text-sm font-bold text-slate-800 block mt-1.5">
-                          {mySubscription?.batchName || student.preferredBatch || "General Batch"}
-                        </span>
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                          <span className="font-display text-sm font-bold text-slate-800">
+                            {mySubscription?.batchName || student.preferredBatch || "General Batch"}
+                          </span>
+                          {(() => {
+                            const bName = mySubscription?.batchName || student.preferredBatch;
+                            const unread = getUnreadBulletinsForBatch(mySubscription?.batchId, bName);
+                            if (unread <= 0) return null;
+                            return (
+                              <span
+                                id="unread-count-badge-overview-batch"
+                                onClick={() => {
+                                  if (bName) setSelectedBulletinBatchName(bName);
+                                  if (mySubscription?.batchId) setSelectedBulletinBatchId(mySubscription.batchId);
+                                  setActiveTab('bulletin');
+                                }}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-black rounded-full bg-rose-500 hover:bg-rose-600 text-white shadow-xs cursor-pointer transition hover:scale-105"
+                                title={`${unread} new bulletin post(s) in this batch - click to view`}
+                              >
+                                <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
+                                {unread} new
+                              </span>
+                            );
+                          })()}
+                        </div>
                         <span className="text-xs font-semibold text-brand-blue font-mono mt-1 inline-block">
                           ⏰ {mySubscription?.batchTime || student.preferredTiming || "04:00 PM - 06:30 PM"}
                         </span>
@@ -1698,7 +1813,29 @@ export default function StudentDashboard({
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-5 mb-5">
                       <div>
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">My Current Course Batch</span>
-                        <h3 className="font-display font-black text-xl text-slate-900">{mySubscription?.batchName || student.preferredBatch}</h3>
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <h3 className="font-display font-black text-xl text-slate-900">{mySubscription?.batchName || student.preferredBatch}</h3>
+                          {(() => {
+                            const bName = mySubscription?.batchName || student.preferredBatch;
+                            const unread = getUnreadBulletinsForBatch(mySubscription?.batchId, bName);
+                            if (unread <= 0) return null;
+                            return (
+                              <span
+                                id="unread-count-badge-subscription-batch"
+                                onClick={() => {
+                                  if (bName) setSelectedBulletinBatchName(bName);
+                                  if (mySubscription?.batchId) setSelectedBulletinBatchId(mySubscription.batchId);
+                                  setActiveTab('bulletin');
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-black rounded-full bg-rose-500 hover:bg-rose-600 text-white shadow-xs cursor-pointer transition hover:scale-105"
+                                title={`${unread} new bulletin post(s) in this batch - click to view`}
+                              >
+                                <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
+                                {unread} new
+                              </span>
+                            );
+                          })()}
+                        </div>
                         <p className="text-xs text-slate-500 mt-1">
                           Monthly Fee Subscription: <strong className="text-slate-700 font-extrabold text-sm">₹{mySubscription?.monthlyFee || 1500}</strong> once every month
                         </p>
@@ -2464,32 +2601,113 @@ export default function StudentDashboard({
 
           {/* TAB: BATCH BULLETIN BOARD */}
           {activeTab === 'bulletin' && (() => {
-            const mySubscription = subscriptions.find(s => s.studentId === student.id);
-            const studentBatchId = mySubscription?.batchId || 'b2';
-            const studentBatchName = student.preferredBatch || mySubscription?.batchName || 'Class 10 - Evening Stars';
+            const currentBatchId = selectedBulletinBatchId || defaultBatchId;
+            const currentBatchName = selectedBulletinBatchName || defaultBatchName;
             
             const filteredBulletins = batchBulletins.filter(
-              p => p.batchId === studentBatchId || 
-              p.batchName.toLowerCase() === studentBatchName.toLowerCase()
+              p => (currentBatchId && p.batchId === currentBatchId) || 
+              (p.batchName && currentBatchName && p.batchName.toLowerCase() === currentBatchName.toLowerCase())
             );
+
+            const currentBatchUnreadCount = getUnreadBulletinsForBatch(currentBatchId, currentBatchName);
 
             const handlePostSubmit = (e: React.FormEvent) => {
               e.preventDefault();
               if (!bulletinInputText.trim()) return;
-              onAddBatchBulletinPost(studentBatchId, studentBatchName, bulletinInputText.trim());
+              onAddBatchBulletinPost(currentBatchId, currentBatchName, bulletinInputText.trim());
               setBulletinInputText('');
+            };
+
+            const handleMarkCurrentBatchAsRead = () => {
+              filteredBulletins.forEach(post => {
+                const alreadyRead = post.readBy?.some(r => r.studentId === student.id);
+                if (!alreadyRead) {
+                  onMarkBulletinAsRead(post.id, student.id, student.name);
+                }
+              });
             };
 
             return (
               <div className="space-y-6 animate-fade-in" id="batch-bulletin-container">
                 <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  {/* Batch Selector with Unread Count Indicator next to EACH batch name */}
+                  <div className="mb-6 p-4 rounded-2xl bg-slate-50 border border-slate-150">
+                    <div className="flex items-center justify-between gap-4 mb-3">
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
+                          My Enrolled &amp; Class Batches ({studentBatches.length})
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-medium">Select a batch to review notices and student discussions</span>
+                      </div>
+                      {currentBatchUnreadCount > 0 && (
+                        <button
+                          type="button"
+                          id="btn-mark-batch-as-read"
+                          onClick={handleMarkCurrentBatchAsRead}
+                          className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-blue hover:text-brand-blue-hover px-3 py-1.5 rounded-xl bg-white border border-slate-200 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
+                          title="Mark all posts in current batch as read"
+                        >
+                          <CheckCircle2 size={13} className="text-emerald-500" /> Mark batch as read
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2.5" id="batch-switcher-list">
+                      {studentBatches.map(b => {
+                        const isSelected = 
+                          (currentBatchId && b.id === currentBatchId) || 
+                          b.name.toLowerCase() === currentBatchName.toLowerCase();
+                        const unread = getUnreadBulletinsForBatch(b.id, b.name);
+                        const bSlug = (b.id || b.name).toLowerCase().replace(/[^a-z0-9]/g, '-');
+                        return (
+                          <button
+                            key={b.id || b.name}
+                            type="button"
+                            id={`btn-select-batch-${bSlug}`}
+                            onClick={() => {
+                              setSelectedBulletinBatchId(b.id);
+                              setSelectedBulletinBatchName(b.name);
+                            }}
+                            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-indigo-950 text-white shadow-md ring-2 ring-indigo-900 ring-offset-1'
+                                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                            }`}
+                          >
+                            <span>{b.name}</span>
+                            {unread > 0 ? (
+                              <span
+                                id={`badge-unread-batch-${bSlug}`}
+                                className="inline-flex items-center justify-center px-1.5 py-0.5 text-[9px] font-black rounded-full bg-rose-500 text-white shadow-2xs animate-pulse"
+                                title={`${unread} unread post(s) in ${b.name}`}
+                              >
+                                {unread} new
+                              </span>
+                            ) : (
+                              <span className={`text-[10px] ${isSelected ? 'text-emerald-300' : 'text-slate-400'}`}>✓</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   <div className="flex justify-between items-start mb-6">
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="bg-brand-blue/10 text-brand-blue text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider">
                           Active Batch
                         </span>
-                        <h3 className="font-display font-bold text-lg text-slate-800">{studentBatchName}</h3>
+                        <h3 className="font-display font-bold text-lg text-slate-800">{currentBatchName}</h3>
+                        {currentBatchUnreadCount > 0 && (
+                          <span
+                            id="badge-active-batch-unread-count"
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-rose-500 text-white shadow-xs animate-pulse"
+                            title={`${currentBatchUnreadCount} unread bulletin post(s) in this batch`}
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
+                            {currentBatchUnreadCount} unread
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-slate-500 mt-1">Real-time announcement board and student-teacher discussion panel for your specific batch.</p>
                     </div>
@@ -2570,10 +2788,27 @@ export default function StudentDashboard({
                                    {post.authorRole}
                                  </span>
                                  <div className="ml-auto flex items-center gap-2">
-                                   {post.readBy?.some(r => r.studentId === student.id) && (
+                                   {post.readBy?.some(r => r.studentId === student.id) ? (
                                      <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
                                        <Check size={11} className="stroke-[3]" /> Read
                                      </span>
+                                   ) : (
+                                     <div className="flex items-center gap-1.5">
+                                       <span
+                                         id={`badge-post-new-${post.id}`}
+                                         className="px-2 py-0.5 rounded-full text-[9px] font-black bg-rose-500 text-white uppercase tracking-wider animate-pulse shadow-3xs"
+                                       >
+                                         NEW
+                                       </span>
+                                       <button
+                                         type="button"
+                                         id={`btn-mark-post-read-${post.id}`}
+                                         onClick={() => onMarkBulletinAsRead(post.id, student.id, student.name)}
+                                         className="text-[10px] font-bold text-brand-blue hover:underline cursor-pointer"
+                                       >
+                                         Mark read
+                                       </button>
+                                     </div>
                                    )}
                                    <span className="text-[10px] text-slate-400 font-mono">{formattedTime}</span>
                                  </div>
@@ -3230,7 +3465,29 @@ export default function StudentDashboard({
               <div className="mt-4 w-full bg-white/10 rounded-xl p-3 text-xs text-left space-y-2 border border-white/10 font-mono">
                 <div><span className="text-slate-300">Roll Number:</span> {student.rollNo}</div>
                 <div><span className="text-slate-300">Father Name:</span> {student.fatherName}</div>
-                <div><span className="text-slate-300">Batch Code:</span> {student.preferredBatch.split(' ')[0]}</div>
+                <div className="flex items-center justify-between">
+                  <span><span className="text-slate-300">Batch Code:</span> {student.preferredBatch.split(' ')[0]}</span>
+                  {(() => {
+                    const unread = getUnreadBulletinsForBatch(mySubscription?.batchId, student.preferredBatch);
+                    if (unread <= 0) return null;
+                    return (
+                      <span
+                        id="unread-count-badge-idcard-batch"
+                        onClick={() => {
+                          setIdCardOpen(false);
+                          setSelectedBulletinBatchName(student.preferredBatch);
+                          if (mySubscription?.batchId) setSelectedBulletinBatchId(mySubscription.batchId);
+                          setActiveTab('bulletin');
+                        }}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.2 text-[9px] font-black rounded-full bg-rose-500 hover:bg-rose-600 text-white shadow-xs cursor-pointer animate-pulse transition"
+                        title={`${unread} new bulletin post(s) in this batch`}
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
+                        {unread} new
+                      </span>
+                    );
+                  })()}
+                </div>
                 <div><span className="text-slate-300">Contact No:</span> {student.mobile}</div>
               </div>
 
@@ -3272,8 +3529,29 @@ export default function StudentDashboard({
                 </div>
                 <div>
                   <h3 className="font-display font-black text-base text-slate-900">Academic Timetable</h3>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                    {student.class} • {mySubscription?.batchName || student.preferredBatch || "Standard Batch"}
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1.5 flex-wrap">
+                    <span>{student.class} • {mySubscription?.batchName || student.preferredBatch || "Standard Batch"}</span>
+                    {(() => {
+                      const bName = mySubscription?.batchName || student.preferredBatch;
+                      const unread = getUnreadBulletinsForBatch(mySubscription?.batchId, bName);
+                      if (unread <= 0) return null;
+                      return (
+                        <span
+                          id="unread-count-badge-timetable-batch"
+                          onClick={() => {
+                            setIsScheduleModalOpen(false);
+                            if (bName) setSelectedBulletinBatchName(bName);
+                            if (mySubscription?.batchId) setSelectedBulletinBatchId(mySubscription.batchId);
+                            setActiveTab('bulletin');
+                          }}
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-black rounded-full bg-rose-500 hover:bg-rose-600 text-white shadow-xs cursor-pointer transition hover:scale-105"
+                          title={`${unread} new bulletin post(s) in this batch - click to view`}
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
+                          {unread} new
+                        </span>
+                      );
+                    })()}
                   </p>
                 </div>
               </div>
