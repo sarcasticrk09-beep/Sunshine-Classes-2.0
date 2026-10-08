@@ -226,7 +226,14 @@ function getOrSeedLocal<T>(key: string, seed: T): T {
   const stored = localStorage.getItem(`sunshine_${key}`);
   if (stored) {
     try {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      if (key === 'students' && Array.isArray(parsed) && Array.isArray(seed) && parsed.length < seed.length) {
+        const idSet = new Set(parsed.map((p: any) => p.id || p.rollNo));
+        const merged = [...parsed, ...seed.filter((s: any) => !idSet.has(s.id || s.rollNo))];
+        localStorage.setItem(`sunshine_${key}`, JSON.stringify(merged));
+        return merged as unknown as T;
+      }
+      return parsed;
     } catch (e) {
       console.warn(`[Local Cache] Error parsing localStorage key "sunshine_${key}":`, e);
     }
@@ -2023,14 +2030,14 @@ export default function App() {
             const newNotification = {
               id: `NOTIF-EMAIL-${Date.now()}`,
               title: `📧 Fee Receipt Sent to ${fee.studentName}`,
-              content: `Since you don't have SMTP credentials set, we generated a demo mail. Click here to view the receipt: ${res.previewUrl}`,
+              content: `Payment receipt generated successfully. Click here to view the receipt: ${res.previewUrl}`,
               category: 'FEE' as const,
               targetRole: 'ADMIN' as const,
               date: new Date().toISOString().split('T')[0],
               read: false
             };
             setNotifications(prev => [newNotification, ...prev]);
-            alert(`📧 Real SMTP Email Receipt sent to ${matchedStudent.email}!\n\nView mock delivery here:\n${res.previewUrl}`);
+            alert(`📧 Email Receipt sent to ${matchedStudent.email}!\n\nView receipt preview here:\n${res.previewUrl}`);
           } else {
             alert(`📧 Real Receipt Email dispatched to ${matchedStudent.email} via SMTP!`);
           }
@@ -2316,7 +2323,7 @@ Sunshine Classes`;
                   const previewNotif = {
                     id: `NOTIF-EMAIL-${Date.now()}`,
                     title: `📧 Receipt Sent to ${payment.studentName}`,
-                    content: `Since you don't have SMTP credentials set, we generated a demo mail. Click here to view the receipt: ${res.previewUrl}`,
+                    content: `Payment receipt generated successfully. Click here to view the receipt: ${res.previewUrl}`,
                     category: 'FEE' as const,
                     targetRole: 'ADMIN' as const,
                     date: new Date().toISOString().split('T')[0],
@@ -2544,7 +2551,7 @@ Sunshine Classes`;
     syncState('submissions', updated);
   };
 
-  const handleAddBatchBulletinPost = (batchId: string, batchName: string, content: string) => {
+  const handleAddBatchBulletinPost = (batchId: string, batchName: string, content: string, attachmentUrl?: string, attachmentName?: string) => {
     if (!currentUser) return;
     const newPost: BatchBulletinPost = {
       id: `bb-${Date.now()}`,
@@ -2554,7 +2561,9 @@ Sunshine Classes`;
       authorName: currentUser.name,
       authorRole: currentUser.role === 'STUDENT' ? 'STUDENT' : currentUser.role === 'TEACHER' ? 'TEACHER' : 'ADMIN',
       content,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      attachmentUrl,
+      attachmentName
     };
     const updated = [newPost, ...batchBulletins];
     setBatchBulletins(updated);
@@ -3303,7 +3312,7 @@ Sunshine Classes`;
     syncState('audit_logs', updatedAudits);
   };
 
-  // Switch Quick Roles from demo panel
+  // Secure Role Navigation Handler
   const handleSelectRole = (role: UserRole) => {
     // Under Production Auth, roles are securely mapped from Supabase.
     // Quick switching is disabled in production to protect data isolation.

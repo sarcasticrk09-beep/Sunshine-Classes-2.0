@@ -9,6 +9,8 @@ import {
   Search,
   Filter,
   Download,
+  Upload,
+  FileSpreadsheet,
   RefreshCw,
   UserCheck,
   UserX,
@@ -36,6 +38,7 @@ import {
   GraduationCap
 } from 'lucide-react';
 import { StudentProfile } from './StudentProfile';
+import { CloudinaryUpload } from './CloudinaryUpload';
 import { SyncService } from '../services/SyncService';
 import { getCachedIdToken } from '../lib/supabase';
 import { useStudentDirectory } from '../hooks/useStudentDirectory';
@@ -386,6 +389,151 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
     }
   };
 
+  // CSV Bulk Student Import Handlers
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importFileName, setImportFileName] = useState('');
+  const [parsedImportRows, setParsedImportRows] = useState<any[]>([]);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleParseCsvFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportError(null);
+    setImportFileName(file.name);
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const text = evt.target?.result as string;
+        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        if (lines.length < 2) {
+          setImportError('CSV file must have a header row and at least one student record.');
+          return;
+        }
+
+        const parseCsvLine = (line: string): string[] => {
+          const res: string[] = [];
+          let current = '';
+          let inQuotes = false;
+          for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '"') {
+              inQuotes = !inQuotes;
+            } else if (ch === ',' && !inQuotes) {
+              res.push(current.trim().replace(/^"|"$/g, ''));
+              current = '';
+            } else {
+              current += ch;
+            }
+          }
+          res.push(current.trim().replace(/^"|"$/g, ''));
+          return res;
+        };
+
+        const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
+        const rows: any[] = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const cols = parseCsvLine(lines[i]);
+          if (cols.length === 0 || cols.every(c => !c)) continue;
+          
+          const rowObj: any = {};
+          headers.forEach((h, idx) => {
+            rowObj[h] = cols[idx] || '';
+          });
+
+          const name = rowObj.name || rowObj.studentname || rowObj.fullname || `Student ${i}`;
+          const rollNo = rowObj.rollno || rowObj.roll || rowObj.rollnumber || `SC-2026-${String(Date.now() + i).slice(-4)}`;
+          const className = rowObj.class || rowObj.classname || rowObj.cohort || 'Class 10 Board Specialists';
+          const fatherName = rowObj.fathername || rowObj.father || '';
+          const motherName = rowObj.mothername || rowObj.mother || '';
+          const mobile = rowObj.mobile || rowObj.phone || rowObj.contact || '';
+          const email = rowObj.email || `${name.toLowerCase().replace(/\s+/g, '.')}${i}@sunshineclasses.net`;
+          const preferredBatch = rowObj.preferredbatch || rowObj.batch || className;
+          const status = (rowObj.status || 'ACTIVE').toUpperCase();
+
+          rows.push({
+            name,
+            rollNo,
+            class: className,
+            fatherName,
+            motherName,
+            mobile,
+            email,
+            preferredBatch,
+            status: ['ACTIVE', 'INACTIVE', 'ALUMNI'].includes(status) ? status : 'ACTIVE'
+          });
+        }
+
+        if (rows.length === 0) {
+          setImportError('No valid student rows found in the CSV file.');
+          return;
+        }
+
+        setParsedImportRows(rows);
+      } catch (err: any) {
+        setImportError(`Failed to parse CSV: ${err.message || 'Check CSV formatting'}`);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleExecuteCsvImport = async () => {
+    if (parsedImportRows.length === 0) return;
+    setIsImporting(true);
+    setImportError(null);
+    try {
+      for (let i = 0; i < parsedImportRows.length; i++) {
+        const item = parsedImportRows[i];
+        const newId = `s-${Date.now()}-${i}-${Math.random().toString(36).substring(2, 6)}`;
+        const studentPayload = {
+          id: newId,
+          userId: `u-${newId}`,
+          rollNo: item.rollNo,
+          name: item.name,
+          class: item.class,
+          fatherName: item.fatherName,
+          motherName: item.motherName,
+          mobile: item.mobile,
+          whatsapp: item.mobile,
+          email: item.email,
+          status: item.status,
+          preferredBatch: item.preferredBatch,
+          admissionDate: new Date().toISOString().split('T')[0],
+          attendancePercentage: 100,
+          dueDay: 10
+        };
+        await SyncService.set('students', newId, studentPayload);
+      }
+
+      alert(`Successfully imported ${parsedImportRows.length} student records!`);
+      setIsImportModalOpen(false);
+      setParsedImportRows([]);
+      setImportFileName('');
+      refetch();
+      if (onRefreshGlobalData) onRefreshGlobalData();
+    } catch (err: any) {
+      setImportError(`Import process encountered an error: ${err.message || 'Failed to save students'}`);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleDownloadSampleCsv = () => {
+    const csvContent = "Name,RollNo,Class,FatherName,MotherName,Mobile,Email,PreferredBatch,Status\n" +
+      "Aarav Sharma,SC-2026-101,Class 10 Board Specialists,Ramesh Sharma,Sunita Sharma,9876543210,aarav.sharma@example.com,Class 10 Morning,ACTIVE\n" +
+      "Diya Verma,SC-2026-102,Class 9 Foundation Course,Anil Verma,Pooja Verma,9876543211,diya.verma@example.com,Class 9 Foundation,ACTIVE\n";
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'sunshine_students_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Handle Bulk Execution
   const handleBulkExecute = async () => {
     if (!bulkModalType || selectedIds.length === 0 || !bulkTargetValue) return;
@@ -555,6 +703,17 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
             className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 px-3.5 py-2 text-xs font-black text-emerald-800 shadow-2xs transition-all cursor-pointer"
           >
             <Download size={14} /> Export CSV
+          </button>
+
+          <button
+            id="btn-import-csv"
+            onClick={() => {
+              setIsImportModalOpen(true);
+              setImportError(null);
+            }}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 px-3.5 py-2 text-xs font-black text-blue-900 shadow-2xs transition-all cursor-pointer"
+          >
+            <Upload size={14} /> Import CSV
           </button>
 
           <button
@@ -1538,6 +1697,19 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
                 </div>
               </div>
 
+              <div className="space-y-1">
+                <label className="block font-bold text-slate-700 mb-1">Student Photo</label>
+                <CloudinaryUpload
+                  id="edit-student-modal-photo-upload"
+                  folder="students"
+                  initialUrl={editingStudent.photoUrl || ''}
+                  onUploadSuccess={(url) => setEditingStudent({ ...editingStudent, photoUrl: url })}
+                  onFileDeleted={() => setEditingStudent({ ...editingStudent, photoUrl: '' })}
+                  allowedTypes={['jpg', 'jpeg', 'png', 'webp']}
+                  label="Upload / Replace Photo"
+                />
+              </div>
+
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
@@ -1629,6 +1801,159 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
                 className="bg-indigo-900 hover:bg-indigo-950 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all cursor-pointer disabled:opacity-50"
               >
                 {isBulkProcessing ? 'Executing...' : 'Apply Bulk Update'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CSV BULK IMPORT MODAL */}
+      {isImportModalOpen && (
+        <div id="modal-csv-import-overlay" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in overflow-y-auto">
+          <div id="modal-csv-import-card" className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-5 my-8">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-xl bg-blue-50 text-blue-900 flex items-center justify-center font-bold">
+                  <Upload size={18} />
+                </div>
+                <div>
+                  <h3 className="font-display font-black text-sm text-slate-800 uppercase tracking-wide">
+                    Bulk Student Roster Import (CSV)
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Upload a spreadsheet exported as .csv to quickly enroll multiple students simultaneously.
+                  </p>
+                </div>
+              </div>
+              <button
+                id="btn-close-csv-import-modal"
+                type="button"
+                onClick={() => {
+                  setIsImportModalOpen(false);
+                  setParsedImportRows([]);
+                  setImportError(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Template Download Prompt */}
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <h4 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <FileSpreadsheet size={14} className="text-emerald-600" /> Standard CSV Format Template
+                </h4>
+                <p className="text-[10px] text-slate-500">
+                  Headers: Name, RollNo, Class, FatherName, MotherName, Mobile, Email, PreferredBatch, Status
+                </p>
+              </div>
+              <button
+                id="btn-download-sample-csv"
+                type="button"
+                onClick={handleDownloadSampleCsv}
+                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-300 bg-white text-emerald-800 text-xs font-bold hover:bg-emerald-50 transition cursor-pointer"
+              >
+                <Download size={13} /> Download Template (.csv)
+              </button>
+            </div>
+
+            {/* File Upload Zone */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-2">Select CSV File from Computer</label>
+              <div className="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-2xl p-6 text-center bg-slate-50/50 hover:bg-blue-50/20 transition-all cursor-pointer relative">
+                <input
+                  id="input-file-csv-picker"
+                  type="file"
+                  accept=".csv, text/csv"
+                  onChange={handleParseCsvFile}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                />
+                <div className="flex flex-col items-center justify-center space-y-2 pointer-events-none">
+                  <div className="h-10 w-10 rounded-2xl bg-blue-100 text-blue-900 flex items-center justify-center">
+                    <Upload size={20} />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-blue-900 hover:underline">Click to browse or drop your CSV file here</span>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Supports comma-separated values (.csv) with UTF-8 encoding</p>
+                  </div>
+                  {importFileName && (
+                    <span className="inline-block mt-2 px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-700 shadow-2xs">
+                      📄 {importFileName}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {importError && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium">
+                {importError}
+              </div>
+            )}
+
+            {/* Parsed Rows Preview */}
+            {parsedImportRows.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700">
+                    Preview: {parsedImportRows.length} Students Ready to Import
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                    Validated
+                  </span>
+                </div>
+                <div className="border border-slate-200 rounded-xl max-h-48 overflow-y-auto overflow-x-auto text-[11px]">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-slate-100 text-[10px] font-black uppercase text-slate-500 sticky top-0">
+                      <tr>
+                        <th className="p-2">#</th>
+                        <th className="p-2">Name</th>
+                        <th className="p-2">Roll No</th>
+                        <th className="p-2">Class</th>
+                        <th className="p-2">Mobile</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {parsedImportRows.map((r, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50">
+                          <td className="p-2 text-slate-400 font-bold">{idx + 1}</td>
+                          <td className="p-2 font-bold text-slate-800">{r.name}</td>
+                          <td className="p-2 font-mono text-slate-500">{r.rollNo}</td>
+                          <td className="p-2 text-slate-600">{r.class}</td>
+                          <td className="p-2 font-mono text-slate-600">{r.mobile || 'N/A'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <button
+                id="btn-cancel-csv-import"
+                type="button"
+                onClick={() => {
+                  setIsImportModalOpen(false);
+                  setParsedImportRows([]);
+                  setImportError(null);
+                }}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                id="btn-confirm-csv-import"
+                type="button"
+                onClick={handleExecuteCsvImport}
+                disabled={isImporting || parsedImportRows.length === 0}
+                className="px-5 py-2 rounded-xl bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold shadow-md transition disabled:opacity-50 cursor-pointer"
+              >
+                {isImporting ? 'Importing Students...' : `Confirm & Import ${parsedImportRows.length} Students`}
               </button>
             </div>
           </div>

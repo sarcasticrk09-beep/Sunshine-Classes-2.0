@@ -89,6 +89,7 @@ import {
 import SunshineLogo from './SunshineLogo';
 import { SEED_WMS_DATA } from '../data/wmsData';
 import { StudyMaterialCMS } from './StudyMaterialCMS';
+import { CloudinaryUpload } from './CloudinaryUpload';
 
 // Top-Level Content Studio Categories
 export type StudioCategory = 'website' | 'academic' | 'commerce' | 'marketing';
@@ -1121,12 +1122,30 @@ export const ContentStudio: React.FC<ContentStudioProps> = ({
               </select>
             </div>
 
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700 block mb-1">Choose File to Upload</label>
+              <CloudinaryUpload
+                id="content-studio-media-file-upload"
+                folder="gallery"
+                initialUrl={uploadUrl}
+                onUploadSuccess={(url, _publicId, fileName) => {
+                  setUploadUrl(url);
+                  if (!uploadName && fileName) {
+                    setUploadName(fileName.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " "));
+                  }
+                }}
+                onFileDeleted={() => setUploadUrl('')}
+                allowedTypes={['jpg', 'jpeg', 'png', 'webp', 'gif', 'pdf', 'docx']}
+                label="Attach Image or Document Asset"
+              />
+            </div>
+
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Image / Asset Web URL</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Or Direct Asset URL</label>
               <input
-                type="url"
-                required
-                placeholder="https://images.unsplash.com/..."
+                id="input-media-asset-url"
+                type="text"
+                placeholder="https://... or uploaded file url"
                 value={uploadUrl}
                 onChange={(e) => setUploadUrl(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-900 focus:outline-none"

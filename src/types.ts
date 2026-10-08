@@ -102,6 +102,7 @@ export interface Teacher {
   qualification: string;
   specialty: string[];
   batches: string[];
+  photoUrl?: string;
 }
 
 export interface Admission {
@@ -440,6 +441,7 @@ export interface Test {
   date: string;
   highestMarks?: number;
   averageMarks?: number;
+  questionPaperUrl?: string;
 }
 
 export interface StudentMark {
@@ -687,6 +689,8 @@ export interface BatchBulletinPost {
   content: string;
   timestamp: string; // ISO string
   readBy?: BatchBulletinReadReceipt[];
+  attachmentUrl?: string;
+  attachmentName?: string;
 }
 
 export interface UPIPayment {

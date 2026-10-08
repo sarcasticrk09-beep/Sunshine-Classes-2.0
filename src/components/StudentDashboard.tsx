@@ -418,15 +418,24 @@ export default function StudentDashboard({
     localStorage.setItem('sunshine_downloaded_materials', JSON.stringify(nextList));
     
     if (!isCurrentlyDownloaded) {
-      if (item.fileData) {
+      if (item.fileUrl && !item.fileUrl.startsWith('data:')) {
+        const link = document.createElement('a');
+        link.href = item.fileUrl;
+        link.target = '_blank';
+        link.rel = 'noreferrer';
+        link.download = item.file || `${item.title}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else if (item.fileData) {
         const link = document.createElement('a');
         link.href = item.fileData;
-        link.download = item.file;
+        link.download = item.file || `${item.title}.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
       } else {
-        alert("Downloaded 'Offline Notes' successfully. High-speed reading enabled, no internet required!");
+        alert(`Saved '${item.title}' to device cache for instant offline study.`);
       }
     } else {
       alert("Removed study notes from offline cache.");
@@ -2507,47 +2516,100 @@ export default function StudentDashboard({
           )}
 
           {/* TAB 6: STUDY MATERIAL DOWNLOAD CENTER */}
-          {activeTab === 'study-material' && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h3 className="font-display font-bold text-lg text-slate-800 mb-2">Digital Study Library</h3>
-              <p className="text-xs text-slate-500 mb-6">Expert revision pamphlets and chapter-wise question sheets created by senior faculty.</p>
+          {activeTab === 'study-material' && (() => {
+            const classMatch = (student.class || '').toLowerCase();
+            const matchingMaterials = (studyMaterials || []).filter(item => {
+              if (!item.class || item.class === 'ALL' || item.class === 'Board Specials') return true;
+              const itemClass = item.class.toLowerCase();
+              return itemClass === classMatch || classMatch.includes(itemClass) || itemClass.includes(classMatch);
+            });
+            const displayedMaterials = matchingMaterials.length > 0 ? matchingMaterials : (studyMaterials || []);
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                {(studyMaterials && studyMaterials.length > 0 ? studyMaterials : [
-                  { id: 'mat1', title: 'Class 10 Math Formula Cheat-Sheet', subject: 'Mathematics', desc: 'Complete algebraic, quadratic, and trigonometric formulas in 2 clean pages.', file: 'math_formulas.pdf', size: '1.2 MB', category: 'NOTES', class: 'Class 10 Board Specialists' },
-                  { id: 'mat2', title: 'Chemical Reactions and Equations PDF', subject: 'Science', desc: 'NCERT back exercise solved chemical reactions with balancing shortcuts.', file: 'chemical_equations.pdf', size: '2.5 MB', category: 'NOTES', class: 'Class 10 Board Specialists' },
-                  { id: 'mat3', title: 'Active & Passive Voice Rules Guide', subject: 'English', desc: 'English grammar rules with pre-board mock practice questions.', file: 'english_grammar_voice.pdf', size: '800 KB', category: 'NOTES', class: 'Class 10 Board Specialists' },
-                  { id: 'mat4', title: 'Class 10 Physics Ray Diagrams', subject: 'Science', desc: 'Hand-drawn mirror and lens ray formation scenarios for board exam reference.', file: 'physics_ray_diagrams.pdf', size: '4.1 MB', category: 'NOTES', class: 'Class 10 Board Specialists' }
-                ] as StudyMaterial[]).map((item, idx) => {
-                  const isCached = downloadedMaterials.includes(item.id);
-                  return (
-                    <div key={idx} className="rounded-xl border border-slate-100 p-4 hover:border-slate-300 hover:shadow-sm transition-all flex justify-between items-start gap-4 bg-slate-50/10">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                          <span className="text-[9px] font-black uppercase text-brand-blue block">{item.subject}</span>
-                          <span className="text-[9px] font-black uppercase text-brand-orange block">{item.class}</span>
-                          {isCached && <span className="text-[8px] font-bold text-green-700 bg-green-50 px-2 py-0.2 rounded border border-green-200">✓ Cached</span>}
+            return (
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+                  <div>
+                    <h3 className="font-display font-bold text-lg text-slate-800">Digital Study Library & Notes</h3>
+                    <p className="text-xs text-slate-500">
+                      Revision notes, previous year board papers (PYQ), formula sheets, and chapter solutions for {student.class}.
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-bold text-indigo-900 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full w-fit">
+                    {displayedMaterials.length} Resources Available
+                  </span>
+                </div>
+
+                {displayedMaterials.length === 0 ? (
+                  <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                    <BookOpen className="mx-auto text-slate-400 mb-2" size={32} />
+                    <h4 className="text-sm font-bold text-slate-700">No Study Materials Available Yet</h4>
+                    <p className="text-xs text-slate-400 mt-1">Faculty members are preparing your session notes and PYQs.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {displayedMaterials.map((item, idx) => {
+                      const isCached = downloadedMaterials.includes(item.id);
+                      return (
+                        <div
+                          key={item.id || idx}
+                          className="rounded-xl border border-slate-100 p-4 hover:border-slate-300 hover:shadow-sm transition-all flex justify-between items-start gap-4 bg-slate-50/20"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                              <span className="text-[9px] font-black uppercase text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+                                {item.subject}
+                              </span>
+                              <span className="text-[9px] font-black uppercase text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
+                                {item.materialType || item.category || 'NOTES'}
+                              </span>
+                              <span className="text-[9px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                                {item.class}
+                              </span>
+                              {isCached && (
+                                <span className="text-[8px] font-bold text-green-700 bg-green-50 px-1.5 py-0.5 rounded border border-green-200">
+                                  ✓ Cached
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="text-xs font-bold text-slate-800 line-clamp-1">{item.title}</h4>
+                            <p className="text-[10px] text-slate-500 mt-1 line-clamp-2">{item.desc || item.description}</p>
+                            {item.chapter && (
+                              <p className="text-[9px] font-medium text-slate-400 mt-1">📖 {item.chapter}</p>
+                            )}
+                          </div>
+                          <div className="flex flex-col items-end gap-1.5 shrink-0">
+                            <button
+                              id={`btn-dl-material-${item.id || idx}`}
+                              onClick={() => handleDownloadMaterial(item)}
+                              title={isCached ? "Remove from device cache" : "Download / Save Offline"}
+                              className={`rounded-lg p-2 border transition-all cursor-pointer ${
+                                isCached 
+                                  ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' 
+                                  : 'bg-indigo-50 hover:bg-indigo-900 hover:text-white border-indigo-100 text-indigo-700'
+                              }`}
+                            >
+                              <Download size={15} />
+                            </button>
+                            {item.fileUrl && !item.fileUrl.startsWith('data:') && (
+                              <a
+                                id={`link-view-material-${item.id || idx}`}
+                                href={item.fileUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[9px] font-bold text-slate-500 hover:text-indigo-900 underline"
+                              >
+                                Open ↗
+                              </a>
+                            )}
+                          </div>
                         </div>
-                        <h4 className="text-xs font-bold text-slate-800">{item.title}</h4>
-                        <p className="text-[10px] text-slate-500 mt-1">{item.desc}</p>
-                      </div>
-                      <button
-                        id={`btn-dl-material-${idx}`}
-                        onClick={() => handleDownloadMaterial(item)}
-                        className={`rounded-lg p-2 border transition-all flex-shrink-0 cursor-pointer ${
-                          isCached 
-                            ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' 
-                            : 'bg-slate-50 hover:bg-brand-blue hover:text-white border-slate-100 text-slate-600'
-                        }`}
-                      >
-                        <Download size={14} />
-                      </button>
-                    </div>
-                  );
-                })}
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            );
+          })()}
 
 
 
@@ -2814,6 +2876,23 @@ export default function StudentDashboard({
                                  </div>
                                </div>
                                <p className="text-xs text-slate-700 leading-relaxed bg-slate-50/40 p-2.5 rounded-lg border border-slate-50/50 whitespace-pre-wrap">{post.content}</p>
+                               
+                               {post.attachmentUrl && (
+                                 <div className="mt-2 flex items-center gap-2">
+                                   <button
+                                     id={`btn-student-view-bulletin-attachment-${post.id}`}
+                                     type="button"
+                                     onClick={() => {
+                                       setViewerFileUrl(post.attachmentUrl!);
+                                       setViewerFileTitle(post.attachmentName || 'Notice Attachment');
+                                     }}
+                                     className="inline-flex items-center gap-1.5 text-[11px] font-bold text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-xl transition cursor-pointer"
+                                   >
+                                     <FileText size={13} />
+                                     <span>{post.attachmentName || 'View Notice Attachment'}</span>
+                                   </button>
+                                 </div>
+                               )}
                                
                                {/* 'X read this' counter trigger and expanded tracking list */}
                                <div className="mt-2" id={`bulletin-read-tracker-container-${post.id}`}>

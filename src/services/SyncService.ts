@@ -501,6 +501,45 @@ class SyncServiceClass {
       colCache.set(docId, data);
     }
 
+    // Helper to safely write to localStorage without crashing on browser QuotaExceededError
+    const safeLocalStorageSet = (key: string, val: any) => {
+      try {
+        localStorage.setItem(key, JSON.stringify(val));
+      } catch (err: any) {
+        if (err?.name === 'QuotaExceededError' || err?.code === 22 || err?.number === -2147024882) {
+          console.warn(`[SyncService] LocalStorage quota reached for "${key}". Sanitizing heavy data payloads...`);
+          try {
+            if (Array.isArray(val)) {
+              const sanitized = val.map(item => {
+                if (typeof item === 'object' && item !== null) {
+                  const copy = { ...item };
+                  if (copy.fileData && copy.fileData.length > 200) delete copy.fileData;
+                  if (copy.fileUrl && copy.fileUrl.startsWith('data:') && copy.fileUrl.length > 500) {
+                    copy.fileUrl = '';
+                  }
+                  return copy;
+                }
+                return item;
+              });
+              localStorage.setItem(key, JSON.stringify(sanitized));
+              return;
+            }
+            if (typeof val === 'object' && val !== null) {
+              const copy = { ...val };
+              if (copy.fileData && copy.fileData.length > 200) delete copy.fileData;
+              if (copy.fileUrl && copy.fileUrl.startsWith('data:') && copy.fileUrl.length > 500) {
+                copy.fileUrl = '';
+              }
+              localStorage.setItem(key, JSON.stringify(copy));
+              return;
+            }
+          } catch {
+            console.warn(`[SyncService] LocalStorage quota completely saturated. Operating safely in memory.`);
+          }
+        }
+      }
+    };
+
     // Mirror mutation to localStorage so local persistence stays completely synchronized
     try {
       if (typeof window !== 'undefined') {
@@ -519,16 +558,16 @@ class SyncServiceClass {
             } else {
               parsed.push(data);
             }
-            localStorage.setItem(storageKey, JSON.stringify(parsed));
+            safeLocalStorageSet(storageKey, parsed);
           } else if (parsed && typeof parsed === 'object') {
             if (data === null) {
               localStorage.removeItem(storageKey);
             } else {
-              localStorage.setItem(storageKey, JSON.stringify({ ...parsed, ...data }));
+              safeLocalStorageSet(storageKey, { ...parsed, ...data });
             }
           }
         } else if (data !== null) {
-          localStorage.setItem(storageKey, JSON.stringify([data]));
+          safeLocalStorageSet(storageKey, [data]);
         }
       }
     } catch (e) {

@@ -351,17 +351,40 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
         folder: 'study-materials'
       });
 
+      let finalUrl = res.url;
+
+      // If client returned a data URL, upload to server storage API to convert to persistent URL
+      if (finalUrl && finalUrl.startsWith('data:')) {
+        try {
+          const apiRes = await fetch('/api/storage/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileBase64: finalUrl,
+              fileName: file.name,
+              contentType: file.type || 'application/pdf',
+              folder: 'study-materials',
+              bucket: 'sunshine-media'
+            })
+          });
+          const apiData = await apiRes.json().catch(() => null);
+          if (apiData?.success && apiData?.url) {
+            finalUrl = apiData.url;
+          }
+        } catch (apiErr) {
+          console.warn('[StudyMaterialCMS] Server storage upload fallback:', apiErr);
+        }
+      }
+
       setFileUploadProgress(100);
       setTimeout(() => setFileUploadProgress(null), 500);
 
-      const isDataUrl = res.url && res.url.startsWith('data:');
       setFormData(prev => ({
         ...prev,
         fileName: file.name,
         fileSize: sizeInMB,
-        fileUrl: res.url,
-        // Only keep fileData if size is under 1MB to prevent QuotaExceededError in localStorage
-        fileData: (file.size < 1024 * 1024 && isDataUrl) ? res.url : ''
+        fileUrl: finalUrl,
+        fileData: '' // Never store heavy Base64 in local state to prevent browser quota exhaustion
       }));
     } catch (uploadErr) {
       console.warn('[StudyMaterialCMS] Direct upload notice, fallback to preview link:', uploadErr);
@@ -371,7 +394,8 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
         ...prev,
         fileName: file.name,
         fileSize: sizeInMB,
-        fileUrl: URL.createObjectURL(file)
+        fileUrl: URL.createObjectURL(file),
+        fileData: ''
       }));
     }
   };

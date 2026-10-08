@@ -277,7 +277,7 @@ export const SEED_WMS_DATA: WMSData = {
   announcementBar: {
     enabled: true,
     type: 'Admission Open',
-    message: '🎉 Admissions Open for New Session 2026-27! Register today to claim your early bird demo seat.',
+    message: '🎉 Admissions Open for New Session 2026-27! Register today to claim your early bird admission seat.',
     buttonText: 'Apply Online ➔',
     buttonLink: '/admissions',
     backgroundColor: '#d97706',
@@ -289,11 +289,11 @@ export const SEED_WMS_DATA: WMSData = {
   popups: [
     {
       id: 'pop-1',
-      title: 'Join Sunshine Demo Classes For Free!',
+      title: 'Join Sunshine Foundation Classes!',
       subtitle: 'Experience our master faculty, smart notes & interactive batch teaching for 3 days with zero commitment.',
-      type: 'Free Demo',
+      type: 'Admission Popup',
       imageUrl: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&q=80&w=600',
-      ctaText: 'Book Free Demo Seat',
+      ctaText: 'Reserve Your Seat',
       ctaLink: '/admissions',
       displayRule: 'homepage_only',
       delaySeconds: 3,

@@ -188,20 +188,27 @@ export async function getDoc(docRef: any): Promise<any> {
 export async function getDocs(colRefAny: any): Promise<any> {
   const col = colRefAny.colName || (colRefAny.rawRef ? colRefAny.rawRef.id : 'default');
 
-  const items: any[] = [];
   try {
     const { data, error } = await serverSupabase.from(col).select('*');
     if (!error && data) {
       if (!memoryStore[col]) memoryStore[col] = {};
       data.forEach((item: any) => {
         memoryStore[col][item.id] = item;
-        items.push({
+      });
+      // Ensure all baseline seeded items in memoryStore for this collection are preserved alongside database rows
+      const mergedMap: Record<string, any> = { ...(memoryStore[col] || {}) };
+      data.forEach((item: any) => {
+        mergedMap[item.id] = item;
+      });
+      const allItems = Object.values(mergedMap);
+      return {
+        empty: allItems.length === 0,
+        docs: allItems.map((item: any) => ({
           id: item.id,
           data: () => item,
           exists: () => true
-        });
-      });
-      return { empty: items.length === 0, docs: items };
+        }))
+      };
     }
   } catch (e) {
     // Fall back to memory
@@ -272,13 +279,13 @@ export function limit(num: number): any {
 
 export async function getCountFromServer(queryRef: any): Promise<any> {
   const col = queryRef?.colName || 'students';
+  const memCount = memoryStore[col] ? Object.keys(memoryStore[col]).length : 0;
   try {
     const { count, error } = await serverSupabase.from(col).select('*', { count: 'exact', head: true });
     if (!error && typeof count === 'number') {
-      return { data: () => ({ count }) };
+      return { data: () => ({ count: Math.max(count, memCount) }) };
     }
   } catch (e) {}
-  const memCount = memoryStore[col] ? Object.keys(memoryStore[col]).length : 0;
   return { data: () => ({ count: memCount }) };
 }
 

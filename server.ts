@@ -37,7 +37,7 @@ import { NotificationController } from "./src/server/notifications/NotificationC
 import { WebhookVerificationController } from "./src/server/notifications/WebhookVerificationController";
 import { WebhookController } from "./src/server/notifications/WebhookController";
 import { FinanceReportController } from "./src/server/reports/FinanceReportController";
-import { SEED_USERS } from "./src/data";
+import { SEED_USERS, SEED_STUDENTS } from "./src/data";
 import {
   serverSupabase,
   getAdminDb,
@@ -256,8 +256,8 @@ async function startServer() {
   }));
 
   // JSON parsing & cookie parsing middleware
-  app.use(express.json({ limit: "10mb" }));
-  app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+  app.use(express.json({ limit: "50mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "50mb" }));
   app.use(cookieParser());
 
   // Trust proxy for reverse proxy SSL and IP forwarding (Cloud Run / Render / Vercel / PaaS)
@@ -3514,24 +3514,41 @@ How can I help you towards your academic success today? Feel free to ask!`;
       const cleanName = String(fileName).replace(/[^a-zA-Z0-9._-]/g, "_");
       const filePath = `${cleanFolder}${Date.now()}_${cleanName}`;
 
-      const { data, error } = await serverSupabase.storage
-        .from(bucket)
-        .upload(filePath, buffer, {
-          upsert: true,
-          contentType: contentType || "application/octet-stream"
-        });
+      let publicUrl = "";
+      let storagePath = filePath;
 
-      if (error) {
-        console.error("[Supabase Storage API] Upload error:", error);
-        return res.status(500).json({ success: false, error: error.message });
+      try {
+        const { data, error } = await serverSupabase.storage
+          .from(bucket)
+          .upload(filePath, buffer, {
+            upsert: true,
+            contentType: contentType || "application/octet-stream"
+          });
+
+        if (error) {
+          throw error;
+        }
+
+        const { data: urlData } = serverSupabase.storage.from(bucket).getPublicUrl(data?.path || filePath);
+        publicUrl = urlData.publicUrl;
+        storagePath = data?.path || filePath;
+      } catch (storageErr: any) {
+        console.warn("[Supabase Storage API] Remote upload error, saving to local public uploads store:", storageErr?.message || storageErr);
+        const uploadsBase = path.join(process.cwd(), "public", "uploads", cleanFolder);
+        if (!fs.existsSync(uploadsBase)) {
+          fs.mkdirSync(uploadsBase, { recursive: true });
+        }
+        const localFileName = `${Date.now()}_${cleanName}`;
+        const localFilePath = path.join(uploadsBase, localFileName);
+        fs.writeFileSync(localFilePath, buffer);
+        publicUrl = `/uploads/${cleanFolder}${localFileName}`;
+        storagePath = `${cleanFolder}${localFileName}`;
       }
-
-      const { data: urlData } = serverSupabase.storage.from(bucket).getPublicUrl(data?.path || filePath);
 
       return res.json({
         success: true,
-        url: urlData.publicUrl,
-        path: data?.path || filePath,
+        url: publicUrl,
+        path: storagePath,
         bucket,
         name: cleanName,
         size: buffer.length
@@ -4133,6 +4150,28 @@ Sunshine Classes — *Excellence in Education* ☀️`;
     }
   };
 
+  const ensureSeedStudentsExist = async () => {
+    console.log("[Supabase Init] Synchronizing baseline students to database...");
+    try {
+      const { data: existing, error } = await serverSupabase.from("students").select("id");
+      const existingIds = new Set((existing || []).map((s: any) => s.id));
+      const missingStudents = SEED_STUDENTS.filter(s => !existingIds.has(s.id));
+      if (missingStudents.length > 0) {
+        console.log(`[Supabase Init] Found ${missingStudents.length} unseeded students. Upserting into database...`);
+        for (const student of missingStudents) {
+          try {
+            await serverSupabase.from("students").upsert(student);
+          } catch (e: any) {
+            console.warn(`[Supabase Init] Upsert error for student ${student.name}:`, e.message);
+          }
+        }
+        console.log(`[Supabase Init] Successfully synchronized ${missingStudents.length} students.`);
+      }
+    } catch (err: any) {
+      console.warn("[Supabase Init] Non-blocking students sync error:", err.message);
+    }
+  };
+
   const ensureStorageBucketExists = async () => {
     try {
       const { data: buckets, error } = await serverSupabase.storage.listBuckets();
@@ -4155,6 +4194,9 @@ Sunshine Classes — *Excellence in Education* ☀️`;
   if (!isProduction || process.env.FORCE_SEED_USERS === "true") {
     ensureSeedUsersExist().catch((err) => {
       console.warn("[Supabase Init] Non-blocking seed users assertion error:", err.message);
+    });
+    ensureSeedStudentsExist().catch((err) => {
+      console.warn("[Supabase Init] Non-blocking seed students assertion error:", err.message);
     });
   } else {
     console.log("[Supabase Init] Production environment detected. Skipping automatic seed users assertion.");

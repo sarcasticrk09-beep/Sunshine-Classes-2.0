@@ -27,10 +27,12 @@ import {
   MessageSquare,
   Send,
   X,
-  Eye
+  Eye,
+  Upload
 } from 'lucide-react';
 import { Teacher, Student, Attendance, Homework, HomeworkSubmission, Test, StudentMark, TimetableEntry, BatchBulletinPost, SubscriptionConfig } from '../types';
 import { CloudinaryUpload } from './CloudinaryUpload';
+import { StudyMaterialCMS } from './StudyMaterialCMS';
 
 interface TeacherDashboardProps {
   teacher: Teacher;
@@ -50,7 +52,7 @@ interface TeacherDashboardProps {
   timetableList: TimetableEntry[];
   onUpdateTimetable: (timetable: TimetableEntry[]) => void;
   batchBulletins: BatchBulletinPost[];
-  onAddBatchBulletinPost: (batchId: string, batchName: string, content: string) => void;
+  onAddBatchBulletinPost: (batchId: string, batchName: string, content: string, attachmentUrl?: string, attachmentName?: string) => void;
   onDeleteBatchBulletinPost: (postId: string) => void;
   subConfig: SubscriptionConfig;
 }
@@ -77,7 +79,7 @@ export default function TeacherDashboard({
   onDeleteBatchBulletinPost,
   subConfig
 }: TeacherDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'attendance' | 'homework-assign' | 'homework-review' | 'test-marks' | 'schedule' | 'bulletin'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'attendance' | 'homework-assign' | 'homework-review' | 'test-marks' | 'schedule' | 'bulletin' | 'study-materials'>('overview');
   const [isTabDropdownOpen, setIsTabDropdownOpen] = useState(false);
   
   // Selection States
@@ -110,6 +112,8 @@ export default function TeacherDashboard({
   // Batch Bulletin States
   const [bulletinInputText, setBulletinInputText] = useState('');
   const [bulletinSelectedBatch, setBulletinSelectedBatch] = useState<string>(teacher.batches[0] || 'Class 10 - Evening Stars');
+  const [bulletinAttachmentUrl, setBulletinAttachmentUrl] = useState('');
+  const [bulletinAttachmentName, setBulletinAttachmentName] = useState('');
   const [expandedBulletinReads, setExpandedBulletinReads] = useState<Record<string, boolean>>({});
 
   const toggleBulletinReadList = (postId: string) => {
@@ -126,6 +130,7 @@ export default function TeacherDashboard({
   const [testChapter, setTestChapter] = useState('');
   const [testTotalMarks, setTestTotalMarks] = useState(30);
   const [testDate, setTestDate] = useState('');
+  const [testPaperUrl, setTestPaperUrl] = useState('');
 
   // Marks Entry States
   const [selectedTestId, setSelectedTestId] = useState<string>('');
@@ -314,12 +319,14 @@ export default function TeacherDashboard({
       subject: testSubject,
       chapter: testChapter,
       totalMarks: Number(testTotalMarks),
-      date: testDate
+      date: testDate,
+      questionPaperUrl: testPaperUrl || undefined
     });
 
     setTestTitle('');
     setTestChapter('');
     setTestDate('');
+    setTestPaperUrl('');
     alert("Official test registered. Select 'Enter Test Marks' tab to grade students.");
   };
 
@@ -445,6 +452,7 @@ export default function TeacherDashboard({
               { id: 'homework-assign', label: 'Upload Homework Assignments', icon: <BookOpen size={16} /> },
               { id: 'homework-review', label: `Review Homework submissions (${relevantSubmissions.filter(s => s.status === 'SUBMITTED').length})`, icon: <CheckCircle size={16} /> },
               { id: 'test-marks', label: 'Test Creation & Grading Ledger', icon: <FileText size={16} /> },
+              { id: 'study-materials', label: 'Upload Study Materials & Notes (PYQ)', icon: <Upload size={16} /> },
               { id: 'bulletin', label: 'Batch Bulletin Board', icon: <MessageSquare size={16} /> }
             ] as const;
 
@@ -588,6 +596,21 @@ export default function TeacherDashboard({
                   <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Registered Tests Taught</span>
                   <span className="font-display text-2xl font-black text-slate-800">{tests.length} tests</span>
                   <span className="text-[10px] text-slate-400 block mt-1">Chapter wise ranking</span>
+                </div>
+
+                <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-500/10 via-white to-amber-50 p-5 shadow-xs transition-all duration-300 hover:scale-[1.02] hover:shadow-md flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] text-amber-900 font-bold uppercase tracking-wider block">Study Materials CMS</span>
+                    <h4 className="font-display text-lg font-black text-slate-900 mt-0.5">Notes, PYQ & Sheets</h4>
+                    <p className="text-[10px] text-slate-500 mt-1">Upload syllabus PDFs, formula cheat sheets, and previous year board papers.</p>
+                  </div>
+                  <button
+                    id="btn-teacher-quick-upload-material"
+                    onClick={() => setActiveTab('study-materials')}
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 px-3 py-1.5 text-xs font-bold text-slate-950 shadow-sm transition-all cursor-pointer w-fit"
+                  >
+                    <Upload size={13} /> Upload Material Now
+                  </button>
                 </div>
               </div>
 
@@ -1607,6 +1630,22 @@ export default function TeacherDashboard({
                     </div>
                   </div>
 
+                  <div className="space-y-1">
+                    <CloudinaryUpload
+                      id="teacher-test-question-paper-upload"
+                      folder="assignments"
+                      cloudName={subConfig.cloudinaryCloudName}
+                      uploadPreset={subConfig.cloudinaryUploadPreset}
+                      apiKey={subConfig.cloudinaryApiKey}
+                      maxSizeMB={subConfig.cloudinaryMaxFileSize}
+                      initialUrl={testPaperUrl}
+                      onUploadSuccess={(url) => setTestPaperUrl(url)}
+                      onFileDeleted={() => setTestPaperUrl('')}
+                      allowedTypes={['jpg', 'jpeg', 'png', 'webp', 'pdf', 'docx']}
+                      label="Attach Question Paper / Solution Sheet (Optional PDF / Image)"
+                    />
+                  </div>
+
                   <div className="flex justify-end pt-2">
                     <button
                       id="btn-create-test"
@@ -1630,14 +1669,31 @@ export default function TeacherDashboard({
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.25, delay: Math.min(idx * 0.04, 0.4) }}
-                      className="rounded-xl border border-slate-100 p-4 hover:border-slate-300 transition-all"
+                      className="rounded-xl border border-slate-100 p-4 hover:border-slate-300 transition-all flex flex-col justify-between"
                     >
-                      <span className="text-[9px] font-black text-brand-blue block mb-1 uppercase">
-                        {test.class} • {test.subject}
-                      </span>
-                      <h4 className="text-xs font-bold text-slate-800">{test.title}</h4>
-                      <p className="text-[10px] text-slate-500 mt-1">Syllabus: {test.chapter}</p>
-                      <p className="text-[10px] text-slate-400">Total Points: {test.totalMarks} • Date: {test.date}</p>
+                      <div>
+                        <div className="flex justify-between items-start gap-2 mb-1">
+                          <span className="text-[9px] font-black text-brand-blue uppercase">
+                            {test.class} • {test.subject}
+                          </span>
+                          {test.questionPaperUrl && (
+                            <button
+                              id={`btn-view-paper-${test.id}`}
+                              type="button"
+                              onClick={() => {
+                                setViewerFileUrl(test.questionPaperUrl!);
+                                setViewerFileTitle(`Question Paper: ${test.title}`);
+                              }}
+                              className="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md transition cursor-pointer flex items-center gap-1"
+                            >
+                              <FileText size={11} /> Question Paper
+                            </button>
+                          )}
+                        </div>
+                        <h4 className="text-xs font-bold text-slate-800">{test.title}</h4>
+                        <p className="text-[10px] text-slate-500 mt-1">Syllabus: {test.chapter}</p>
+                        <p className="text-[10px] text-slate-400">Total Points: {test.totalMarks} • Date: {test.date}</p>
+                      </div>
 
                       <button
                         id={`btn-open-grading-${test.id}`}
@@ -1977,16 +2033,20 @@ export default function TeacherDashboard({
 
             const handlePostSubmit = (e: React.FormEvent) => {
               e.preventDefault();
-              if (!bulletinInputText.trim()) return;
+              if (!bulletinInputText.trim() && !bulletinAttachmentUrl) return;
               onAddBatchBulletinPost(
                 bulletinSelectedBatch === 'Class 10 - Morning Excellence' ? 'b1' : 
                 bulletinSelectedBatch === 'Class 10 - Evening Stars' ? 'b2' : 
                 bulletinSelectedBatch === 'Class 9 - Foundation Group' ? 'b3' : 
                 bulletinSelectedBatch === 'Class 8 - Apex Batch' ? 'b4' : 'b5',
                 bulletinSelectedBatch,
-                bulletinInputText.trim()
+                bulletinInputText.trim() || 'Notice Attachment',
+                bulletinAttachmentUrl || undefined,
+                bulletinAttachmentName || undefined
               );
               setBulletinInputText('');
+              setBulletinAttachmentUrl('');
+              setBulletinAttachmentName('');
             };
 
             return (
@@ -2016,8 +2076,8 @@ export default function TeacherDashboard({
                   </div>
 
                   {/* Create Announcement Form */}
-                  <form onSubmit={handlePostSubmit} className="mb-8 border border-emerald-100 rounded-2xl p-4 bg-emerald-50/20">
-                    <label className="block text-xs font-bold text-slate-700 mb-2">Compose Batch Announcement</label>
+                  <form onSubmit={handlePostSubmit} className="mb-8 border border-emerald-100 rounded-2xl p-4 bg-emerald-50/20 space-y-3">
+                    <label className="block text-xs font-bold text-slate-700">Compose Batch Announcement</label>
                     <div className="flex gap-2">
                       <input
                         type="text"
@@ -2028,11 +2088,34 @@ export default function TeacherDashboard({
                       />
                       <button
                         type="submit"
-                        disabled={!bulletinInputText.trim()}
+                        disabled={!bulletinInputText.trim() && !bulletinAttachmentUrl}
                         className="rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-5 py-3 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Send size={14} /> Send
                       </button>
+                    </div>
+
+                    {/* Optional Bulletin Attachment */}
+                    <div className="pt-1">
+                      <CloudinaryUpload
+                        id="bulletin-announcement-file-upload"
+                        folder="notices"
+                        cloudName={subConfig.cloudinaryCloudName}
+                        uploadPreset={subConfig.cloudinaryUploadPreset}
+                        apiKey={subConfig.cloudinaryApiKey}
+                        maxSizeMB={subConfig.cloudinaryMaxFileSize}
+                        initialUrl={bulletinAttachmentUrl}
+                        onUploadSuccess={(url, _publicId, fileName) => {
+                          setBulletinAttachmentUrl(url);
+                          setBulletinAttachmentName(fileName || 'Announcement Attachment');
+                        }}
+                        onFileDeleted={() => {
+                          setBulletinAttachmentUrl('');
+                          setBulletinAttachmentName('');
+                        }}
+                        allowedTypes={['jpg', 'jpeg', 'png', 'webp', 'pdf', 'docx']}
+                        label="Attach Document / Notice Poster (Optional)"
+                      />
                     </div>
                   </form>
 
@@ -2094,6 +2177,23 @@ export default function TeacherDashboard({
                                 <span className="text-[10px] text-slate-400 font-mono ml-auto">{formattedTime}</span>
                               </div>
                               <p className="text-xs text-slate-700 leading-relaxed bg-slate-50/40 p-2.5 rounded-lg border border-slate-50/50 whitespace-pre-wrap">{post.content}</p>
+                              
+                              {post.attachmentUrl && (
+                                <div className="mt-2 flex items-center gap-2">
+                                  <button
+                                    id={`btn-view-bulletin-attachment-${post.id}`}
+                                    type="button"
+                                    onClick={() => {
+                                      setViewerFileUrl(post.attachmentUrl!);
+                                      setViewerFileTitle(post.attachmentName || 'Bulletin Attachment');
+                                    }}
+                                    className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-xl transition cursor-pointer"
+                                  >
+                                    <FileText size={13} />
+                                    <span>{post.attachmentName || 'View Attachment'}</span>
+                                  </button>
+                                </div>
+                              )}
                               
                               {/* 'X read this' counter trigger and expanded tracking list */}
                               <div className="mt-2" id={`bulletin-read-tracker-container-${post.id}`}>
@@ -2159,6 +2259,24 @@ export default function TeacherDashboard({
               </div>
             );
           })()}
+
+          {/* TAB 8: STUDY MATERIALS & NOTES CMS (NOTES / PYQ / PAPERS UPLOAD) */}
+          {activeTab === 'study-materials' && (
+            <div id="tab-teacher-study-materials-cms" className="space-y-6 animate-fade-in">
+              <StudyMaterialCMS
+                currentUser={{
+                  id: teacher.id,
+                  username: (teacher.name || 'faculty').toLowerCase().replace(/\s+/g, '.'),
+                  name: teacher.name,
+                  email: `${(teacher.name || 'faculty').toLowerCase().replace(/\s+/g, '.')}@sunshineclasses.net`,
+                  role: 'TEACHER'
+                } as any}
+                onAuditLog={(action, details) => {
+                  console.log(`[Teacher Study Material Audit] ${action}: ${details}`);
+                }}
+              />
+            </div>
+          )}
           </motion.div>
         </div>
       </div>

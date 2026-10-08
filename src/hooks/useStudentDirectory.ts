@@ -112,19 +112,39 @@ export function useStudentDirectory({
 
   // Base fallback students determination
   const getInitialFallbackList = useCallback((): any[] => {
-    if (Array.isArray(initialStudents) && initialStudents.length > 0) {
-      return initialStudents;
-    }
+    let baseList = Array.isArray(initialStudents) && initialStudents.length > 0
+      ? initialStudents
+      : [];
+
     if (typeof window !== 'undefined') {
       try {
         const stored = localStorage.getItem('sunshine_students');
         if (stored) {
           const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            baseList = parsed;
+          }
         }
       } catch {}
     }
-    return Array.isArray(SEED_STUDENTS) ? SEED_STUDENTS : [];
+
+    if (baseList.length === 0 && Array.isArray(SEED_STUDENTS)) {
+      return SEED_STUDENTS;
+    }
+
+    // Ensure any baseline SEED_STUDENTS not yet in baseList are cleanly merged
+    if (Array.isArray(SEED_STUDENTS) && baseList.length < SEED_STUDENTS.length) {
+      const idSet = new Set(baseList.map((p: any) => p.id || p.rollNo));
+      const merged = [...baseList, ...SEED_STUDENTS.filter((s: any) => !idSet.has(s.id || s.rollNo))];
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('sunshine_students', JSON.stringify(merged));
+        } catch {}
+      }
+      return merged;
+    }
+
+    return baseList.length > 0 ? baseList : (Array.isArray(SEED_STUDENTS) ? SEED_STUDENTS : []);
   }, [initialStudents]);
 
   // Data & Status State

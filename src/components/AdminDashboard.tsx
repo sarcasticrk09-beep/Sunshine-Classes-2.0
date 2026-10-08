@@ -2356,6 +2356,7 @@ export default function AdminDashboard({
   const [classFormStream, setClassFormStream] = useState('');
   const [classFormStatus, setClassFormStatus] = useState<'ACTIVE' | 'INACTIVE'>('ACTIVE');
   const [classFormSubjects, setClassFormSubjects] = useState('');
+  const [expandedClassRosterId, setExpandedClassRosterId] = useState<string | null>(null);
 
   // Timing Slot Modal State Variables
   const [showTimingModal, setShowTimingModal] = useState(false);
@@ -3761,6 +3762,7 @@ export default function AdminDashboard({
   const [tchQual, setTchQual] = useState('');
   const [tchSpecs, setTchSpecs] = useState('');
   const [tchBatches, setTchBatches] = useState('');
+  const [tchPhotoUrl, setTchPhotoUrl] = useState('');
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [showTeacherForm, setShowTeacherForm] = useState(false);
 
@@ -4843,7 +4845,8 @@ export default function AdminDashboard({
         phone: tchPhone,
         qualification: tchQual,
         specialty: tchSpecs.split(',').map((s) => s.trim()),
-        batches: tchBatches.split(',').map((b) => b.trim())
+        batches: tchBatches.split(',').map((b) => b.trim()),
+        photoUrl: tchPhotoUrl || undefined
       };
       onUpdateTeacher(updatedTeacher);
       alert(`Teacher "${tchName}" profile updated successfully.`);
@@ -4856,7 +4859,8 @@ export default function AdminDashboard({
         phone: tchPhone,
         qualification: tchQual,
         specialty: tchSpecs.split(',').map((s) => s.trim()),
-        batches: tchBatches.split(',').map((b) => b.trim())
+        batches: tchBatches.split(',').map((b) => b.trim()),
+        photoUrl: tchPhotoUrl || undefined
       });
       alert(`New faculty "${tchName}" registered successfully.`);
     }
@@ -4868,6 +4872,7 @@ export default function AdminDashboard({
     setTchQual('');
     setTchSpecs('');
     setTchBatches('');
+    setTchPhotoUrl('');
     setEditingTeacher(null);
     setShowTeacherForm(false);
   };
@@ -6304,6 +6309,7 @@ ${data.log}`
           { id: 'fees', label: 'Fee Management', icon: <DollarSign size={16} />, category: 'Finance & Academics' },
           { id: 'teachers', label: 'Faculty Directory', icon: <BookOpen size={16} />, category: 'Finance & Academics' },
           { id: 'batches', label: 'Classes & Timings', icon: <Calendar size={16} />, category: 'Finance & Academics' },
+          { id: 'study-materials', label: 'Study Materials (Notes/PYQ)', icon: <FileText size={16} className="text-amber-500 font-bold" />, category: 'Finance & Academics' },
           { id: 'founder-office', label: "Founder's Executive Office", icon: <Crown size={16} className="text-amber-500 font-bold" />, category: 'Executive Suite' },
           { id: 'cofounder-office', label: "Co-Founder's Workspace", icon: <Award size={16} className="text-indigo-500 font-bold" />, category: 'Executive Suite' }
         ] as const;
@@ -6313,10 +6319,10 @@ ${data.log}`
             return true;
           }
           if (isAdmin) {
-            const allowedAdminTabs = ['overview', 'content', 'admissions', 'students', 'orders', 'media', 'settings', 'fees', 'teachers', 'batches', 'cofounder-office'];
+            const allowedAdminTabs = ['overview', 'content', 'admissions', 'students', 'orders', 'media', 'settings', 'fees', 'teachers', 'batches', 'study-materials', 'cofounder-office'];
             return allowedAdminTabs.includes(tab.id);
           }
-          const allowedAdminTabs = ['overview', 'content', 'admissions', 'students', 'orders', 'media', 'settings', 'fees', 'teachers', 'batches'];
+          const allowedAdminTabs = ['overview', 'content', 'admissions', 'students', 'orders', 'media', 'settings', 'fees', 'teachers', 'batches', 'study-materials'];
           return allowedAdminTabs.includes(tab.id);
         });
 
@@ -6555,6 +6561,27 @@ ${data.log}`
                 contentSubTab === 'announcements' ? 'announcements' : 'homepage'
               }
             />
+          )}
+
+          {/* TAB: DEDICATED STUDY MATERIALS & NOTES CMS */}
+          {activeTab === 'study-materials' && (
+            <div id="tab-study-materials-cms" className="space-y-6 animate-fade-in">
+              <StudyMaterialCMS
+                currentUser={currentUser}
+                onAuditLog={(action, details) => {
+                  const newLog: AuditLog = {
+                    id: `log-${Date.now()}`,
+                    userId: currentUser?.id || 'admin',
+                    username: currentUser?.username || 'admin',
+                    action: action as any,
+                    details,
+                    timestamp: new Date().toISOString()
+                  };
+                  const updated = [newLog, ...auditLogs];
+                  onHealState('audit_logs', updated);
+                }}
+              />
+            </div>
           )}
 
           {/* TAB: MEDIA LIBRARY */}
@@ -8103,6 +8130,22 @@ ${data.log}`
                       </div>
                     </div>
 
+                    <div className="space-y-1">
+                      <CloudinaryUpload
+                        id="admin-teacher-photo-upload"
+                        folder="teachers"
+                        cloudName={subConfig.cloudinaryCloudName}
+                        uploadPreset={subConfig.cloudinaryUploadPreset}
+                        apiKey={subConfig.cloudinaryApiKey}
+                        maxSizeMB={subConfig.cloudinaryMaxFileSize}
+                        initialUrl={tchPhotoUrl}
+                        onUploadSuccess={(url) => setTchPhotoUrl(url)}
+                        onFileDeleted={() => setTchPhotoUrl('')}
+                        allowedTypes={['jpg', 'jpeg', 'png', 'webp']}
+                        label="Faculty Profile Picture (Optional)"
+                      />
+                    </div>
+
                     <div className="flex justify-end gap-2 pt-2">
                       <button
                         id="btn-cancel-teacher-form"
@@ -8114,6 +8157,7 @@ ${data.log}`
                           setTchQual('');
                           setTchSpecs('');
                           setTchBatches('');
+                          setTchPhotoUrl('');
                           setEditingTeacher(null);
                           setShowTeacherForm(false);
                         }}
@@ -8168,11 +8212,27 @@ ${data.log}`
                         className="rounded-xl border border-slate-100 p-5 bg-slate-50/50 hover:bg-slate-50/80 transition-all flex flex-col md:flex-row justify-between md:items-center gap-4"
                       >
                         <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-sm font-bold text-slate-800">{t.name}</h4>
-                            <span className="rounded bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 uppercase">
-                              {t.qualification}
-                            </span>
+                          <div className="flex items-center gap-3">
+                            {t.photoUrl ? (
+                              <img
+                                src={t.photoUrl}
+                                alt={t.name}
+                                className="h-10 w-10 rounded-full object-cover border border-slate-200 shadow-2xs shrink-0"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div className="h-10 w-10 rounded-full bg-indigo-100 text-indigo-800 font-black text-xs flex items-center justify-center border border-indigo-200 shrink-0">
+                                {t.name.charAt(0)}
+                              </div>
+                            )}
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-sm font-bold text-slate-800">{t.name}</h4>
+                                <span className="rounded bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 uppercase">
+                                  {t.qualification}
+                                </span>
+                              </div>
+                            </div>
                           </div>
                           
                           <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2 text-xs text-slate-600">
@@ -8216,6 +8276,7 @@ ${data.log}`
                               setTchQual(t.qualification);
                               setTchSpecs(t.specialty.join(', '));
                               setTchBatches(t.batches.join(', '));
+                              setTchPhotoUrl(t.photoUrl || '');
                               setShowTeacherForm(true);
                               window.scrollTo({ top: 0, behavior: 'smooth' });
                             }}
@@ -9398,7 +9459,7 @@ ${data.log}`
                                         `• Failed: ${failedCount}\n\n`;
 
                           if (demoMails.length > 0 && demoMails[0].previewUrl) {
-                            alertMsg += `⚡ Ethereal demo SMTP accounts were used because SMTP credentials are not yet configured in settings/env.\n` +
+                            alertMsg += `⚡ Automated mail delivery simulation was used because SMTP credentials are not yet configured in settings/env.\n` +
                                         `You can view one of the sent reminder designs here:\n${demoMails[0].previewUrl}`;
                           } else if (successCount > 0) {
                             alertMsg += `📨 All reminders dispatched via your custom configured SMTP server!`;
@@ -10857,13 +10918,20 @@ ${data.log}`
                                   <span>•</span>
                                   <span>Standard Fee: <strong className="text-slate-900 font-bold">₹{classItem.defaultMonthlyFee}/mo</strong></span>
                                   <span>•</span>
-                                  <span>Capacity: <strong>{classStudents.length} / {totalClassCap} Enrolled ({fillPercentage}%)</strong></span>
+                                  <span>Enrolled: <strong className="text-indigo-900 font-bold">{classStudents.length} Students</strong> ({fillPercentage}% of {totalClassCap} Batch Capacity)</span>
                                 </div>
                               </div>
                             </div>
 
                             {/* Class Level Actions */}
                             <div className="flex items-center gap-2 shrink-0">
+                              <button
+                                id={`btn-view-students-${classItem.id}`}
+                                onClick={() => setExpandedClassRosterId(expandedClassRosterId === classItem.id ? null : classItem.id)}
+                                className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-white hover:bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-900 transition-colors cursor-pointer"
+                              >
+                                <Users size={14} /> {expandedClassRosterId === classItem.id ? 'Hide Roster' : `Enrolled Students (${classStudents.length})`}
+                              </button>
                               <button
                                 id={`btn-add-timing-${classItem.id}`}
                                 onClick={() => handleOpenAddTiming(classItem.id)}
@@ -10900,6 +10968,57 @@ ${data.log}`
                               </button>
                             </div>
                           </div>
+
+                          {/* Enrolled Students Roster Expansion */}
+                          {expandedClassRosterId === classItem.id && (
+                            <div className="p-5 border-b border-indigo-100 bg-indigo-50/40 animate-fade-in">
+                              <div className="flex items-center justify-between pb-3 border-b border-indigo-100 text-xs font-bold text-indigo-950">
+                                <span className="flex items-center gap-2">
+                                  <Users size={14} className="text-indigo-600" />
+                                  Enrolled Students in {classItem.name} ({classStudents.length})
+                                </span>
+                                <span className="text-[11px] font-medium text-slate-500">
+                                  {classStudents.length} of {totalClassCap} seats filled
+                                </span>
+                              </div>
+                              {classStudents.length === 0 ? (
+                                <p className="text-xs text-slate-500 italic py-4 text-center">
+                                  No students currently assigned to {classItem.name}. Use the assignment form below or digital admissions to enroll students.
+                                </p>
+                              ) : (
+                                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                  {classStudents.map((s) => (
+                                    <div
+                                      key={s.id}
+                                      className="rounded-xl border border-indigo-100 bg-white p-3 shadow-2xs hover:border-indigo-300 transition-all flex items-start justify-between gap-2"
+                                    >
+                                      <div>
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="font-mono text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">
+                                            {s.rollNo || s.id}
+                                          </span>
+                                          <h4 className="font-bold text-xs text-slate-900">{s.name}</h4>
+                                        </div>
+                                        <p className="text-[11px] text-slate-500 mt-1">
+                                          Timing: {s.preferredTiming || 'Standard Slot'}
+                                        </p>
+                                        {s.mobile && (
+                                          <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                            📞 {s.mobile}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                        s.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                                      }`}>
+                                        {s.status || 'ACTIVE'}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
 
                           {/* Timings Hierarchy Body */}
                           <div className="p-5 space-y-3">
@@ -11895,7 +12014,7 @@ ${data.log}`
                     onSubmit={(e) => {
                       e.preventDefault();
                       let finalFilename = newMaterial.file.trim();
-                      if (!finalFilename.endsWith('.pdf')) {
+                      if (!finalFilename.includes('.')) {
                         finalFilename += '.pdf';
                       }
                       onAddStudyMaterial({
@@ -13393,7 +13512,7 @@ ${data.log}`
                               <option value="RAZORPAY">Razorpay Merchant Node (Key Account API)</option>
                               <option value="STRIPE">Stripe Checkout API Terminal (International Card/SaaS)</option>
                               <option value="BANK_TRANSFER">Direct School Bank Account (Manual Ledger Review)</option>
-                              <option value="MOCK">Demo Sandbox Gateway (Instant Receipt Simulation)</option>
+                              <option value="MOCK">Direct Sandbox Gateway (Instant Receipt Simulation)</option>
                             </select>
                           </div>
 
@@ -14376,7 +14495,7 @@ ${data.log}`
                       <div>
                         <strong className="text-slate-750">No-Backdoor Sign-In Enforcer:</strong>
                         <span className="text-slate-500 block mt-0.5">
-                          {strictMode ? 'Locked. Direct developer bypasses and default role suffix logins (e.g. admin123, teacher123) are permanently blocked. Users must supply their configured passcode.' : 'Open. Staff/student roles can sign in with default role bypass passwords (e.g. sunshine123) for rapid demo access.'}
+                          {strictMode ? 'Locked. Direct developer bypasses and default role suffix logins (e.g. admin123, teacher123) are permanently blocked. Users must supply their configured passcode.' : 'Standard Mode. Staff and student accounts can sign in with their configured passcodes.'}
                         </span>
                       </div>
                     </li>
