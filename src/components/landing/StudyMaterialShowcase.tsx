@@ -109,7 +109,10 @@ export const StudyMaterialShowcase: React.FC<StudyMaterialShowcaseProps> = ({
     }
   ];
 
-  const itemsToDisplay = (studyMaterials && studyMaterials.length > 0 ? studyMaterials : defaultMaterials)
+  const isCustomProvided = Array.isArray(studyMaterials);
+  const sourceMaterials = isCustomProvided ? studyMaterials : defaultMaterials;
+
+  const itemsToDisplay = sourceMaterials
     .filter((m) => {
       if (selectedClass !== 'ALL' && m.class !== selectedClass) return false;
       if (searchTerm) {
@@ -171,48 +174,54 @@ export const StudyMaterialShowcase: React.FC<StudyMaterialShowcaseProps> = ({
         </div>
 
         {/* 4 Preview Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-6">
-          {itemsToDisplay.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:p-5 flex flex-col justify-between space-y-2.5 sm:space-y-4 hover:border-amber-400 transition-all shadow-xs hover:shadow-md group"
-            >
-              <div className="space-y-2 sm:space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-lg sm:rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-200 dark:border-amber-800">
-                    <FileText size={15} className="sm:w-[18px] sm:h-[18px]" />
-                  </div>
-                  <span className="text-[8px] sm:text-[9px] font-black uppercase px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                    {item.class}
-                  </span>
-                </div>
-
-                <div>
-                  <span className="text-[9px] sm:text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">
-                    {item.subject}
-                  </span>
-                  <h3 className="font-display font-black text-xs sm:text-sm text-slate-900 dark:text-white mt-0.5 line-clamp-2 leading-snug">
-                    {item.title}
-                  </h3>
-                </div>
-
-                <p className="hidden sm:block text-xs text-slate-500 dark:text-slate-400 leading-snug line-clamp-3 font-medium">
-                  {item.desc || item.description}
-                </p>
-              </div>
-
-              {/* Download / Open Button */}
-              <button
-                id={`btn-download-preview-${item.id}`}
-                onClick={onNavigateResources}
-                className="w-full flex items-center justify-center gap-1 sm:gap-1.5 rounded-lg sm:rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 hover:bg-amber-500 hover:text-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-[10px] sm:text-xs py-1.5 sm:py-2 transition-all cursor-pointer group-hover:border-amber-500"
+        {itemsToDisplay.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-8 text-center text-slate-500 text-xs">
+            No study materials or sample papers currently uploaded for this selection. New resources will appear here once published by faculty.
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-6">
+            {itemsToDisplay.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:p-5 flex flex-col justify-between space-y-2.5 sm:space-y-4 hover:border-amber-400 transition-all shadow-xs hover:shadow-md group"
               >
-                <Download size={11} className="sm:w-3.5 sm:h-3.5" />
-                <span>Free PDF</span>
-              </button>
-            </div>
-          ))}
-        </div>
+                <div className="space-y-2 sm:space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-lg sm:rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-200 dark:border-amber-800">
+                      <FileText size={15} className="sm:w-[18px] sm:h-[18px]" />
+                    </div>
+                    <span className="text-[8px] sm:text-[9px] font-black uppercase px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                      {item.class}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[9px] sm:text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">
+                      {item.subject}
+                    </span>
+                    <h3 className="font-display font-black text-xs sm:text-sm text-slate-900 dark:text-white mt-0.5 line-clamp-2 leading-snug">
+                      {item.title}
+                    </h3>
+                  </div>
+
+                  <p className="hidden sm:block text-xs text-slate-500 dark:text-slate-400 leading-snug line-clamp-3 font-medium">
+                    {item.desc || item.description}
+                  </p>
+                </div>
+
+                {/* Download / Open Button */}
+                <button
+                  id={`btn-download-preview-${item.id}`}
+                  onClick={onNavigateResources}
+                  className="w-full flex items-center justify-center gap-1 sm:gap-1.5 rounded-lg sm:rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 hover:bg-amber-500 hover:text-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-[10px] sm:text-xs py-1.5 sm:py-2 transition-all cursor-pointer group-hover:border-amber-500"
+                >
+                  <Download size={11} className="sm:w-3.5 sm:h-3.5" />
+                  <span>Free PDF</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* View All Button */}
         <div className="text-center pt-2">

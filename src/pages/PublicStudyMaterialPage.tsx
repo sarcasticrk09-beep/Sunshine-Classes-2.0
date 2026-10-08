@@ -7,6 +7,7 @@ import {
   incrementViewCount 
 } from '../services/studyMaterialService';
 import { SEED_STUDY_MATERIALS } from '../data';
+import { SyncService } from '../services/SyncService';
 import { 
   BookOpen, 
   Search, 
@@ -203,13 +204,21 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
 
   // Load study materials on mount or update when cmsMaterials changes
   useEffect(() => {
-    if (cmsMaterials && cmsMaterials.length > 0) {
+    if (cmsMaterials && Array.isArray(cmsMaterials)) {
       setMaterials(cmsMaterials);
       setLoading(false);
     } else {
       loadMaterials();
     }
-  }, [cmsMaterials]);
+
+    const unsubscribe = SyncService.subscribe('study_materials', () => {
+      loadMaterials();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [cmsMaterials, currentUser]);
 
   const loadMaterials = async () => {
     setLoading(true);
@@ -222,14 +231,15 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
         data = await getPublicStudyMaterials();
       }
       
-      if (data && data.length > 0) {
+      const isInit = typeof window !== 'undefined' && localStorage.getItem('sunshine_study_materials_initialized') === 'true';
+      if (Array.isArray(data) && (data.length > 0 || isInit)) {
         setMaterials(data.filter(m => m.status === 'PUBLISHED' || !m.status));
       } else {
-        setMaterials(SEED_STUDY_MATERIALS.filter(m => m.status === 'PUBLISHED' || !m.status));
+        setMaterials([]);
       }
     } catch (err) {
-      console.warn('Using fallback seed study materials:', err);
-      setMaterials(SEED_STUDY_MATERIALS.filter(m => m.status === 'PUBLISHED' || !m.status));
+      console.warn('Study materials fetch notice:', err);
+      setMaterials([]);
     } finally {
       setLoading(false);
     }

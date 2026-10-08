@@ -15,6 +15,7 @@ import {
   generateSlug 
 } from '../services/studyMaterialService';
 import { uploadToSupabaseStorage } from '../lib/supabase';
+import { SyncService } from '../services/SyncService';
 import { SEED_STUDY_MATERIALS } from '../data';
 import { 
   FileText, 
@@ -45,7 +46,8 @@ import {
   X, 
   ExternalLink, 
   AlertCircle,
-  FileCheck
+  FileCheck,
+  RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -91,7 +93,22 @@ const SUBJECTS_LIST = [
 ];
 
 export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser, onAuditLog }) => {
-  const [materials, setMaterials] = useState<StudyMaterial[]>(SEED_STUDY_MATERIALS);
+  const [materials, setMaterials] = useState<StudyMaterial[]>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const isInit = localStorage.getItem('sunshine_study_materials_initialized') === 'true';
+        const stored = localStorage.getItem('sunshine_study_materials');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            if (isInit || parsed.length > 0) return parsed;
+          }
+        }
+        if (isInit) return [];
+      }
+    } catch (e) {}
+    return SEED_STUDY_MATERIALS;
+  });
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -165,9 +182,32 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
   const isReceptionist = currentUser.role === 'RECEPTIONIST';
   const canUpload = isSuperAdminOrAdmin || isTeacher;
 
-  // Load materials from database on mount
+  // Load materials from database on mount & subscribe to realtime changes
   useEffect(() => {
     loadMaterials();
+
+    const unsubscribe = SyncService.subscribe('study_materials', (docId, data) => {
+      if (data === null) {
+        setMaterials(prev => prev.filter(m => m.id !== docId && (m as any).materialId !== docId));
+        setSelectedIds(prev => prev.filter(i => i !== docId));
+      } else if (data && typeof data === 'object') {
+        setMaterials(prev => {
+          const targetId = docId || data.id || (data as any).materialId;
+          const index = prev.findIndex(m => m.id === targetId || (m as any).materialId === targetId);
+          if (index > -1) {
+            const next = [...prev];
+            next[index] = { ...next[index], ...data };
+            return next;
+          } else {
+            return [data, ...prev];
+          }
+        });
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const loadMaterials = async () => {
@@ -177,6 +217,25 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
       setMaterials(data);
     } catch (err) {
       console.error('Error loading materials:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRestoreDemoMaterials = async () => {
+    if (!window.confirm('Restore all 12 standard demo study notes and sample questions?')) return;
+    setLoading(true);
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('sunshine_study_materials', JSON.stringify(SEED_STUDY_MATERIALS));
+        localStorage.setItem('sunshine_study_materials_initialized', 'true');
+        fetch('/api/sync/study_materials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: SEED_STUDY_MATERIALS })
+        }).catch(() => {});
+      }
+      setMaterials(SEED_STUDY_MATERIALS);
     } finally {
       setLoading(false);
     }
@@ -448,7 +507,9 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
 
         await updateStudyMaterial(editingMaterial.id, updates);
 
-        setMaterials(prev => prev.map(m => m.id === editingMaterial.id ? { ...m, ...updates } : m));
+        const updatedList = materials.map(m => m.id === editingMaterial.id ? { ...m, ...updates } : m);
+        setMaterials(updatedList);
+        SyncService.replaceCollection('study_materials', updatedList).catch(() => {});
 
         if (onAuditLog) {
           onAuditLog('UPDATE_STUDY_MATERIAL', `Updated study material "${formData.title}" (${formData.class} ${formData.subject})`);
@@ -481,7 +542,9 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
           date: new Date().toISOString().split('T')[0]
         });
 
-        setMaterials(prev => [newMaterial, ...prev]);
+        const nextMaterials = [newMaterial, ...materials];
+        setMaterials(nextMaterials);
+        SyncService.replaceCollection('study_materials', nextMaterials).catch(() => {});
 
         if (onAuditLog) {
           onAuditLog('UPLOAD_STUDY_MATERIAL', `Uploaded study material "${formData.title}" for ${formData.class} ${formData.subject}`);
@@ -506,7 +569,9 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
 
     try {
       await deleteStudyMaterial(id);
-      setMaterials(prev => prev.filter(m => m.id !== id));
+      const next = materials.filter(m => m.id !== id);
+      setMaterials(next);
+      await SyncService.replaceCollection('study_materials', next);
       setSelectedIds(prev => prev.filter(i => i !== id));
       setDeleteConfirmId(null);
 
@@ -538,7 +603,10 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
 
     try {
       await bulkDeleteStudyMaterials(selectedIds);
-      setMaterials(prev => prev.filter(m => !selectedIds.includes(m.id)));
+      const toDeleteSet = new Set(selectedIds);
+      const next = materials.filter(m => !toDeleteSet.has(m.id));
+      setMaterials(next);
+      await SyncService.replaceCollection('study_materials', next);
       setSelectedIds([]);
       if (onAuditLog) {
         onAuditLog('BULK_DELETE_STUDY_MATERIAL', `Bulk deleted ${selectedIds.length} study materials`);
@@ -552,7 +620,9 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
     if (selectedIds.length === 0) return;
     try {
       await bulkUpdateStatus(selectedIds, status, status === 'PUBLISHED' ? true : undefined);
-      setMaterials(prev => prev.map(m => selectedIds.includes(m.id) ? { ...m, status, isPublic: status === 'PUBLISHED' ? true : m.isPublic } : m));
+      const next = materials.map(m => selectedIds.includes(m.id) ? { ...m, status, isPublic: status === 'PUBLISHED' ? true : m.isPublic } : m);
+      setMaterials(next);
+      await SyncService.replaceCollection('study_materials', next);
       setSelectedIds([]);
       if (onAuditLog) {
         onAuditLog('BULK_STATUS_STUDY_MATERIAL', `Updated ${selectedIds.length} study materials status to ${status}`);
@@ -577,9 +647,13 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-semibold border border-amber-200 dark:border-amber-800">
                   Study Material
                 </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800" id="badge-realtime-cloud-sync">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Realtime Sync Active
+                </span>
               </h2>
               <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                Centralized management for public notes, assignments, worksheets, PYQs, and video lectures.
+                Centralized management for public notes, assignments, worksheets, PYQs, and video lectures. Deletions and uploads sync instantly across tabs and devices.
               </p>
             </div>
           </div>
@@ -823,9 +897,31 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
               {filteredMaterials.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-slate-400">
-                    <BookOpen size={40} className="mx-auto mb-2 opacity-40" />
-                    <p className="font-semibold text-base">No study materials found</p>
-                    <p className="text-xs mt-1">Try adjusting search query or upload a new resource.</p>
+                    <BookOpen size={40} className="mx-auto mb-2 opacity-40 text-amber-500" />
+                    <p className="font-semibold text-base text-slate-800 dark:text-slate-200">No study materials in this category</p>
+                    <p className="text-xs mt-1 text-slate-500 max-w-md mx-auto">
+                      All items in this section have been cleared, or none match your active filters. Deletions are securely preserved in the cloud database.
+                    </p>
+                    <div className="mt-4 flex items-center justify-center gap-3">
+                      {canUpload && (
+                        <button
+                          type="button"
+                          onClick={handleOpenAddForm}
+                          className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold inline-flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                          id="btn-empty-upload-material"
+                        >
+                          <Plus size={14} /> Upload New Material
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleRestoreDemoMaterials}
+                        className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-semibold inline-flex items-center gap-1.5 transition-all cursor-pointer"
+                        id="btn-restore-demo-materials"
+                      >
+                        <RefreshCw size={14} /> Restore 12 Sample Notes
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ) : (

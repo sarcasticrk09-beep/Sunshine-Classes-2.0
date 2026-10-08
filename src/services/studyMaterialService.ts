@@ -19,7 +19,7 @@ export function generateSlug(title: string): string {
 export async function getStudyMaterials(): Promise<StudyMaterial[]> {
   try {
     const list = await SyncService.list<StudyMaterial>(COLLECTION_NAME);
-    if (list && list.length > 0) {
+    if (Array.isArray(list)) {
       return list.map((data) => ({
         ...data,
         id: data.id,
@@ -30,7 +30,11 @@ export async function getStudyMaterials(): Promise<StudyMaterial[]> {
       }));
     }
   } catch (err) {
-    console.warn('Study materials fetch error, using fallback seed data:', err);
+    console.warn('Study materials fetch error:', err);
+  }
+  
+  if (typeof window !== 'undefined' && localStorage.getItem('sunshine_study_materials_initialized') === 'true') {
+    return [];
   }
   return SEED_STUDY_MATERIALS;
 }
@@ -41,11 +45,14 @@ export async function getStudyMaterials(): Promise<StudyMaterial[]> {
 export async function getPublicStudyMaterials(): Promise<StudyMaterial[]> {
   try {
     const list = await SyncService.list<StudyMaterial>(COLLECTION_NAME);
-    if (list && list.length > 0) {
+    if (Array.isArray(list)) {
       return list.filter((m) => (m.isPublic === undefined || m.isPublic) && (m.status === undefined || m.status === 'PUBLISHED'));
     }
   } catch (err) {
     console.warn('Error fetching public study materials:', err);
+  }
+  if (typeof window !== 'undefined' && localStorage.getItem('sunshine_study_materials_initialized') === 'true') {
+    return [];
   }
   return SEED_STUDY_MATERIALS.filter((m) => m.isPublic && m.status === 'PUBLISHED');
 }

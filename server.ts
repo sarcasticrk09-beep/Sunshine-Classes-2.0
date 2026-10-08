@@ -3573,9 +3573,145 @@ How can I help you towards your academic success today? Feel free to ask!`;
         return res.status(500).json({ success: false, error: error.message });
       }
 
-      return res.json({ success: true, message: "File removed successfully." });
+      return res.json({ success: true, message: "File removed from storage." });
     } catch (err: any) {
-      console.error("[Supabase Storage API] Delete internal error:", err);
+      console.error("[Supabase Storage API] Internal error:", err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // 1.6d Unified Persistent Server Sync API (Prevents Permission Denied & Keeps Deletions Permanent)
+  const syncStoreDir = path.join(process.cwd(), "public", "data_store");
+  if (!fs.existsSync(syncStoreDir)) {
+    fs.mkdirSync(syncStoreDir, { recursive: true });
+  }
+
+  const getSyncFilePath = (col: string) => path.join(syncStoreDir, `${col.replace(/[^a-zA-Z0-9_-]/g, "_")}.json`);
+
+  const readSyncCollection = (col: string): { initialized: boolean; items: any[] } => {
+    const filePath = getSyncFilePath(col);
+    if (fs.existsSync(filePath)) {
+      try {
+        const raw = fs.readFileSync(filePath, "utf-8");
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && Array.isArray(parsed.items)) {
+          return parsed;
+        }
+        if (Array.isArray(parsed)) {
+          return { initialized: true, items: parsed };
+        }
+      } catch (e) {
+        console.warn(`[Sync Server] Error reading ${filePath}:`, e);
+      }
+    }
+    return { initialized: false, items: [] };
+  };
+
+  const writeSyncCollection = (col: string, data: { initialized: boolean; items: any[] }) => {
+    const filePath = getSyncFilePath(col);
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+  };
+
+  app.get("/api/sync/:collection", (req, res) => {
+    try {
+      const col = req.params.collection;
+      const store = readSyncCollection(col);
+      return res.json({
+        success: true,
+        collection: col,
+        initialized: store.initialized,
+        data: store.items
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post("/api/sync/:collection", (req, res) => {
+    try {
+      const col = req.params.collection;
+      const { docId, data, merge = true, items } = req.body;
+      const store = readSyncCollection(col);
+
+      // If full array replacement is provided
+      if (Array.isArray(items)) {
+        store.initialized = true;
+        store.items = items;
+        writeSyncCollection(col, store);
+        return res.json({ success: true, count: store.items.length, data: store.items });
+      }
+
+      if (!docId && (!data || !data.id)) {
+        return res.status(400).json({ success: false, error: "docId or data.id required" });
+      }
+
+      const targetId = String(docId || data.id);
+      const fullDoc = { ...data, id: targetId, updatedAt: new Date().toISOString() };
+      const index = store.items.findIndex((item: any) => 
+        String(item.id || item.materialId || item.rollNo || item.studentId) === targetId
+      );
+
+      if (index > -1) {
+        store.items[index] = merge ? { ...store.items[index], ...fullDoc } : fullDoc;
+      } else {
+        store.items.unshift(fullDoc);
+      }
+
+      store.initialized = true;
+      writeSyncCollection(col, store);
+
+      return res.json({ success: true, data: fullDoc, count: store.items.length });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.delete("/api/sync/:collection/:docId", (req, res) => {
+    try {
+      const col = req.params.collection;
+      const docId = String(req.params.docId);
+      const store = readSyncCollection(col);
+
+      const prevCount = store.items.length;
+      store.items = store.items.filter((item: any) => 
+        String(item.id || item.materialId || item.rollNo || item.studentId) !== docId
+      );
+      store.initialized = true;
+      writeSyncCollection(col, store);
+
+      return res.json({
+        success: true,
+        deletedId: docId,
+        remainingCount: store.items.length,
+        deleted: prevCount !== store.items.length
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post("/api/sync/:collection/batch-delete", (req, res) => {
+    try {
+      const col = req.params.collection;
+      const { docIds } = req.body;
+      if (!Array.isArray(docIds)) {
+        return res.status(400).json({ success: false, error: "docIds array is required" });
+      }
+
+      const idSet = new Set(docIds.map((id: any) => String(id)));
+      const store = readSyncCollection(col);
+      store.items = store.items.filter((item: any) => 
+        !idSet.has(String(item.id || item.materialId || item.rollNo || item.studentId))
+      );
+      store.initialized = true;
+      writeSyncCollection(col, store);
+
+      return res.json({
+        success: true,
+        deletedCount: docIds.length,
+        remainingCount: store.items.length
+      });
+    } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message });
     }
   });

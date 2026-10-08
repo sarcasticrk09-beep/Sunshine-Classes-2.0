@@ -232,7 +232,7 @@ export function useCollectionListener<T = any>({
     SyncService.list<T>(collectionName).then((items) => {
       if (!isSubscribed) return;
       updateHeartbeat();
-      if (items && items.length > 0) {
+      if (Array.isArray(items)) {
         onDataRef.current(items);
         if (storageKey) {
           try {
@@ -254,7 +254,7 @@ export function useCollectionListener<T = any>({
           if (!isSubscribed) return;
           SyncService.list<T>(collectionName).then((items) => {
             if (!isSubscribed) return;
-            if (items && items.length > 0) {
+            if (Array.isArray(items)) {
               onDataRef.current(items);
               if (storageKey) {
                 try {
@@ -426,6 +426,20 @@ export function useAuditLogsListener(
   useCollectionListener({
     collectionName: 'audit_logs',
     storageKey: 'sunshine_audit_logs',
+    onData,
+    reconnectSignal,
+    enabled,
+  });
+}
+
+export function useStudyMaterialsListener(
+  onData: (studyMaterials: any[]) => void,
+  reconnectSignal?: number,
+  enabled: boolean = true
+) {
+  useCollectionListener({
+    collectionName: 'study_materials',
+    storageKey: 'sunshine_study_materials',
     onData,
     reconnectSignal,
     enabled,

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import {
   UserRole,
   User,
@@ -86,10 +86,10 @@ import { migrateExistingData, generateFeeRecords, getCurrentAndNextMonths } from
 import { generateReceiptPdf } from './lib/pdfGenerator';
 
 import LandingPage from './components/LandingPage';
-import StudentDashboard from './components/StudentDashboard';
-import TeacherDashboard from './components/TeacherDashboard';
-import ReceptionDashboard from './components/ReceptionDashboard';
-import AdminDashboard from './components/AdminDashboard';
+const StudentDashboard = lazy(() => import('./components/StudentDashboard'));
+const TeacherDashboard = lazy(() => import('./components/TeacherDashboard'));
+const ReceptionDashboard = lazy(() => import('./components/ReceptionDashboard'));
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 import { FloatingContactBar } from './components/FloatingContactBar';
 import SunshineLogo from './components/SunshineLogo';
 import { useAuth } from './auth/useAuth';
@@ -99,11 +99,11 @@ import { UserProfileSecurityModal } from './components/UserProfileSecurityModal'
 import { MailSimulatorWidget } from './components/MailSimulatorWidget';
 import { PaymentSuccessModal } from './components/common/PaymentSuccessModal';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { FeesPage } from './pages/FeesPage';
-import { ReceiptVerificationPage } from './pages/ReceiptVerificationPage';
-import PublicStudyMaterialPage from './pages/PublicStudyMaterialPage';
-import { PublicStorePage } from './pages/PublicStorePage';
-import { PublicProductDetailsPage } from './pages/PublicProductDetailsPage';
+const FeesPage = lazy(() => import('./pages/FeesPage').then(m => ({ default: m.FeesPage })));
+const ReceiptVerificationPage = lazy(() => import('./pages/ReceiptVerificationPage').then(m => ({ default: m.ReceiptVerificationPage })));
+const PublicStudyMaterialPage = lazy(() => import('./pages/PublicStudyMaterialPage'));
+const PublicStorePage = lazy(() => import('./pages/PublicStorePage').then(m => ({ default: m.PublicStorePage })));
+const PublicProductDetailsPage = lazy(() => import('./pages/PublicProductDetailsPage').then(m => ({ default: m.PublicProductDetailsPage })));
 import { SEOHead, trackAdmissionSubmit } from './components/SEOHead';
 import { NotFoundPage } from './components/NotFoundPage';
 import { ErrorPage } from './pages/ErrorPage';
@@ -123,6 +123,7 @@ import {
   useAdmissionsListener,
   useFeeStatusesListener,
   useUsersListener,
+  useStudyMaterialsListener,
   useDbConnectionWatchdog,
 } from './hooks/useCollectionListener';
 import { initializeAndSeedDatabase, forceResetDatabase } from './services/initDbService';
@@ -223,7 +224,8 @@ export function simpleSecureHash(password: string): string {
 
 // Synchronous local state loader and initial seeder to ensure instant render with no lagging
 function getOrSeedLocal<T>(key: string, seed: T): T {
-  const stored = localStorage.getItem(`sunshine_${key}`);
+  const isInitialized = typeof window !== 'undefined' && localStorage.getItem(`sunshine_${key}_initialized`) === 'true';
+  const stored = typeof window !== 'undefined' ? localStorage.getItem(`sunshine_${key}`) : null;
   if (stored) {
     try {
       const parsed = JSON.parse(stored);
@@ -231,6 +233,7 @@ function getOrSeedLocal<T>(key: string, seed: T): T {
         const idSet = new Set(parsed.map((p: any) => p.id || p.rollNo));
         const merged = [...parsed, ...seed.filter((s: any) => !idSet.has(s.id || s.rollNo))];
         localStorage.setItem(`sunshine_${key}`, JSON.stringify(merged));
+        localStorage.setItem(`sunshine_${key}_initialized`, 'true');
         return merged as unknown as T;
       }
       return parsed;
@@ -238,8 +241,12 @@ function getOrSeedLocal<T>(key: string, seed: T): T {
       console.warn(`[Local Cache] Error parsing localStorage key "sunshine_${key}":`, e);
     }
   }
+  if (isInitialized) {
+    return (Array.isArray(seed) ? [] : seed) as unknown as T;
+  }
   try {
     localStorage.setItem(`sunshine_${key}`, JSON.stringify(seed));
+    localStorage.setItem(`sunshine_${key}_initialized`, 'true');
   } catch (e) {
     console.warn(`[Local Cache] Error setting initial key "sunshine_${key}":`, e);
   }
@@ -624,7 +631,7 @@ export default function App() {
     alert('Security Shield Locked: This system is permanently configured in Production Security Shield mode to protect student and staff data privacy. Backdoors and development bypasses have been disabled.');
   };
 
-  // Sync to LocalStorage & Database helper with highly optimized debounce logic to avoid consecutive write overhead and lagging
+  // Sync to LocalStorage & Database helper with highly optimized optimistic write via SyncService
   const syncState = async (key: string, data: any) => {
     let sanitizedData = data;
     if (key === 'users' && Array.isArray(data)) {
@@ -633,64 +640,18 @@ export default function App() {
 
     // 1. Instantly write to localStorage for zero-latency client state
     localStorage.setItem(`sunshine_${key}`, JSON.stringify(sanitizedData));
+    localStorage.setItem(`sunshine_${key}_initialized`, 'true');
 
-    // 2. Queue the write to database in a debounced background batch
-    pendingSyncs[key] = sanitizedData;
-
-    if (syncTimeoutId) {
-      clearTimeout(syncTimeoutId);
+    // 2. Delegate to SyncService optimistic write & background transaction log
+    if (Array.isArray(sanitizedData)) {
+      SyncService.replaceCollection(key, sanitizedData).catch(err => {
+        console.warn(`[SyncService] replaceCollection notice for "${key}":`, err);
+      });
+    } else {
+      SyncService.set(key, 'main', sanitizedData as any).catch(err => {
+        console.warn(`[SyncService] set notice for "${key}":`, err);
+      });
     }
-
-    syncTimeoutId = setTimeout(async () => {
-      const keys = Object.keys(pendingSyncs);
-      if (keys.length === 0) return;
-
-      const batchToSync = { ...pendingSyncs };
-      // Clear queue so consecutive updates don't overlap
-      for (const k of keys) {
-        delete pendingSyncs[k];
-      }
-
-      for (const [k, d] of Object.entries(batchToSync)) {
-        let attempt = 0;
-        const maxRetries = 3;
-        let success = false;
-
-        while (attempt <= maxRetries && !success) {
-          try {
-            if (Array.isArray(d)) {
-              const writePromises = d.map((item: any) => {
-                const docId = String(item.id || item.userId || item.studentId || item.teacherId || item.rollNo || item.admissionNo || Date.now());
-                return SyncService.set(k, docId, item);
-              });
-              await Promise.race([
-                Promise.all(writePromises),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Cloud sync timeout')), 15000))
-              ]);
-            } else {
-              await Promise.race([
-                SyncService.set(k, 'main', d as any),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Cloud sync timeout')), 15000))
-              ]);
-            }
-            setCloudOnline(true);
-            success = true;
-          } catch (e: any) {
-            if (attempt < maxRetries && (e.message?.includes('unavailable') || e.message?.includes('offline') || e.code === 'unavailable')) {
-              attempt++;
-              const delay = Math.min(1000 * Math.pow(2, attempt), 10000); // Exponential backoff: 2s, 4s, 8s
-              await new Promise(r => setTimeout(r, delay));
-            } else {
-              console.warn(`[Cloud Database] Debounced write failed for key "${k}":`, e);
-              if (!navigator.onLine) {
-                setCloudOnline(false);
-              }
-              break;
-            }
-          }
-        }
-      }
-    }, 1200); // Throttles and batches writes under a 1.2s window
   };
 
   const handleHealState = (key: string, data: any) => {
@@ -809,19 +770,7 @@ export default function App() {
   useEffect(() => {
     const loadStateAndData = async () => {
       try {
-        // Trigger one-time force reset of database to purge fake students & setup 6 real accounts
-        const resetDone = localStorage.getItem('sunshine_v2_db_reset_done_v5');
-        if (resetDone !== 'true') {
-          console.log('[Database] Running initial clean database reset...');
-          try {
-            await forceResetDatabase();
-            localStorage.setItem('sunshine_v2_db_reset_done_v5', 'true');
-          } catch (resetErr) {
-            console.error('[Database] Failed database reset:', resetErr);
-          }
-        }
-
-        // Trigger normalized database seeding check
+        // Trigger normalized database seeding check in non-blocking background task
         initializeAndSeedDatabase().catch(err => {
           console.warn('[Database Init] Non-blocking initial seeding check:', err);
         });
@@ -832,29 +781,43 @@ export default function App() {
               const list = await Promise.race([
                 SyncService.list(key),
                 new Promise<any[]>((_, reject) => 
-                  setTimeout(() => reject(new Error('SyncService list timeout')), 15000)
+                  setTimeout(() => reject(new Error('SyncService list timeout')), 3000)
                 )
               ]);
 
-              if (list && list.length > 0) {
-                localStorage.setItem(`sunshine_${key}`, JSON.stringify(list));
-                return list as unknown as T;
-              } else {
-                const seedArray = seed as unknown as any[];
-                Promise.all(seedArray.map(item => {
-                  const docId = String(item.id || item.userId || item.studentId || item.teacherId || item.rollNo || item.admissionNo || Date.now());
-                  return SyncService.set(key, docId, item);
-                })).catch(err => {
-                  console.warn(`[Cloud Database] Background seed failed for collection "${key}":`, err);
-                });
-                localStorage.setItem(`sunshine_${key}`, JSON.stringify(seed));
-                return seed;
+              const isInitialized = typeof window !== 'undefined' && localStorage.getItem(`sunshine_${key}_initialized`) === 'true';
+
+              if (Array.isArray(list)) {
+                if (list.length > 0 || isInitialized) {
+                  localStorage.setItem(`sunshine_${key}`, JSON.stringify(list));
+                  localStorage.setItem(`sunshine_${key}_initialized`, 'true');
+                  return list as unknown as T;
+                }
               }
+
+              if (isInitialized) {
+                const stored = localStorage.getItem(`sunshine_${key}`);
+                if (stored) {
+                  try { return JSON.parse(stored); } catch (e) {}
+                }
+                return [] as unknown as T;
+              }
+
+              const seedArray = seed as unknown as any[];
+              Promise.all(seedArray.map(item => {
+                const docId = String(item.id || item.userId || item.studentId || item.teacherId || item.rollNo || item.admissionNo || Date.now());
+                return SyncService.set(key, docId, item);
+              })).catch(err => {
+                console.warn(`[Cloud Database] Background seed failed for collection "${key}":`, err);
+              });
+              localStorage.setItem(`sunshine_${key}`, JSON.stringify(seed));
+              localStorage.setItem(`sunshine_${key}_initialized`, 'true');
+              return seed;
             } else {
               const data = await Promise.race([
                 SyncService.get(key, 'main'),
                 new Promise<any>((_, reject) => 
-                  setTimeout(() => reject(new Error('SyncService get timeout')), 15000)
+                  setTimeout(() => reject(new Error('SyncService get timeout')), 3000)
                 )
               ]);
 
@@ -1580,6 +1543,7 @@ export default function App() {
   useAdmissionsListener(setAdmissions, reconnectSignal);
   useFeeStatusesListener(setFeeStatuses, reconnectSignal);
   useUsersListener(setUsers, reconnectSignal);
+  useStudyMaterialsListener(setStudyMaterials, reconnectSignal);
 
   // Update browser tab title and favicon dynamically on mount
   useEffect(() => {
@@ -3223,12 +3187,18 @@ Sunshine Classes`;
     const updated = [newMaterial, ...studyMaterials];
     setStudyMaterials(updated);
     syncState('study_materials', updated);
+    SyncService.set('study_materials', newMaterial.id, newMaterial).catch(err => {
+      console.warn('[SyncService] Study material set notice:', err);
+    });
   };
 
   const handleDeleteStudyMaterial = (id: string) => {
     const updated = studyMaterials.filter(m => m.id !== id);
     setStudyMaterials(updated);
     syncState('study_materials', updated);
+    SyncService.delete('study_materials', id).catch(err => {
+      console.warn('[SyncService] Study material delete notice:', err);
+    });
   };
 
   const handleAddOrEditFounder = (founder: FounderMember) => {

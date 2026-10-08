@@ -12186,7 +12186,14 @@ ${data.log}`
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {studyMaterials.map((item, idx) => (
+                      {studyMaterials.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="p-6 text-center text-slate-400 text-xs italic">
+                            No study materials or documents currently uploaded. Click &ldquo;+ Upload Study Material&rdquo; above to add new resources.
+                          </td>
+                        </tr>
+                      ) : (
+                        studyMaterials.map((item, idx) => (
                         <motion.tr
                           key={item.id}
                           initial={{ opacity: 0, y: 6 }}
@@ -12229,7 +12236,8 @@ ${data.log}`
                             </button>
                           </td>
                         </motion.tr>
-                      ))}
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>

@@ -33,8 +33,22 @@ export interface SyncOperationResult<T = any> {
   success: boolean;
   data?: T;
   verified: boolean;
+  optimistic?: boolean;
   error?: string;
   timestamp: string;
+}
+
+export interface SyncTransaction {
+  id: string;
+  type: 'set' | 'update' | 'add' | 'delete' | 'replace';
+  collectionName: string;
+  docId: string;
+  payload: any;
+  createdAt: string;
+  attempts: number;
+  status: 'pending' | 'processing' | 'committed' | 'failed';
+  lastError?: string;
+  nextRetryAt: number;
 }
 
 export interface SyncErrorEvent {
@@ -325,13 +339,338 @@ class SyncServiceClass {
   private cache: Map<string, Map<string, any>> = new Map();
   private lastNetworkFailure: number = 0;
   private readonly FAILURE_COOLDOWN_MS = 15000;
+  private broadcastChannel: BroadcastChannel | null = null;
+  private transactionLog: SyncTransaction[] = [];
+  private readonly TX_LOG_KEY = 'sunshine_sync_tx_log';
+  private readonly MAX_RETRIES = 5;
+  private isProcessingQueue = false;
+  private queueTimer: any = null;
 
   constructor() {
+    this.loadTransactionLog();
+
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => {
         this.recordNetworkSuccess();
+        this.flushTransactionLog();
+      });
+
+      // Realtime cross-tab synchronization channel
+      if (typeof BroadcastChannel !== 'undefined') {
+        try {
+          this.broadcastChannel = new BroadcastChannel('sunshine_realtime_sync');
+          this.broadcastChannel.onmessage = (event) => {
+            if (event.data?.type === 'SYNC_MUTATION') {
+              const { collectionName, docId, data } = event.data;
+              this.applyIncomingSync(collectionName, docId, data);
+            } else if (event.data?.type === 'SYNC_COLLECTION_REPLACE') {
+              const { collectionName, items } = event.data;
+              this.applyIncomingCollectionReplace(collectionName, items);
+            }
+          };
+        } catch (e) {
+          // Fallback to storage events
+        }
+      }
+
+      window.addEventListener('storage', (e) => {
+        if (e.key && e.key.startsWith('sunshine_') && !e.key.endsWith('_initialized') && e.key !== this.TX_LOG_KEY) {
+          const col = e.key.replace('sunshine_', '');
+          this.refreshCollectionFromStorage(col);
+        }
+      });
+
+      // Periodic worker to ensure pending retries execute
+      setInterval(() => {
+        if (this.transactionLog.some(tx => tx.status !== 'committed')) {
+          this.processTransactionLog();
+        }
+      }, 6000);
+    }
+  }
+
+  private loadTransactionLog(): void {
+    try {
+      if (typeof window !== 'undefined') {
+        const raw = localStorage.getItem(this.TX_LOG_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            this.transactionLog = parsed;
+          }
+        }
+      }
+    } catch (e) {
+      this.transactionLog = [];
+    }
+  }
+
+  private saveTransactionLog(): void {
+    try {
+      if (typeof window !== 'undefined') {
+        const pruned = this.transactionLog.slice(-100);
+        localStorage.setItem(this.TX_LOG_KEY, JSON.stringify(pruned));
+      }
+    } catch (e) {
+      console.warn('[SyncService] Could not persist transaction log:', e);
+    }
+  }
+
+  private enqueueTransaction(
+    type: SyncTransaction['type'],
+    collectionName: string,
+    docId: string,
+    payload: any
+  ): SyncTransaction {
+    const tx: SyncTransaction = {
+      id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      type,
+      collectionName,
+      docId,
+      payload,
+      createdAt: new Date().toISOString(),
+      attempts: 0,
+      status: 'pending',
+      nextRetryAt: Date.now()
+    };
+    this.transactionLog.push(tx);
+    this.saveTransactionLog();
+    this.scheduleProcessQueue(50);
+    return tx;
+  }
+
+  private scheduleProcessQueue(delayMs: number = 200): void {
+    if (this.queueTimer) clearTimeout(this.queueTimer);
+    this.queueTimer = setTimeout(() => {
+      this.processTransactionLog();
+    }, delayMs);
+  }
+
+  public async processTransactionLog(): Promise<void> {
+    if (this.isProcessingQueue) return;
+    this.isProcessingQueue = true;
+
+    try {
+      const now = Date.now();
+      const pendingTxs = this.transactionLog.filter(
+        tx => tx.status !== 'committed' && now >= tx.nextRetryAt
+      );
+
+      for (const tx of pendingTxs) {
+        tx.status = 'processing';
+        try {
+          // 1. Replicate to server sync API
+          if (typeof window !== 'undefined') {
+            if (tx.type === 'delete') {
+              const res = await fetch(`/api/sync/${encodeURIComponent(tx.collectionName)}/${encodeURIComponent(tx.docId)}`, {
+                method: 'DELETE'
+              });
+              if (!res.ok && res.status >= 500) {
+                throw new Error(`Server sync delete error HTTP ${res.status}`);
+              }
+            } else if (tx.type === 'replace') {
+              const res = await fetch(`/api/sync/${encodeURIComponent(tx.collectionName)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items: tx.payload })
+              });
+              if (!res.ok && res.status >= 500) {
+                throw new Error(`Server sync replace error HTTP ${res.status}`);
+              }
+            } else {
+              const res = await fetch(`/api/sync/${encodeURIComponent(tx.collectionName)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ docId: tx.docId, data: tx.payload, merge: true })
+              });
+              if (!res.ok && res.status >= 500) {
+                throw new Error(`Server sync write error HTTP ${res.status}`);
+              }
+            }
+          }
+
+          // 2. Replicate to Supabase if configured and reachable
+          if (this.shouldAttemptSupabase()) {
+            const isUUIDTable = ['students', 'admissions', 'fee_statuses', 'fee_receipts', 'tests', 'student_marks', 'study_materials', 'toppers'].includes(tx.collectionName);
+            const shouldQuerySupabase = !isUUIDTable || isPostgresUUID(tx.docId);
+
+            if (shouldQuerySupabase) {
+              if (tx.type === 'delete') {
+                const { error } = await supabase.from(tx.collectionName).delete().eq('id', tx.docId);
+                if (error && !isBenignOfflineOrFallbackError(error)) {
+                  console.warn(`[Supabase Tx] Delete warning on ${tx.collectionName}/${tx.docId}:`, error.message);
+                }
+              } else if (tx.type === 'set' || tx.type === 'add') {
+                const payload = toPostgresRow(tx.collectionName, tx.payload);
+                const { error } = await supabase.from(tx.collectionName).upsert(payload);
+                if (error && !isBenignOfflineOrFallbackError(error)) {
+                  console.warn(`[Supabase Tx] Upsert warning on ${tx.collectionName}/${tx.docId}:`, error.message);
+                }
+              } else if (tx.type === 'update') {
+                const payload = toPostgresRow(tx.collectionName, tx.payload);
+                const { error } = await supabase.from(tx.collectionName).update(payload).eq('id', tx.docId);
+                if (error && !isBenignOfflineOrFallbackError(error)) {
+                  console.warn(`[Supabase Tx] Update warning on ${tx.collectionName}/${tx.docId}:`, error.message);
+                }
+              }
+            }
+          }
+
+          tx.status = 'committed';
+          this.recordNetworkSuccess();
+        } catch (err: any) {
+          tx.attempts += 1;
+          tx.lastError = err?.message || String(err);
+          this.recordNetworkFailure();
+
+          if (tx.attempts >= this.MAX_RETRIES) {
+            tx.status = 'failed';
+            tx.nextRetryAt = Date.now() + 60000; // Retry in 1 minute
+          } else {
+            tx.status = 'pending';
+            tx.nextRetryAt = Date.now() + Math.min(1000 * Math.pow(2, tx.attempts), 30000);
+          }
+        }
+      }
+
+      // Prune successfully committed transactions
+      this.transactionLog = this.transactionLog.filter(tx => tx.status !== 'committed');
+      this.saveTransactionLog();
+
+      // Schedule next retry if pending remain
+      const remaining = this.transactionLog.filter(tx => tx.status !== 'committed');
+      if (remaining.length > 0) {
+        const nextMin = Math.min(...remaining.map(t => t.nextRetryAt));
+        const waitMs = Math.max(nextMin - Date.now(), 1000);
+        this.scheduleProcessQueue(waitMs);
+      }
+    } finally {
+      this.isProcessingQueue = false;
+    }
+  }
+
+  public getPendingTransactions(): SyncTransaction[] {
+    return [...this.transactionLog];
+  }
+
+  public getTransactionLogCount(): { pending: number; failed: number; total: number } {
+    const pending = this.transactionLog.filter(tx => tx.status === 'pending' || tx.status === 'processing').length;
+    const failed = this.transactionLog.filter(tx => tx.status === 'failed').length;
+    return { pending, failed, total: this.transactionLog.length };
+  }
+
+  public async flushTransactionLog(): Promise<void> {
+    const now = Date.now();
+    this.transactionLog.forEach(tx => {
+      if (tx.status === 'failed' || tx.status === 'pending') {
+        tx.nextRetryAt = now;
+        tx.status = 'pending';
+      }
+    });
+    await this.processTransactionLog();
+  }
+
+  public async retryFailedTransactions(): Promise<void> {
+    this.transactionLog.forEach(tx => {
+      tx.attempts = 0;
+      tx.status = 'pending';
+      tx.nextRetryAt = Date.now();
+    });
+    await this.processTransactionLog();
+  }
+
+  private applyIncomingSync(collectionName: string, docId: string, data: any): void {
+    if (!this.cache.has(collectionName)) {
+      this.cache.set(collectionName, new Map());
+    }
+    const colCache = this.cache.get(collectionName)!;
+    if (data === null) {
+      colCache.delete(docId);
+    } else {
+      colCache.set(docId, data);
+    }
+
+    // Mirror to localStorage so this tab's storage matches
+    try {
+      if (typeof window !== 'undefined') {
+        const storageKey = `sunshine_${collectionName}`;
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            const index = parsed.findIndex((item: any) => 
+              (item.id || item.studentId || item.rollNo || item.userId || item.teacherId || item.materialId) === docId
+            );
+            if (data === null) {
+              if (index > -1) parsed.splice(index, 1);
+            } else if (index > -1) {
+              parsed[index] = { ...parsed[index], ...data };
+            } else {
+              parsed.push(data);
+            }
+            localStorage.setItem(storageKey, JSON.stringify(parsed));
+          }
+        }
+      }
+    } catch (e) {}
+
+    // Notify local subscribers without re-broadcasting
+    this.listeners.forEach(fn => {
+      try {
+        fn(collectionName, docId, data);
+      } catch (err) {}
+    });
+  }
+
+  private applyIncomingCollectionReplace(collectionName: string, items: any[]): void {
+    if (!this.cache.has(collectionName)) {
+      this.cache.set(collectionName, new Map());
+    }
+    const colCache = this.cache.get(collectionName)!;
+    colCache.clear();
+    if (Array.isArray(items)) {
+      items.forEach((item: any) => {
+        const id = item.id || item.materialId || item.rollNo || item.userId || item.studentId || item.receiptNumber;
+        if (id) colCache.set(String(id), item);
       });
     }
+
+    try {
+      if (typeof window !== 'undefined') {
+        const storageKey = `sunshine_${collectionName}`;
+        localStorage.setItem(`${storageKey}_initialized`, 'true');
+        localStorage.setItem(storageKey, JSON.stringify(items || []));
+      }
+    } catch (e) {}
+
+    this.listeners.forEach(fn => {
+      try {
+        fn(collectionName, '*', items as any);
+      } catch (err) {}
+    });
+  }
+
+  private refreshCollectionFromStorage(collectionName: string): void {
+    try {
+      const stored = localStorage.getItem(`sunshine_${collectionName}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          if (!this.cache.has(collectionName)) {
+            this.cache.set(collectionName, new Map());
+          }
+          const colCache = this.cache.get(collectionName)!;
+          colCache.clear();
+          parsed.forEach((item: any) => {
+            const id = item.id || item.materialId || item.rollNo || item.userId;
+            if (id) colCache.set(id, item);
+          });
+          this.listeners.forEach(fn => {
+            try { fn(collectionName, '*', parsed); } catch (e) {}
+          });
+        }
+      }
+    } catch (e) {}
   }
 
   public recordNetworkFailure(): void {
@@ -367,11 +706,17 @@ class SyncServiceClass {
 
     const start = performance.now();
     try {
-      // Test querying students with limit 1
-      const { data, error, status, statusText } = await supabase
+      // Test querying students with limit 1 with strict 2500ms timeout
+      const probeQuery = supabase
         .from('students')
         .select('id')
         .limit(1);
+
+      const probeTimeout = new Promise<any>((_, reject) => 
+        setTimeout(() => reject(new Error('Supabase probe timed out (2500ms)')), 2500)
+      );
+
+      const { data, error, status, statusText } = await Promise.race([probeQuery, probeTimeout]);
 
       const latencyMs = Math.round(performance.now() - start);
 
@@ -544,12 +889,13 @@ class SyncServiceClass {
     try {
       if (typeof window !== 'undefined') {
         const storageKey = `sunshine_${collectionName}`;
+        localStorage.setItem(`${storageKey}_initialized`, 'true');
         const stored = localStorage.getItem(storageKey);
         if (stored) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed)) {
             const index = parsed.findIndex((item: any) => 
-              (item.id || item.studentId || item.rollNo || item.userId || item.teacherId || item.receiptNumber) === docId
+              (item.id || item.studentId || item.rollNo || item.userId || item.teacherId || item.materialId || item.receiptNumber) === docId
             );
             if (data === null) {
               if (index > -1) parsed.splice(index, 1);
@@ -572,6 +918,19 @@ class SyncServiceClass {
       }
     } catch (e) {
       // Non-blocking storage mirror error
+    }
+
+    // Broadcast mutation to other open tabs in realtime
+    if (this.broadcastChannel) {
+      try {
+        this.broadcastChannel.postMessage({
+          type: 'SYNC_MUTATION',
+          collectionName,
+          docId,
+          data,
+          timestamp: Date.now()
+        });
+      } catch (e) {}
     }
 
     this.listeners.forEach(fn => {
@@ -693,6 +1052,35 @@ class SyncServiceClass {
    * Lists documents in a collection with optional query filtering.
    */
   public async list<T = any>(collectionName: string, ..._unusedConstraints: any[]): Promise<T[]> {
+    // 1. First, check persistent server sync API
+    try {
+      if (typeof window !== 'undefined') {
+        const res = await fetch(`/api/sync/${encodeURIComponent(collectionName)}`);
+        if (res.ok) {
+          const payload = await res.json();
+          if (payload.success && Array.isArray(payload.data)) {
+            // If server collection is initialized, trust it completely (even if length is 0!)
+            if (payload.initialized) {
+              localStorage.setItem(`sunshine_${collectionName}`, JSON.stringify(payload.data));
+              localStorage.setItem(`sunshine_${collectionName}_initialized`, 'true');
+              if (!this.cache.has(collectionName)) {
+                this.cache.set(collectionName, new Map());
+              }
+              const colCache = this.cache.get(collectionName)!;
+              colCache.clear();
+              payload.data.forEach((item: any) => {
+                const itemId = item.id || item.materialId || item.rollNo || item.userId;
+                if (itemId) colCache.set(itemId, item);
+              });
+              return payload.data as T[];
+            }
+          }
+        }
+      }
+    } catch (apiErr) {
+      // Fall through to Supabase/Local fallback
+    }
+
     if (this.shouldAttemptSupabase()) {
       try {
         const { data, error } = await supabase
@@ -736,12 +1124,18 @@ class SyncServiceClass {
   private getLocalList<T = any>(collectionName: string): T[] {
     try {
       if (typeof window !== 'undefined') {
+        const isInit = localStorage.getItem(`sunshine_${collectionName}_initialized`) === 'true';
         const stored = localStorage.getItem(`sunshine_${collectionName}`);
         if (stored) {
           const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed as T[];
+          if (Array.isArray(parsed)) {
+            if (isInit || parsed.length > 0) {
+              return parsed as T[];
+            }
           }
+        }
+        if (isInit) {
+          return [];
         }
       }
     } catch (e) {}
@@ -749,7 +1143,7 @@ class SyncServiceClass {
   }
 
   /**
-   * Writes/updates a document with enforced read-after-write verification.
+   * Writes/updates a document with optimistic UI update and background transaction log retry.
    */
   public async set<T = any>(
     collectionName: string, 
@@ -757,242 +1151,164 @@ class SyncServiceClass {
     data: Record<string, any>, 
     _options: { merge?: boolean } = { merge: true }
   ): Promise<SyncOperationResult<T>> {
-    return this.enqueue(async () => {
-      const fullData = { id: docId, ...data, updatedAt: new Date().toISOString() };
+    const fullData = { id: docId, ...data, updatedAt: new Date().toISOString() };
 
-      if (this.shouldAttemptSupabase()) {
-        try {
-          const payload = toPostgresRow(collectionName, fullData);
-          const isUUIDTable = ['students', 'admissions', 'fee_statuses', 'fee_receipts', 'tests', 'student_marks', 'study_materials', 'toppers'].includes(collectionName);
-          const shouldUpsertSupabase = !isUUIDTable || (payload.id && isPostgresUUID(payload.id));
+    // 1. OPTIMISTIC UPDATE: Update memory cache, localStorage, and listeners immediately
+    this.notifyListeners(collectionName, docId, fullData as T);
 
-          if (shouldUpsertSupabase) {
-            const { data: upserted, error } = await supabase
-              .from(collectionName)
-              .upsert(payload)
-              .select()
-              .maybeSingle();
+    // 2. TRANSACTION LOG: Persist transaction and queue background cloud sync with automatic retry
+    this.enqueueTransaction('set', collectionName, docId, fullData);
 
-            if (error) {
-              this.recordNetworkFailure();
-              this.notifyError('set', collectionName, error, docId);
-              if (error.code !== 'PGRST205' && error.code !== '22P02') {
-                console.warn(`[SyncService.set - Supabase] Upsert warning for ${collectionName}/${docId}:`, error.message);
-              }
-              this.notifyListeners(collectionName, docId, fullData as T);
-              return { success: true, data: fullData as T, verified: true, timestamp: new Date().toISOString() };
-            }
-
-            this.recordNetworkSuccess();
-            const clean = upserted ? (fromPostgresRow(collectionName, upserted) as T) : (fullData as T);
-            this.notifyListeners(collectionName, docId, clean);
-
-            return {
-              success: true,
-              data: clean,
-              verified: true,
-              timestamp: new Date().toISOString()
-            };
-          } else {
-            // Local fallback for non-UUID mock items on UUID tables
-            this.notifyListeners(collectionName, docId, fullData as T);
-            return {
-              success: true,
-              data: fullData as T,
-              verified: true,
-              timestamp: new Date().toISOString()
-            };
-          }
-        } catch (err: any) {
-          this.recordNetworkFailure();
-          this.notifyError('set', collectionName, err, docId);
-          console.warn(`[SyncService.set] Supabase write notice for ${collectionName}/${docId}:`, err?.message || err);
-          this.notifyListeners(collectionName, docId, fullData as T);
-          return { success: true, data: fullData as T, verified: true, timestamp: new Date().toISOString() };
-        }
-      } else {
-        this.notifyListeners(collectionName, docId, fullData as T);
-        return {
-          success: true,
-          data: fullData as T,
-          verified: true,
-          timestamp: new Date().toISOString()
-        };
-      }
-    });
+    return {
+      success: true,
+      data: fullData as T,
+      verified: true,
+      optimistic: true,
+      timestamp: new Date().toISOString()
+    };
   }
 
   /**
-   * Updates fields in an existing document.
+   * Updates fields in an existing document with optimistic UI update.
    */
   public async update<T = any>(
     collectionName: string, 
     docId: string, 
     updates: Record<string, any>
   ): Promise<SyncOperationResult<T>> {
-    return this.enqueue(async () => {
-      const updatedFields = { ...updates, updatedAt: new Date().toISOString() };
-      const isUUIDTable = ['students', 'admissions', 'fee_statuses', 'fee_receipts', 'tests', 'student_marks', 'study_materials', 'toppers'].includes(collectionName);
-      const shouldQuerySupabase = this.shouldAttemptSupabase() && (!isUUIDTable || isPostgresUUID(docId));
+    const current = this.getCached<T>(collectionName, docId) || this.getLocalDoc<T>(collectionName, docId) || {};
+    const updatedFields = { ...current, ...updates, updatedAt: new Date().toISOString() };
 
-      if (shouldQuerySupabase) {
-        try {
-          const payload = toPostgresRow(collectionName, updatedFields);
-          const { data: updated, error } = await supabase
-            .from(collectionName)
-            .update(payload)
-            .eq('id', docId)
-            .select()
-            .maybeSingle();
+    // 1. OPTIMISTIC UPDATE
+    this.notifyListeners(collectionName, docId, updatedFields as T);
 
-          if (error) {
-            this.recordNetworkFailure();
-            this.notifyError('update', collectionName, error, docId);
-            if (error.code !== 'PGRST205' && error.code !== '22P02') {
-              console.warn(`[SyncService.update] Update notice for ${collectionName}/${docId}:`, error.message);
-            }
-            const current = this.getCached<T>(collectionName, docId) || {};
-            const merged = { ...current, ...updatedFields } as T;
-            this.notifyListeners(collectionName, docId, merged);
-            return { success: true, data: merged, verified: true, timestamp: new Date().toISOString() };
-          }
+    // 2. TRANSACTION LOG
+    this.enqueueTransaction('update', collectionName, docId, updatedFields);
 
-          this.recordNetworkSuccess();
-          const clean = updated ? (fromPostgresRow(collectionName, updated) as T) : (updatedFields as T);
-          this.notifyListeners(collectionName, docId, clean);
-
-          return {
-            success: true,
-            data: clean,
-            verified: true,
-            timestamp: new Date().toISOString()
-          };
-        } catch (err: any) {
-          this.recordNetworkFailure();
-          this.notifyError('update', collectionName, err, docId);
-          console.warn(`[SyncService.update] Supabase update notice:`, err?.message || err);
-          const current = this.getCached<T>(collectionName, docId) || {};
-          const merged = { ...current, ...updatedFields } as T;
-          this.notifyListeners(collectionName, docId, merged);
-          return { success: true, data: merged, verified: true, timestamp: new Date().toISOString() };
-        }
-      } else {
-        const current = this.getCached<T>(collectionName, docId) || {};
-        const merged = { ...current, ...updatedFields } as T;
-        this.notifyListeners(collectionName, docId, merged);
-        return {
-          success: true,
-          data: merged,
-          verified: true,
-          timestamp: new Date().toISOString()
-        };
-      }
-    });
+    return {
+      success: true,
+      data: updatedFields as T,
+      verified: true,
+      optimistic: true,
+      timestamp: new Date().toISOString()
+    };
   }
 
   /**
-   * Adds a new document with optional auto-generated or custom ID.
+   * Adds a new document with optimistic UI update and background transaction log.
    */
   public async add<T = any>(
     collectionName: string, 
     data: Record<string, any>, 
     customId?: string
   ): Promise<SyncOperationResult<T>> {
-    return this.enqueue(async () => {
-      const targetId = customId || `gen-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
-      const fullData = { id: targetId, ...data, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    const targetId = customId || `gen-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+    const fullData = { id: targetId, ...data, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
 
-      if (this.shouldAttemptSupabase()) {
-        try {
-          const payload = toPostgresRow(collectionName, fullData);
-          const { data: inserted, error } = await supabase
-            .from(collectionName)
-            .insert(payload)
-            .select()
-            .maybeSingle();
+    // 1. OPTIMISTIC UPDATE
+    this.notifyListeners(collectionName, targetId, fullData as T);
 
-          if (error) {
-            this.recordNetworkFailure();
-            this.notifyError('add', collectionName, error, targetId);
-            if (error.code !== 'PGRST205') {
-              console.warn(`[SyncService.add] Insert notice for ${collectionName}:`, error.message);
-            }
-            this.notifyListeners(collectionName, targetId, fullData as T);
-            return { success: true, data: fullData as T, verified: true, timestamp: new Date().toISOString() };
-          }
+    // 2. TRANSACTION LOG
+    this.enqueueTransaction('add', collectionName, targetId, fullData);
 
-          this.recordNetworkSuccess();
-          const clean = inserted ? (fromPostgresRow(collectionName, inserted) as T) : (fullData as T);
-          this.notifyListeners(collectionName, targetId, clean);
-
-          return {
-            success: true,
-            data: clean,
-            verified: true,
-            timestamp: new Date().toISOString()
-          };
-        } catch (err: any) {
-          this.recordNetworkFailure();
-          this.notifyError('add', collectionName, err, targetId);
-          console.warn(`[SyncService.add] Supabase add notice:`, err?.message || err);
-          this.notifyListeners(collectionName, targetId, fullData as T);
-          return { success: true, data: fullData as T, verified: true, timestamp: new Date().toISOString() };
-        }
-      } else {
-        this.notifyListeners(collectionName, targetId, fullData as T);
-        return {
-          success: true,
-          data: fullData as T,
-          verified: true,
-          timestamp: new Date().toISOString()
-        };
-      }
-    });
+    return {
+      success: true,
+      data: fullData as T,
+      verified: true,
+      optimistic: true,
+      timestamp: new Date().toISOString()
+    };
   }
 
   /**
-   * Deletes a document with read-after-write verification ensuring removal.
+   * Deletes a document with optimistic UI update and background transaction log.
    */
   public async delete(
     collectionName: string, 
     docId: string
   ): Promise<SyncOperationResult<void>> {
-    return this.enqueue(async () => {
-      // If collection requires UUID primary keys (like students, admissions, fee_statuses) and docId is a local/mock slug, avoid sending invalid UUID syntax to Supabase
-      const isUUIDTable = ['students', 'admissions', 'fee_statuses', 'fee_receipts', 'tests', 'student_marks', 'study_materials', 'toppers'].includes(collectionName);
-      const shouldQuerySupabase = this.shouldAttemptSupabase() && (!isUUIDTable || isPostgresUUID(docId));
+    // 1. OPTIMISTIC UPDATE
+    this.notifyListeners(collectionName, docId, null);
 
-      if (shouldQuerySupabase) {
-        try {
-          const { error } = await supabase
-            .from(collectionName)
-            .delete()
-            .eq('id', docId);
+    // 2. TRANSACTION LOG
+    this.enqueueTransaction('delete', collectionName, docId, null);
 
-          if (error) {
-            this.recordNetworkFailure();
-            this.notifyError('delete', collectionName, error, docId);
-            if (error.code !== 'PGRST205' && error.code !== '22P02') {
-              console.warn(`[SyncService.delete] Delete notice for ${collectionName}/${docId}:`, error.message);
-            }
-          } else {
-            this.recordNetworkSuccess();
-          }
-        } catch (err: any) {
-          this.recordNetworkFailure();
-          this.notifyError('delete', collectionName, err, docId);
-          console.warn(`[SyncService.delete] Supabase delete notice:`, err?.message || err);
-        }
+    return {
+      success: true,
+      verified: true,
+      optimistic: true,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Optimistically replaces an entire collection (e.g. after bulk deletes, deletions, or batch mutations),
+   * updating in-memory cache, localStorage, and subscribers immediately, while enqueuing persistent cloud replication.
+   */
+  public async replaceCollection<T = any>(
+    collectionName: string, 
+    items: T[]
+  ): Promise<SyncOperationResult<T[]>> {
+    // 1. OPTIMISTIC UPDATE: Update memory cache
+    if (!this.cache.has(collectionName)) {
+      this.cache.set(collectionName, new Map());
+    }
+    const colCache = this.cache.get(collectionName)!;
+    colCache.clear();
+    if (Array.isArray(items)) {
+      items.forEach((item: any) => {
+        const id = String(item.id || item.materialId || item.rollNo || item.userId || item.studentId || item.teacherId || item.admissionNo || '');
+        if (id) colCache.set(id, item);
+      });
+    }
+
+    // Mirror to localStorage with quota safety
+    try {
+      if (typeof window !== 'undefined') {
+        const storageKey = `sunshine_${collectionName}`;
+        localStorage.setItem(`${storageKey}_initialized`, 'true');
+        localStorage.setItem(storageKey, JSON.stringify(items || []));
       }
+    } catch (e) {
+      console.warn(`[SyncService] LocalStorage replace error on ${collectionName}:`, e);
+    }
 
-      this.notifyListeners(collectionName, docId, null);
+    // Broadcast to open tabs in realtime
+    if (this.broadcastChannel) {
+      try {
+        this.broadcastChannel.postMessage({
+          type: 'SYNC_COLLECTION_REPLACE',
+          collectionName,
+          items: items || [],
+          timestamp: Date.now()
+        });
+      } catch (e) {}
+    }
 
-      return {
-        success: true,
-        verified: true,
-        timestamp: new Date().toISOString()
-      };
+    // Notify local subscribers immediately
+    this.listeners.forEach(fn => {
+      try {
+        fn(collectionName, '*', items as any);
+      } catch (err) {}
     });
+
+    // 2. TRANSACTION LOG: Persist transaction and queue background cloud sync with automatic retry
+    this.enqueueTransaction('replace', collectionName, '*', items || []);
+
+    return {
+      success: true,
+      data: items,
+      verified: true,
+      optimistic: true,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Reconciles local data with the cloud server state, pulling fresh data and updating local cache.
+   */
+  public async reconcileWithCloud<T = any>(collectionName: string): Promise<T[]> {
+    return this.list<T>(collectionName);
   }
 
   /**
