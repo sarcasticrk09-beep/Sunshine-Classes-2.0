@@ -329,29 +329,24 @@ export default function LandingPage({
     const sMother = admMother.trim();
     const sMobile = admMobile.trim();
     const sWhatsapp = admWhatsapp.trim();
-    const sParentMobile = admParentMobile.trim();
+    const sParentMobile = (admParentMobile || admWhatsapp || admMobile).trim();
     const sEmail = admEmail.trim();
     const sAddress = admAddress.trim();
     const sAadhar = admAadhar.trim();
 
     // 1. Data Length Validations
-    if (sName.length < 3) {
-      setAdmError("Student Name must be at least 3 characters long.");
+    if (sName.length < 2) {
+      setAdmError("Student Name must be at least 2 characters long.");
       setIsAdmLoading(false);
       return;
     }
-    if (sFather.length < 3) {
-      setAdmError("Father's Name must be at least 3 characters long.");
+    if (sFather.length < 2) {
+      setAdmError("Father's Name must be at least 2 characters long.");
       setIsAdmLoading(false);
       return;
     }
-    if (sMother.length < 3) {
-      setAdmError("Mother's Name must be at least 3 characters long.");
-      setIsAdmLoading(false);
-      return;
-    }
-    if (sAddress.length < 8) {
-      setAdmError("Please provide a more complete correspondence address (minimum 8 characters).");
+    if (sAddress.length < 2) {
+      setAdmError("Please provide an address.");
       setIsAdmLoading(false);
       return;
     }
@@ -359,17 +354,12 @@ export default function LandingPage({
     // 2. 10-Digit Mobile Phone Validations
     const phoneRegex = /^[0-9]{10}$/;
     if (!phoneRegex.test(sMobile)) {
-      setAdmError("Mobile calling number must be a valid 10-digit number.");
+      setAdmError("Primary mobile number must be a valid 10-digit number.");
       setIsAdmLoading(false);
       return;
     }
-    if (!phoneRegex.test(sWhatsapp)) {
-      setAdmError("Student WhatsApp number must be a valid 10-digit number.");
-      setIsAdmLoading(false);
-      return;
-    }
-    if (!phoneRegex.test(sParentMobile)) {
-      setAdmError("Parent's WhatsApp number must be a valid 10-digit number.");
+    if (sWhatsapp && !phoneRegex.test(sWhatsapp)) {
+      setAdmError("WhatsApp number must be a valid 10-digit number.");
       setIsAdmLoading(false);
       return;
     }
@@ -410,24 +400,28 @@ export default function LandingPage({
       });
 
       setGeneratedAdmId(admId);
-      // Clear fields
-      setAdmName('');
-      setAdmFather('');
-      setAdmMother('');
-      setAdmPrevSchool('');
-      setAdmMobile('');
-      setAdmWhatsapp('');
-      setAdmParentMobile('');
-      setAdmEmail('');
-      setAdmAddress('');
-      setAdmAadhar('');
-      setAdmPhotoUrl('');
     } catch (err: any) {
       console.error("[LandingPage] Admission Form Submission Failed:", err);
       setAdmError(err.message || "An error occurred while submitting the admission. Please try again.");
     } finally {
       setIsAdmLoading(false);
     }
+  };
+
+  const handleResetAdmissionForm = () => {
+    setGeneratedAdmId(null);
+    setAdmName('');
+    setAdmFather('');
+    setAdmMother('');
+    setAdmPrevSchool('');
+    setAdmMobile('');
+    setAdmWhatsapp('');
+    setAdmParentMobile('');
+    setAdmEmail('');
+    setAdmAddress('');
+    setAdmAadhar('');
+    setAdmPhotoUrl('');
+    setAdmError(null);
   };
 
   // Static Facilities List
@@ -672,7 +666,9 @@ export default function LandingPage({
                 setActiveSection(sec as any);
               }
             }}
-            resetForm={() => setGeneratedAdmId(null)}
+            resetForm={handleResetAdmissionForm}
+            admError={admError}
+            isAdmLoading={isAdmLoading}
           />
         )}
 

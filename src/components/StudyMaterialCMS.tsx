@@ -290,8 +290,6 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
     }).sort((a, b) => {
       if (sortBy === 'NEWEST') return new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime();
       if (sortBy === 'OLDEST') return new Date(a.createdAt || a.date || 0).getTime() - new Date(b.createdAt || b.date || 0).getTime();
-      if (sortBy === 'MOST_VIEWED') return (b.viewCount || 0) - (a.viewCount || 0);
-      if (sortBy === 'MOST_DOWNLOADED') return (b.downloadCount || 0) - (a.downloadCount || 0);
       if (sortBy === 'TITLE') return a.title.localeCompare(b.title);
       return 0;
     });
@@ -303,9 +301,7 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
     const published = materials.filter(m => m.status === 'PUBLISHED').length;
     const drafts = materials.filter(m => m.status === 'DRAFT').length;
     const archived = materials.filter(m => m.status === 'ARCHIVED').length;
-    const totalViews = materials.reduce((acc, curr) => acc + (curr.viewCount || 0), 0);
-    const totalDownloads = materials.reduce((acc, curr) => acc + (curr.downloadCount || 0), 0);
-    return { total, published, drafts, archived, totalViews, totalDownloads };
+    return { total, published, drafts, archived };
   }, [materials]);
 
   // Form Handlers
@@ -438,8 +434,11 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
       setFileUploadProgress(100);
       setTimeout(() => setFileUploadProgress(null), 500);
 
+      const cleanTitle = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+
       setFormData(prev => ({
         ...prev,
+        title: prev.title.trim() ? prev.title : cleanTitle,
         fileName: file.name,
         fileSize: sizeInMB,
         fileUrl: finalUrl,
@@ -449,8 +448,10 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
       console.warn('[StudyMaterialCMS] Direct upload notice, fallback to preview link:', uploadErr);
       setFileUploadProgress(100);
       setTimeout(() => setFileUploadProgress(null), 500);
+      const cleanTitle = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
       setFormData(prev => ({
         ...prev,
+        title: prev.title.trim() ? prev.title : cleanTitle,
         fileName: file.name,
         fileSize: sizeInMB,
         fileUrl: URL.createObjectURL(file),
@@ -691,7 +692,7 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
       </div>
 
       {/* STATS OVERVIEW */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
           <div className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Total Resources</div>
           <div className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{stats.total}</div>
@@ -707,18 +708,6 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
         <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
           <div className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Archived</div>
           <div className="text-2xl font-extrabold text-slate-500 mt-1">{stats.archived}</div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
-          <div className="text-indigo-600 dark:text-indigo-400 text-xs font-semibold uppercase tracking-wider flex items-center gap-1">
-            <Eye size={12} /> Total Views
-          </div>
-          <div className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-1">{stats.totalViews}</div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
-          <div className="text-teal-600 dark:text-teal-400 text-xs font-semibold uppercase tracking-wider flex items-center gap-1">
-            <Download size={12} /> Downloads
-          </div>
-          <div className="text-2xl font-extrabold text-teal-600 dark:text-teal-400 mt-1">{stats.totalDownloads}</div>
         </div>
       </div>
 
@@ -827,8 +816,6 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
             >
               <option value="NEWEST">Newest First</option>
               <option value="OLDEST">Oldest First</option>
-              <option value="MOST_VIEWED">Most Viewed</option>
-              <option value="MOST_DOWNLOADED">Most Downloaded</option>
               <option value="TITLE">Title A-Z</option>
             </select>
           </div>
@@ -889,14 +876,13 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
                 <th className="py-3 px-4">Class & Subject</th>
                 <th className="py-3 px-4">Type</th>
                 <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4 text-center">Metrics</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
               {filteredMaterials.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                  <td colSpan={6} className="py-12 text-center text-slate-400">
                     <BookOpen size={40} className="mx-auto mb-2 opacity-40 text-amber-500" />
                     <p className="font-semibold text-base text-slate-800 dark:text-slate-200">No study materials in this category</p>
                     <p className="text-xs mt-1 text-slate-500 max-w-md mx-auto">
@@ -992,17 +978,6 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
                               <Lock size={14} />
                             </span>
                           )}
-                        </div>
-                      </td>
-
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        <div className="text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center justify-center gap-3">
-                          <span title="Views" className="flex items-center gap-1">
-                            <Eye size={12} className="text-indigo-500" /> {item.viewCount || 0}
-                          </span>
-                          <span title="Downloads" className="flex items-center gap-1">
-                            <Download size={12} className="text-teal-500" /> {item.downloadCount || 0}
-                          </span>
                         </div>
                       </td>
 
@@ -1414,7 +1389,7 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
                 <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between">
                   <div className="text-xs text-slate-600 dark:text-slate-400">
                     <div>Format: <strong className="text-slate-900 dark:text-white">{previewMaterial.materialType}</strong></div>
-                    <div>Views: <strong>{previewMaterial.viewCount || 0}</strong> | Downloads: <strong>{previewMaterial.downloadCount || 0}</strong></div>
+                    <div>File Size: <strong className="text-slate-900 dark:text-white">{previewMaterial.size || 'Standard PDF'}</strong></div>
                   </div>
 
                   {previewMaterial.fileUrl ? (

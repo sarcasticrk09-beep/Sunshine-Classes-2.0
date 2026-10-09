@@ -418,27 +418,17 @@ export default function StudentDashboard({
     localStorage.setItem('sunshine_downloaded_materials', JSON.stringify(nextList));
     
     if (!isCurrentlyDownloaded) {
-      if (item.fileUrl && !item.fileUrl.startsWith('data:')) {
+      const downloadTarget = item.fileUrl || item.fileData;
+      if (downloadTarget) {
         const link = document.createElement('a');
-        link.href = item.fileUrl;
+        link.href = downloadTarget;
         link.target = '_blank';
         link.rel = 'noreferrer';
-        link.download = item.file || `${item.title}.pdf`;
+        link.download = item.file || `${item.title.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-      } else if (item.fileData) {
-        const link = document.createElement('a');
-        link.href = item.fileData;
-        link.download = item.file || `${item.title}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } else {
-        alert(`Saved '${item.title}' to device cache for instant offline study.`);
       }
-    } else {
-      alert("Removed study notes from offline cache.");
     }
   };
 
@@ -2590,10 +2580,10 @@ export default function StudentDashboard({
                             >
                               <Download size={15} />
                             </button>
-                            {item.fileUrl && !item.fileUrl.startsWith('data:') && (
+                            {(item.fileUrl || item.fileData) && (
                               <a
                                 id={`link-view-material-${item.id || idx}`}
-                                href={item.fileUrl}
+                                href={item.fileUrl || item.fileData}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="text-[9px] font-bold text-slate-500 hover:text-indigo-900 underline"

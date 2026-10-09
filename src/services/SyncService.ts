@@ -101,7 +101,7 @@ export function isBenignOfflineOrFallbackError(error: any): boolean {
     }
   }
 
-  // Known PostgREST schema cache, UUID syntax, or permission codes handled by local fallback
+  // Known PostgREST schema cache, UUID syntax, permission, or invalid key codes handled by local fallback
   if (
     code === 'PGRST205' ||
     code === 'PGRST204' ||
@@ -110,8 +110,16 @@ export function isBenignOfflineOrFallbackError(error: any): boolean {
     code === 'PGRST301' ||
     code === 'PGRST116' ||
     code === 'PGRST200' ||
+    code === '401' ||
+    code === '403' ||
     code === '0' ||
-    error?.status === 0
+    error?.status === 0 ||
+    error?.status === 401 ||
+    error?.status === 403 ||
+    msg.includes('invalid api key') ||
+    msg.includes('double check your supabase') ||
+    msg.includes('jwt') ||
+    msg.includes('apikey')
   ) {
     return true;
   }

@@ -774,12 +774,26 @@ async function startServer() {
         const matchedUser = users.find((u: any) => u.id === `u-std-${matchedEnrollmentId}` || u.phone === sMobile) || null;
 
         logEnrollmentEvent("INFO", `Idempotent request matched existing student/admission: ${sName} (${matchedEnrollmentId})`);
+        const fallbackAdmissionObj = matchedAdmission || {
+          id: matchedEnrollmentId,
+          enrollmentId: matchedEnrollmentId,
+          studentName: sName,
+          fatherName: sFather,
+          motherName: sMother,
+          className: sClass,
+          mobile: sMobile,
+          address: sAddress,
+          status: 'PENDING',
+          date: new Date().toISOString().split('T')[0]
+        };
+
         return res.status(200).json({
           status: "success",
           isIdempotent: true,
           enrollmentId: matchedEnrollmentId,
+          admissionId: matchedEnrollmentId,
           student: matchedStudent,
-          admission: matchedAdmission,
+          admission: fallbackAdmissionObj,
           user: matchedUser,
           feeRecords: [],
           auditLog: null,

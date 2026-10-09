@@ -258,10 +258,10 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
       .slice(0, 6);
   }, [materials]);
 
-  // Popular Downloads (Top 6 most downloaded)
+  // Featured Resources (Curated top study materials)
   const popularDownloads = useMemo(() => {
     return [...materials]
-      .sort((a, b) => (b.downloadCount || 0) - (a.downloadCount || 0))
+      .sort((a, b) => new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime())
       .slice(0, 6);
   }, [materials]);
 
@@ -727,19 +727,19 @@ Contact: +91 9988776655 | Pihani, Hardoi (U.P.)`;
           </div>
         </section>
 
-        {/* 4. POPULAR DOWNLOADS SECTION */}
+        {/* 4. FEATURED STUDY MATERIALS SECTION */}
         <section className="p-6 bg-gradient-to-br from-amber-500/10 via-white to-slate-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 rounded-3xl border border-amber-200/80 dark:border-slate-800 space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                <Flame size={12} className="text-amber-500" /> Student Favorites
+                <Flame size={12} className="text-amber-500" /> Essential Study Material
               </span>
               <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
-                Most Popular Downloads
+                Featured Notes & Resources
               </h2>
             </div>
             <span className="text-xs font-semibold text-slate-500">
-              Ranked by total student downloads
+              Direct access for students
             </span>
           </div>
 
@@ -766,8 +766,8 @@ Contact: +91 9988776655 | Pihani, Hardoi (U.P.)`;
                     {item.title}
                   </h3>
                   <div className="flex items-center gap-3 text-[10px] text-slate-400 pt-1">
-                    <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
-                      <Download size={11} /> {item.downloadCount || 0} downloads
+                    <span className="flex items-center gap-1 text-slate-600 dark:text-slate-300 font-semibold">
+                      <FileText size={11} className="text-amber-500" /> {item.materialType || 'PDF'} • {item.size || 'Free PDF'}
                     </span>
                   </div>
                 </div>
@@ -1005,13 +1005,11 @@ Contact: +91 9988776655 | Pihani, Hardoi (U.P.)`;
 
                   {/* Card Footer */}
                   <div className="px-5 py-3 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-3 text-slate-400 text-[11px]">
-                      <span className="flex items-center gap-1" title="Views">
-                        <Eye size={12} className="text-indigo-400" /> {item.viewCount || 0}
+                    <div className="flex items-center gap-2 text-slate-500 text-[11px] font-medium">
+                      <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold uppercase text-[10px]">
+                        {item.materialType || 'PDF'}
                       </span>
-                      <span className="flex items-center gap-1" title="Downloads">
-                        <Download size={12} className="text-emerald-400" /> {item.downloadCount || 0}
-                      </span>
+                      <span>{item.size || 'Free Access'}</span>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -1114,22 +1112,18 @@ Contact: +91 9988776655 | Pihani, Hardoi (U.P.)`;
                 )}
 
                 {/* Metadata Card */}
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
                   <div>
                     <span className="text-slate-400 text-[10px] block font-semibold uppercase">Faculty / Author</span>
                     <span className="font-bold text-slate-800 dark:text-slate-200">{selectedMaterial.createdBy || 'Priyanshu Sir'}</span>
                   </div>
                   <div>
+                    <span className="text-slate-400 text-[10px] block font-semibold uppercase">File Format</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">{selectedMaterial.materialType || 'PDF Document'}</span>
+                  </div>
+                  <div>
                     <span className="text-slate-400 text-[10px] block font-semibold uppercase">File Size</span>
                     <span className="font-bold text-slate-800 dark:text-slate-200">{selectedMaterial.size || '1.2 MB'}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 text-[10px] block font-semibold uppercase">Downloads</span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">{selectedMaterial.downloadCount || 0}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 text-[10px] block font-semibold uppercase">Total Views</span>
-                    <span className="font-bold text-indigo-600 dark:text-indigo-400">{selectedMaterial.viewCount || 0}</span>
                   </div>
                 </div>
 

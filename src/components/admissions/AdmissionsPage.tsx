@@ -62,6 +62,8 @@ interface AdmissionsPageProps {
   subConfig: any;
   onNavigateSection: (sec: string) => void;
   resetForm?: () => void;
+  admError?: string | null;
+  isAdmLoading?: boolean;
 }
 
 export const AdmissionsPage: React.FC<AdmissionsPageProps> = ({
@@ -97,7 +99,9 @@ export const AdmissionsPage: React.FC<AdmissionsPageProps> = ({
   handleAdmissionSubmit,
   subConfig,
   onNavigateSection,
-  resetForm
+  resetForm,
+  admError,
+  isAdmLoading
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -523,14 +527,23 @@ export const AdmissionsPage: React.FC<AdmissionsPageProps> = ({
                   </div>
                 </div>
 
+                {/* ERROR ALERT */}
+                {admError && (
+                  <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                    <span>{admError}</span>
+                  </div>
+                )}
+
                 {/* SUBMIT BUTTON */}
                 <div className="pt-2">
                   <button
                     id="btn-submit-admission-form"
                     type="submit"
-                    className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-500/20 transition-all cursor-pointer flex items-center justify-center gap-2 focus:outline-hidden focus:ring-2 focus:ring-amber-400"
+                    disabled={isAdmLoading}
+                    className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-60 active:scale-[0.98] text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-500/20 transition-all cursor-pointer flex items-center justify-center gap-2 focus:outline-hidden focus:ring-2 focus:ring-amber-400"
                   >
-                    <span>Generate Admission Application ID</span>
+                    <span>{isAdmLoading ? 'Generating Application ID...' : 'Generate Admission Application ID'}</span>
                     <ArrowRight size={16} />
                   </button>
                   <p className="text-[10px] text-slate-400 text-center mt-2">
