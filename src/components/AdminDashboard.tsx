@@ -2343,7 +2343,7 @@ export default function AdminDashboard({
   const [batchFormTeacher, setBatchFormTeacher] = useState('');
   const [batchFormFee, setBatchFormFee] = useState(0);
   const [batchFormStatus, setBatchFormStatus] = useState<'ACTIVE' | 'DUE' | 'EXPIRED'>('ACTIVE');
-  const [batchFormCapacity, setBatchFormCapacity] = useState(30);
+  const [batchFormCapacity, setBatchFormCapacity] = useState(10000);
 
   // Class-Centric Architecture State Variables
   const [showClassModal, setShowClassModal] = useState(false);
@@ -2351,7 +2351,7 @@ export default function AdminDashboard({
   const [classFormName, setClassFormName] = useState('');
   const [classFormCode, setClassFormCode] = useState('');
   const [classFormDefaultFee, setClassFormDefaultFee] = useState(1000);
-  const [classFormCapacity, setClassFormCapacity] = useState(40);
+  const [classFormCapacity, setClassFormCapacity] = useState(10000);
   const [classFormSession, setClassFormSession] = useState('2026-2027');
   const [classFormStream, setClassFormStream] = useState('');
   const [classFormStatus, setClassFormStatus] = useState<'ACTIVE' | 'INACTIVE'>('ACTIVE');
@@ -2365,7 +2365,7 @@ export default function AdminDashboard({
   const [timingFormLabel, setTimingFormLabel] = useState<TimingSlotLabel>('Morning');
   const [timingFormRange, setTimingFormRange] = useState('07:00 AM – 09:00 AM');
   const [timingFormTeachers, setTimingFormTeachers] = useState<string[]>([]);
-  const [timingFormCapacity, setTimingFormCapacity] = useState(30);
+  const [timingFormCapacity, setTimingFormCapacity] = useState(5000);
   const [timingFormFeeOverride, setTimingFormFeeOverride] = useState<string>('');
   const [timingFormSection, setTimingFormSection] = useState('Section A');
   const [timingFormStatus, setTimingFormStatus] = useState<'ACTIVE' | 'INACTIVE'>('ACTIVE');
@@ -4915,7 +4915,7 @@ export default function AdminDashboard({
             label: 'Morning',
             timeRange: '07:00 AM – 09:00 AM',
             teachers: ['Priyanshu Gupta (Founder)'],
-            capacity: Math.floor(Number(classFormCapacity) / 2) || 20,
+            capacity: Math.floor(Number(classFormCapacity) / 2) || 5000,
             status: 'ACTIVE'
           },
           {
@@ -4923,7 +4923,7 @@ export default function AdminDashboard({
             label: 'Evening',
             timeRange: '04:00 PM – 06:00 PM',
             teachers: ['Priyanshu Gupta (Founder)'],
-            capacity: Math.floor(Number(classFormCapacity) / 2) || 20,
+            capacity: Math.floor(Number(classFormCapacity) / 2) || 5000,
             status: 'ACTIVE'
           }
         ]
@@ -4939,7 +4939,7 @@ export default function AdminDashboard({
     setClassFormName('');
     setClassFormCode('');
     setClassFormDefaultFee(1000);
-    setClassFormCapacity(40);
+    setClassFormCapacity(10000);
     setClassFormSession('2026-2027');
     setClassFormStream('');
     setClassFormSubjects('');
@@ -4960,7 +4960,7 @@ export default function AdminDashboard({
     setTimingFormLabel('Morning');
     setTimingFormRange('07:00 AM – 09:00 AM');
     setTimingFormTeachers(['Priyanshu Gupta (Founder)']);
-    setTimingFormCapacity(20);
+    setTimingFormCapacity(5000);
     setTimingFormFeeOverride('');
     setTimingFormSection('Section A');
     setTimingFormStatus('ACTIVE');
@@ -4973,7 +4973,7 @@ export default function AdminDashboard({
     setTimingFormLabel((['Morning', 'Afternoon', 'Evening', 'Weekend', 'Custom'].includes(timing.label as any) ? timing.label : 'Custom') as TimingSlotLabel);
     setTimingFormRange(timing.timeRange);
     setTimingFormTeachers(timing.teachers || []);
-    setTimingFormCapacity(timing.capacity || 20);
+    setTimingFormCapacity(timing.capacity || 5000);
     setTimingFormFeeOverride(timing.feeOverride !== undefined ? String(timing.feeOverride) : '');
     setTimingFormSection(timing.section || 'Section A');
     setTimingFormStatus(timing.status);
@@ -5091,7 +5091,7 @@ export default function AdminDashboard({
     setBatchFormTeacher('');
     setBatchFormFee(0);
     setBatchFormStatus('ACTIVE');
-    setBatchFormCapacity(30);
+    setBatchFormCapacity(10000);
   };
 
   const handleEnrollAndScheduleUpdate = (e: React.FormEvent) => {
@@ -5223,7 +5223,7 @@ export default function AdminDashboard({
     setBatchFormTeacher(b.teacherName);
     setBatchFormFee(b.monthlyFee);
     setBatchFormStatus(b.status);
-    setBatchFormCapacity(b.capacity || 30);
+    setBatchFormCapacity(b.capacity || 10000);
     setShowBatchForm(true);
   };
 
@@ -6975,7 +6975,7 @@ ${data.log}`
                   const processedStats = batches.map(b => {
                     const enrolledStudents = students.filter(s => s.preferredBatch?.toLowerCase() === b.name?.toLowerCase());
                     const enrolledCount = enrolledStudents.length;
-                    const capLimit = b.capacity || 30;
+                    const capLimit = b.capacity || 10000;
                     const fillPercent = Math.min(100, Math.round((enrolledCount / capLimit) * 100));
                     return {
                       ...b,
@@ -10818,7 +10818,7 @@ ${data.log}`
                     <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-200 block">Capacity Utilization</span>
                     <span className="font-display text-2xl font-black text-white mt-0.5 block">
                       {(() => {
-                        const totalCap = classes.reduce((sum, c) => sum + (c.totalCapacity || 40), 0);
+                        const totalCap = classes.reduce((sum, c) => sum + (c.totalCapacity || 10000), 0);
                         return totalCap > 0 ? `${Math.min(100, Math.round((students.length / totalCap) * 100))}%` : '0%';
                       })()}
                     </span>

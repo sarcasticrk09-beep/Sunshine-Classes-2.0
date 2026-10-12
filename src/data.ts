@@ -101,15 +101,15 @@ export const SEED_CLASSES: ClassEntity[] = [
     name: 'Class 6',
     code: 'C06',
     defaultMonthlyFee: 700,
-    capacity: 40,
-    totalCapacity: 40,
+    capacity: 10000,
+    totalCapacity: 10000,
     status: 'ACTIVE',
     academicSession: '2026-2027',
     subjects: ['Mathematics', 'Science', 'English', 'Social Science'],
     assignedTeachers: ['Neha Sharma', 'Ritu Singh'],
     timings: [
-      { id: 'ct-6-1', label: 'Morning', timeRange: '07:00 AM – 09:00 AM', teachers: ['Neha Sharma'], capacity: 20, enrolledCount: 10, status: 'ACTIVE', section: 'Section A' },
-      { id: 'ct-6-2', label: 'Afternoon', timeRange: '02:00 PM – 04:00 PM', teachers: ['Ritu Singh'], capacity: 20, enrolledCount: 12, status: 'ACTIVE', section: 'Section B' }
+      { id: 'ct-6-1', label: 'Morning', timeRange: '07:00 AM – 09:00 AM', teachers: ['Neha Sharma'], capacity: 5000, enrolledCount: 10, status: 'ACTIVE', section: 'Section A' },
+      { id: 'ct-6-2', label: 'Afternoon', timeRange: '02:00 PM – 04:00 PM', teachers: ['Ritu Singh'], capacity: 5000, enrolledCount: 12, status: 'ACTIVE', section: 'Section B' }
     ]
   },
   {
@@ -117,15 +117,15 @@ export const SEED_CLASSES: ClassEntity[] = [
     name: 'Class 7',
     code: 'C07',
     defaultMonthlyFee: 700,
-    capacity: 40,
-    totalCapacity: 40,
+    capacity: 10000,
+    totalCapacity: 10000,
     status: 'ACTIVE',
     academicSession: '2026-2027',
     subjects: ['Mathematics', 'Science', 'English', 'Social Science'],
     assignedTeachers: ['Ritu Singh'],
     timings: [
-      { id: 'ct-7-1', label: 'Morning', timeRange: '07:00 AM – 09:00 AM', teachers: ['Ritu Singh'], capacity: 20, enrolledCount: 14, status: 'ACTIVE', section: 'Section A' },
-      { id: 'ct-7-2', label: 'Evening', timeRange: '04:00 PM – 06:00 PM', teachers: ['Ritu Singh'], capacity: 20, enrolledCount: 11, status: 'ACTIVE', section: 'Section B' }
+      { id: 'ct-7-1', label: 'Morning', timeRange: '07:00 AM – 09:00 AM', teachers: ['Ritu Singh'], capacity: 5000, enrolledCount: 14, status: 'ACTIVE', section: 'Section A' },
+      { id: 'ct-7-2', label: 'Evening', timeRange: '04:00 PM – 06:00 PM', teachers: ['Ritu Singh'], capacity: 5000, enrolledCount: 11, status: 'ACTIVE', section: 'Section B' }
     ]
   },
   {
@@ -133,14 +133,14 @@ export const SEED_CLASSES: ClassEntity[] = [
     name: 'Class 8',
     code: 'C08',
     defaultMonthlyFee: 700,
-    capacity: 40,
-    totalCapacity: 40,
+    capacity: 10000,
+    totalCapacity: 10000,
     status: 'ACTIVE',
     academicSession: '2026-2027',
     subjects: ['Mathematics', 'Science', 'English', 'Social Science'],
     assignedTeachers: ['Ritu Singh'],
     timings: [
-      { id: 'ct-8-1', label: 'Afternoon', timeRange: '02:00 PM – 04:00 PM', teachers: ['Ritu Singh'], capacity: 40, enrolledCount: 22, status: 'ACTIVE', section: 'Section A' }
+      { id: 'ct-8-1', label: 'Afternoon', timeRange: '02:00 PM – 04:00 PM', teachers: ['Ritu Singh'], capacity: 5000, enrolledCount: 22, status: 'ACTIVE', section: 'Section A' }
     ]
   },
   {
@@ -148,14 +148,14 @@ export const SEED_CLASSES: ClassEntity[] = [
     name: 'Class 9',
     code: 'C09',
     defaultMonthlyFee: 1000,
-    capacity: 45,
-    totalCapacity: 45,
+    capacity: 10000,
+    totalCapacity: 10000,
     status: 'ACTIVE',
     academicSession: '2026-2027',
     subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
     assignedTeachers: ['Anil Pandey'],
     timings: [
-      { id: 'ct-9-1', label: 'Evening', timeRange: '03:00 PM – 05:00 PM', teachers: ['Anil Pandey'], capacity: 45, enrolledCount: 28, status: 'ACTIVE', section: 'Section A' }
+      { id: 'ct-9-1', label: 'Evening', timeRange: '03:00 PM – 05:00 PM', teachers: ['Anil Pandey'], capacity: 5000, enrolledCount: 28, status: 'ACTIVE', section: 'Section A' }
     ]
   },
   {
@@ -163,15 +163,15 @@ export const SEED_CLASSES: ClassEntity[] = [
     name: 'Class 10',
     code: 'C10',
     defaultMonthlyFee: 1200,
-    capacity: 80,
-    totalCapacity: 80,
+    capacity: 10000,
+    totalCapacity: 10000,
     status: 'ACTIVE',
     academicSession: '2026-2027',
     subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
     assignedTeachers: ['Priyanshu Gupta'],
     timings: [
-      { id: 'ct-10-1', label: 'Morning', timeRange: '07:00 AM – 09:30 AM', teachers: ['Priyanshu Gupta'], capacity: 40, enrolledCount: 25, status: 'ACTIVE', section: 'Section A' },
-      { id: 'ct-10-2', label: 'Evening', timeRange: '04:00 PM – 06:30 PM', teachers: ['Priyanshu Gupta'], capacity: 40, enrolledCount: 32, status: 'ACTIVE', section: 'Section B' }
+      { id: 'ct-10-1', label: 'Morning', timeRange: '07:00 AM – 09:30 AM', teachers: ['Priyanshu Gupta'], capacity: 5000, enrolledCount: 25, status: 'ACTIVE', section: 'Section A' },
+      { id: 'ct-10-2', label: 'Evening', timeRange: '04:00 PM – 06:30 PM', teachers: ['Priyanshu Gupta'], capacity: 5000, enrolledCount: 32, status: 'ACTIVE', section: 'Section B' }
     ]
   },
   {
@@ -179,16 +179,16 @@ export const SEED_CLASSES: ClassEntity[] = [
     name: 'Class 11',
     code: 'C11',
     defaultMonthlyFee: 1500,
-    capacity: 50,
-    totalCapacity: 50,
+    capacity: 10000,
+    totalCapacity: 10000,
     status: 'ACTIVE',
     academicSession: '2026-2027',
     stream: 'Science',
     subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
     assignedTeachers: ['Anil Pandey', 'Priyanshu Gupta'],
     timings: [
-      { id: 'ct-11-1', label: 'Morning', timeRange: '07:30 AM – 10:00 AM', teachers: ['Priyanshu Gupta'], capacity: 25, enrolledCount: 18, status: 'ACTIVE', section: 'Section A' },
-      { id: 'ct-11-2', label: 'Evening', timeRange: '05:00 PM – 07:30 PM', teachers: ['Anil Pandey'], capacity: 25, enrolledCount: 15, status: 'ACTIVE', section: 'Section B' }
+      { id: 'ct-11-1', label: 'Morning', timeRange: '07:30 AM – 10:00 AM', teachers: ['Priyanshu Gupta'], capacity: 5000, enrolledCount: 18, status: 'ACTIVE', section: 'Section A' },
+      { id: 'ct-11-2', label: 'Evening', timeRange: '05:00 PM – 07:30 PM', teachers: ['Anil Pandey'], capacity: 5000, enrolledCount: 15, status: 'ACTIVE', section: 'Section B' }
     ]
   },
   {
@@ -196,16 +196,16 @@ export const SEED_CLASSES: ClassEntity[] = [
     name: 'Class 12',
     code: 'C12',
     defaultMonthlyFee: 1500,
-    capacity: 50,
-    totalCapacity: 50,
+    capacity: 10000,
+    totalCapacity: 10000,
     status: 'ACTIVE',
     academicSession: '2026-2027',
     stream: 'Science',
     subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
     assignedTeachers: ['Anil Pandey', 'Priyanshu Gupta'],
     timings: [
-      { id: 'ct-12-1', label: 'Morning', timeRange: '07:30 AM – 10:00 AM', teachers: ['Anil Pandey'], capacity: 25, enrolledCount: 20, status: 'ACTIVE', section: 'Section A' },
-      { id: 'ct-12-2', label: 'Evening', timeRange: '05:00 PM – 07:30 PM', teachers: ['Priyanshu Gupta'], capacity: 25, enrolledCount: 22, status: 'ACTIVE', section: 'Section B' }
+      { id: 'ct-12-1', label: 'Morning', timeRange: '07:30 AM – 10:00 AM', teachers: ['Anil Pandey'], capacity: 5000, enrolledCount: 20, status: 'ACTIVE', section: 'Section A' },
+      { id: 'ct-12-2', label: 'Evening', timeRange: '05:00 PM – 07:30 PM', teachers: ['Priyanshu Gupta'], capacity: 5000, enrolledCount: 22, status: 'ACTIVE', section: 'Section B' }
     ]
   }
 ];

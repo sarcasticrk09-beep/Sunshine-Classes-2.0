@@ -2094,7 +2094,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({
                     <option value="">Select Teacher...</option>
                     {teachersList.map((t: any) => (
                       <option key={t.id} value={t.id}>
-                        {t.name} — {t.qualification || 'Faculty'} (Capacity: {t.maxCapacity || 30})
+                        {t.name} — {t.qualification || 'Faculty'} (Open Capacity)
                       </option>
                     ))}
                   </select>
@@ -2204,7 +2204,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({
                   </div>
                   <h4 className="font-bold text-sm text-slate-900">Ready to Execute Transaction</h4>
                   <p className="text-slate-500 text-xs">
-                    This operation will atomically update the teacher assignment, enforce capacity limits, record immutable teacher history, and publish the StudentTeacherAssigned domain event.
+                    This operation will atomically update the teacher assignment, record immutable teacher history, and publish the StudentTeacherAssigned domain event.
                   </p>
                 </div>
               )}

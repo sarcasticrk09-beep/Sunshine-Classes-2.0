@@ -1011,15 +1011,8 @@ export class StudentService {
         return { success: false, statusCode: 400, code: 'INACTIVE_TEACHER', message: `Teacher ${targetTeacher.name} is currently inactive.` };
       }
 
-      // Teacher capacity verification
-      const studentsSnap = await getDocs(collection(db, 'students'));
-      const allStudents = studentsSnap.docs.map(d => d.data()) as any[];
-      const currentAssignedCount = allStudents.filter(s => s.teacherId === targetTeacher.id || s.assignedTeacher === targetTeacher.name).length;
-      const maxCapacity = targetTeacher.maxCapacity || targetTeacher.capacity || 30;
-
-      if (currentAssignedCount >= maxCapacity) {
-        return { success: false, statusCode: 400, code: 'CAPACITY_EXCEEDED', message: `Teacher ${targetTeacher.name} has reached maximum capacity (${currentAssignedCount}/${maxCapacity} students).` };
-      }
+      // Teacher assignment permitted without artificial capacity limit
+      const maxCapacity = 100000;
 
       const resultData = await TransactionManager.run(db, 'ASSIGN_TEACHER', async (transaction) => {
         const snap = await transaction.get(docRef);

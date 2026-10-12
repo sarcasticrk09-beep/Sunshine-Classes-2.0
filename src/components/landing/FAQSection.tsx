@@ -11,7 +11,7 @@ export const FAQSection: React.FC = () => {
     },
     {
       q: 'What are the batch timings and student capacities per class?',
-      a: 'We maintain a strict maximum capacity of 25 students per class to ensure 1-on-1 focus. Class 10 runs at 06:00 AM & 04:00 PM, Class 9 at 07:00 AM & 05:00 PM, Classes 5-8 from 03:00 PM to 05:00 PM, and Classes 1-4 from 02:00 PM to 04:00 PM.'
+      a: 'We offer open batch capacity with dedicated mentor support across all sessions. Class 10 runs at 06:00 AM & 04:00 PM, Class 9 at 07:00 AM & 05:00 PM, Classes 5-8 from 03:00 PM to 05:00 PM, and Classes 1-4 from 02:00 PM to 04:00 PM.'
     },
     {
       q: 'Are free study materials and NCERT solutions included?',
