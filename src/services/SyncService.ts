@@ -1287,6 +1287,62 @@ class SyncServiceClass {
   }
 
   /**
+   * Synchronizes all application collections across local persistence, server disk storage, and database.
+   */
+  public async synchronizeAll(): Promise<{ success: boolean; syncedCount: number }> {
+    const collections = [
+      'study_materials',
+      'users',
+      'students',
+      'teachers',
+      'batches',
+      'classes',
+      'courses',
+      'admissions',
+      'attendance',
+      'fee_statuses',
+      'fee_receipts',
+      'tests',
+      'student_marks',
+      'homework',
+      'submissions',
+      'blogs',
+      'testimonials',
+      'toppers',
+      'founders',
+      'gallery',
+      'notifications',
+      'inquiries',
+      'audit_logs',
+      'student_subscriptions',
+      'payments',
+      'receipts',
+      'payment_notifications'
+    ];
+
+    try {
+      if (typeof window !== 'undefined') {
+        const res = await fetch('/api/sync/reconcile-all', { method: 'POST' });
+        if (res.ok) {
+          await this.flushTransactionLog();
+          for (const col of collections) {
+            await this.list(col);
+          }
+          return { success: true, syncedCount: collections.length };
+        }
+      }
+    } catch (e) {
+      // Fall through to client sync
+    }
+
+    for (const col of collections) {
+      await this.list(col);
+    }
+    await this.flushTransactionLog();
+    return { success: true, syncedCount: collections.length };
+  }
+
+  /**
    * Standardized transaction block for state synchronization.
    */
   public async runTransactionBlock<T>(

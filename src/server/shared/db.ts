@@ -9,7 +9,18 @@ import {
   SEED_STUDENT_SUBSCRIPTIONS,
   SEED_SUBSCRIPTION_PAYMENTS,
   SEED_SUBSCRIPTION_RECEIPTS,
-  SEED_ADMISSIONS
+  SEED_ADMISSIONS,
+  SEED_STUDY_MATERIALS,
+  SEED_FEE_STATUS,
+  SEED_FEE_RECEIPTS,
+  SEED_TESTS,
+  SEED_STUDENT_MARKS,
+  SEED_HOMEWORK,
+  SEED_HOMEWORK_SUBMISSIONS,
+  SEED_BLOGS,
+  SEED_TOPPERS,
+  SEED_FOUNDERS,
+  SEED_NOTIFICATIONS
 } from '../../data';
 
 const isStaging = process.env.APP_ENV === 'staging';
@@ -40,8 +51,18 @@ const memoryStore: Record<string, Record<string, any>> = {
   payments: Object.fromEntries(SEED_SUBSCRIPTION_PAYMENTS.map(p => [p.id, p])),
   receipts: Object.fromEntries(SEED_SUBSCRIPTION_RECEIPTS.map(r => [r.id, r])),
   admissions: Object.fromEntries(SEED_ADMISSIONS.map(a => [a.id, a])),
+  study_materials: Object.fromEntries(SEED_STUDY_MATERIALS.map(m => [m.id, m])),
+  fee_statuses: Object.fromEntries(SEED_FEE_STATUS.map(f => [f.id, f])),
+  fee_receipts: Object.fromEntries(SEED_FEE_RECEIPTS.map(r => [r.id, r])),
+  tests: Object.fromEntries(SEED_TESTS.map(t => [t.id, t])),
+  student_marks: Object.fromEntries(SEED_STUDENT_MARKS.map(m => [m.id, m])),
+  homework: Object.fromEntries(SEED_HOMEWORK.map(h => [h.id, h])),
+  submissions: Object.fromEntries(SEED_HOMEWORK_SUBMISSIONS.map(s => [s.id, s])),
+  blogs: Object.fromEntries(SEED_BLOGS.map(b => [b.id, b])),
+  toppers: Object.fromEntries(SEED_TOPPERS.map(t => [t.id, t])),
+  founders: Object.fromEntries(SEED_FOUNDERS.map(f => [f.id, f])),
+  notifications: Object.fromEntries(SEED_NOTIFICATIONS.map(n => [n.id, n])),
   audit_logs: {},
-  fee_receipts: {},
   attendance: {}
 };
 

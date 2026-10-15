@@ -658,7 +658,7 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ currentUser 
               </div>
               <div className="h-64">
                 {analytics.dailyTrend && analytics.dailyTrend.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minHeight={240} debounce={50}>
                     <AreaChart data={analytics.dailyTrend}>
                       <defs>
                         <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
@@ -689,9 +689,9 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ currentUser 
                   <p className="text-[11px] text-slate-400">Breakdown of collections by channel</p>
                 </div>
               </div>
-              <div className="h-64 flex items-center justify-center">
+              <div className="h-64 w-full">
                 {paymentModeReport.breakdown && paymentModeReport.breakdown.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minHeight={240} debounce={50}>
                     <RechartsPie>
                       <Pie
                         data={paymentModeReport.breakdown}
@@ -712,7 +712,7 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ currentUser 
                     </RechartsPie>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="text-xs text-slate-400">No payment mode breakdown available.</div>
+                  <div className="h-full flex items-center justify-center text-xs text-slate-400">No payment mode breakdown available.</div>
                 )}
               </div>
             </div>
@@ -729,7 +729,7 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ currentUser 
               </div>
               <div className="h-64">
                 {classReport && classReport.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minHeight={240} debounce={50}>
                     <BarChart data={classReport.slice(0, 8)}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                       <XAxis dataKey="className" tick={{ fontSize: 10 }} stroke="#94A3B8" />
@@ -756,8 +756,8 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ currentUser 
                   <p className="text-[11px] text-slate-400">Proportion of settled vs outstanding balance</p>
                 </div>
               </div>
-              <div className="h-64 flex items-center justify-center">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%" minHeight={240} debounce={50}>
                   <RechartsPie>
                     <Pie
                       data={[

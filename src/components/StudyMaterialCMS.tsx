@@ -61,6 +61,7 @@ const MATERIAL_TYPES: { type: StudyMaterialType; label: string; icon: string; bg
   { type: 'NOTES', label: 'Study Notes', icon: '📝', bg: 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300' },
   { type: 'WORKSHEET', label: 'Worksheet / Assignment', icon: '📋', bg: 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300' },
   { type: 'QUESTION_BANK', label: 'Question Bank', icon: '🗂️', bg: 'bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-300' },
+  { type: 'SYLLABUS', label: 'Syllabus & Blueprint', icon: '📑', bg: 'bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-300' },
   { type: 'PYQ', label: 'Previous Year Question (PYQ)', icon: '📜', bg: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300' },
   { type: 'SAMPLE_PAPER', label: 'Sample Paper', icon: '🎯', bg: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300' },
   { type: 'FORMULA_SHEET', label: 'Formula Sheet', icon: '🧮', bg: 'bg-teal-50 text-teal-700 dark:bg-teal-950/30 dark:text-teal-300' },
@@ -691,25 +692,7 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
         </div>
       </div>
 
-      {/* STATS OVERVIEW */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
-          <div className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">Total Resources</div>
-          <div className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{stats.total}</div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
-          <div className="text-emerald-600 dark:text-emerald-400 text-xs font-semibold uppercase tracking-wider">Published</div>
-          <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">{stats.published}</div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
-          <div className="text-amber-600 dark:text-amber-400 text-xs font-semibold uppercase tracking-wider">Drafts</div>
-          <div className="text-2xl font-extrabold text-amber-600 dark:text-amber-400 mt-1">{stats.drafts}</div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
-          <div className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Archived</div>
-          <div className="text-2xl font-extrabold text-slate-500 mt-1">{stats.archived}</div>
-        </div>
-      </div>
+
 
       {/* CMS TAXONOMY TREE TABS */}
       <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl shadow-xs border border-slate-200 dark:border-slate-800">

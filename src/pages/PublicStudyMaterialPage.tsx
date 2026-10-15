@@ -110,6 +110,26 @@ const getRouteMeta = (pathname: string) => {
       seoDesc: 'Access complete PDF study materials and course packages for Sunshine Classes students.'
     };
   }
+  if (p.includes('/syllabus') || p.includes('/blueprint')) {
+    return {
+      title: 'Board Exam Syllabus & Official Blueprints',
+      subtitle: 'Complete syllabus breakdown, chapter weightage, and marking patterns for Classes 6 to 10.',
+      breadcrumbLabel: 'Syllabus & Blueprint',
+      categoryPreset: 'SYLLABUS',
+      seoTitle: 'Board Exam Syllabus & Marking Scheme Blueprints | Sunshine Classes Pihani',
+      seoDesc: 'Download syllabus, chapter weightage, and exam blueprints for Sunshine Classes students.'
+    };
+  }
+  if (p.includes('/question-bank') || p.includes('/question-papers')) {
+    return {
+      title: 'Chapter-Wise Question Banks & Practice Sets',
+      subtitle: 'Comprehensive question banks, 1-mark MCQs, case study questions, and long answer sets.',
+      breadcrumbLabel: 'Question Banks',
+      categoryPreset: 'QUESTION_BANK',
+      seoTitle: 'Class 9 & 10 Question Banks | Sunshine Classes Pihani',
+      seoDesc: 'Chapter-wise question banks with solved problems for Class 9 and 10 board prep.'
+    };
+  }
   return {
     title: 'Study Material & Learning Resource Portal',
     subtitle: 'Discover, preview, and download chapter revision notes, formula cheat-sheets, worksheets, NCERT solutions, and 10-year board paper archives.',
@@ -152,15 +172,44 @@ const SUBJECTS_LIST = [
 
 const CATEGORIES_LIST = [
   { id: 'ALL', label: 'All Categories', icon: '✨' },
-  { id: 'NOTES', label: 'Notes & Chapter Guides', icon: '📘' },
-  { id: 'FORMULA_SHEET', label: 'Formula & Trick Sheets', icon: '🧮' },
+  { id: 'QUESTION_BANK', label: 'Question Bank', icon: '🗂️' },
+  { id: 'SYLLABUS', label: 'Syllabus & Blueprint', icon: '📑' },
+  { id: 'PDF', label: 'PDF Documents', icon: '📄' },
+  { id: 'NOTES', label: 'Revision Notes', icon: '📘' },
+  { id: 'FORMULA_SHEET', label: 'Formula Sheets', icon: '🧮' },
   { id: 'PYQ', label: 'Previous Year Papers (PYQs)', icon: '📜' },
-  { id: 'WORKSHEET', label: 'Worksheets & Homework', icon: '📋' },
-  { id: 'SAMPLE_PAPER', label: 'Sample Papers & Mocks', icon: '🎯' },
-  { id: 'NCERT_SOLUTION', label: 'NCERT Step Solutions', icon: '📖' },
-  { id: 'QUESTION_BANK', label: 'Question Banks', icon: '🗂️' },
+  { id: 'WORKSHEET', label: 'Worksheets & Practice', icon: '📋' },
+  { id: 'SAMPLE_PAPER', label: 'Sample Papers', icon: '🎯' },
+  { id: 'NCERT_SOLUTION', label: 'NCERT Solutions', icon: '📖' },
   { id: 'VIDEO_LINK', label: 'Video Lectures', icon: '🎥' }
 ];
+
+export const getCategoryBadgeInfo = (type?: string) => {
+  switch ((type || '').toUpperCase()) {
+    case 'QUESTION_BANK':
+      return { label: 'Question Bank', color: 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200/60 dark:border-purple-800/60' };
+    case 'SYLLABUS':
+      return { label: 'Syllabus', color: 'bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border-violet-200/60 dark:border-violet-800/60' };
+    case 'PDF':
+      return { label: 'PDF Document', color: 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200/60 dark:border-rose-800/60' };
+    case 'NOTES':
+      return { label: 'Revision Notes', color: 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200/60 dark:border-blue-800/60' };
+    case 'FORMULA_SHEET':
+      return { label: 'Formula Sheet', color: 'bg-teal-100 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border-teal-200/60 dark:border-teal-800/60' };
+    case 'PYQ':
+      return { label: 'PYQ Paper', color: 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200/60 dark:border-indigo-800/60' };
+    case 'SAMPLE_PAPER':
+      return { label: 'Sample Paper', color: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-800/60' };
+    case 'WORKSHEET':
+      return { label: 'Worksheet', color: 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200/60 dark:border-amber-800/60' };
+    case 'NCERT_SOLUTION':
+      return { label: 'NCERT Solution', color: 'bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 border-orange-200/60 dark:border-orange-800/60' };
+    case 'VIDEO_LINK':
+      return { label: 'Video Lecture', color: 'bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border-red-200/60 dark:border-red-800/60' };
+    default:
+      return { label: 'Study Resource', color: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700' };
+  }
+};
 
 const ACCESS_LEVELS = [
   { id: 'ALL', label: 'All Content' },
@@ -274,8 +323,14 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
       if (selectedSubject !== 'ALL' && item.subject !== selectedSubject) return false;
       // Category / Type
       if (selectedCategory !== 'ALL') {
-        if (item.materialType !== selectedCategory && item.category !== selectedCategory) {
-          return false;
+        const itemType = (item.materialType || '').toUpperCase();
+        const legacyCat = (item.category || '').toUpperCase();
+        if (selectedCategory === 'PDF') {
+          const isPdf = itemType === 'PDF' || (item.file || item.fileUrl || '').toLowerCase().endsWith('.pdf');
+          if (!isPdf) return false;
+        } else if (itemType !== selectedCategory && legacyCat !== selectedCategory) {
+          const matchesTag = (item.tags || []).some(t => t.toUpperCase().replace(/\s+/g, '_') === selectedCategory);
+          if (!matchesTag) return false;
         }
       }
       // Access Level
@@ -452,381 +507,123 @@ Contact: +91 9988776655 | Pihani, Hardoi (U.P.)`;
         )}
       </AnimatePresence>
 
-      {/* 1. HERO SECTION */}
-      <header className="relative bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white pt-10 pb-16 px-4 border-b border-amber-500/20 overflow-hidden">
-        {/* Subtle Background Glow */}
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-10 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="max-w-7xl mx-auto space-y-6 relative z-10">
+      {/* TOP CONTROL HEADER & INSTANT SEARCH */}
+      <header className="bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white py-6 px-4 border-b border-amber-500/20">
+        <div className="max-w-5xl mx-auto space-y-4">
           
-          {/* Top Bar Actions & Breadcrumbs */}
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <button
-                onClick={() => {
-                  if (onNavigateSection) onNavigateSection('home');
-                  else navigate('/');
-                }}
-                className="hover:text-amber-400 flex items-center gap-1 transition-colors"
-              >
-                <ArrowLeft size={14} /> Back to Home
-              </button>
-              <ChevronRight size={12} className="text-slate-600" />
-              <button
-                onClick={() => {
-                  if (onNavigateSection) onNavigateSection('resources');
-                  else navigate('/resources');
-                }}
-                className="hover:text-amber-400 font-bold transition-colors"
-              >
-                Resources
-              </button>
-              <ChevronRight size={12} className="text-slate-600" />
-              <span className="text-amber-400 font-bold">{routeMeta.breadcrumbLabel}</span>
-              {selectedClass !== 'ALL' && (
-                <>
-                  <ChevronRight size={12} className="text-slate-600" />
-                  <span className="text-slate-300 font-semibold">{selectedClass}</span>
-                </>
-              )}
-            </div>
-
-            <div className="flex items-center gap-3">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[11px] font-bold uppercase tracking-wider">
-                <Sparkles size={12} /> ERP CMS Powered
-              </span>
+          {/* Navigation Bar */}
+          <div className="flex items-center justify-between gap-3 text-xs">
+            <button
+              id="btn-back-home"
+              onClick={() => {
+                if (onNavigateSection) onNavigateSection('home');
+                else navigate('/');
+              }}
+              className="hover:text-amber-400 flex items-center gap-1 text-slate-300 font-medium transition-colors cursor-pointer"
+            >
+              <ArrowLeft size={14} /> Home
+            </button>
+            <div className="flex items-center gap-2">
               {currentUser ? (
-                <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1">
-                  <Unlock size={14} /> Enrolled Student Pass Active
+                <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
+                  <Unlock size={12} /> Student Logged In
                 </span>
               ) : (
                 <button
+                  id="btn-public-student-login"
                   onClick={() => {
                     if (onOpenLoginModal) onOpenLoginModal();
                     else navigate('/student/login');
                   }}
-                  className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+                  className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition-all shadow-xs flex items-center gap-1 cursor-pointer"
                 >
-                  <LogIn size={13} /> Student Login
+                  <LogIn size={12} /> Student Login
                 </button>
               )}
             </div>
           </div>
 
-          {/* Hero Content */}
-          <div className="grid lg:grid-cols-12 gap-8 items-center pt-2">
-            <div className="lg:col-span-7 space-y-4">
-              <div className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-widest text-amber-400">
-                <BookOpen size={16} />
-                <span>Learning Resource Hub</span>
-              </div>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight">
-                {routeMeta.title}
-              </h1>
-              <p className="text-slate-300 text-xs sm:text-sm max-w-2xl leading-relaxed">
-                {routeMeta.subtitle}
-              </p>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+              Study Notes & Learning Resources
+            </h1>
+            <p className="text-xs text-slate-300 mt-1">
+              Direct, 1-click access to downloadable NCERT chapter guides, formula sheets, PYQs, and worksheets.
+            </p>
+          </div>
 
-              {/* Feature Badges */}
-              <div className="flex flex-wrap items-center gap-4 pt-2 text-xs text-slate-300">
-                <div className="flex items-center gap-1.5 font-bold text-amber-400">
-                  <CheckCircle2 size={14} />
-                  <span className="text-slate-200">NCERT & CBSE Mapped</span>
-                </div>
-                <div className="w-1 h-1 rounded-full bg-slate-700" />
-                <div className="flex items-center gap-1.5 font-bold text-amber-400">
-                  <CheckCircle2 size={14} />
-                  <span className="text-slate-200">Faculty Verified Notes</span>
-                </div>
-                <div className="w-1 h-1 rounded-full bg-slate-700" />
-                <div className="flex items-center gap-1.5 font-bold text-amber-400">
-                  <CheckCircle2 size={14} />
-                  <span className="text-slate-200">1-Click PDF Downloads</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Hero Instant Search Widget */}
-            <div className="lg:col-span-5 bg-white/5 backdrop-blur-md p-5 rounded-3xl border border-white/10 space-y-3 shadow-2xl">
-              <div className="text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center justify-between">
-                <span>Instant Resource Finder</span>
-                <SlidersHorizontal size={14} />
-              </div>
-
-              <div className="relative">
-                <Search size={18} className="absolute left-3.5 top-3.5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search by topic, formula, or chapter..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') scrollToCatalogue();
-                  }}
-                  className="w-full pl-10 pr-10 py-3 rounded-2xl bg-slate-900/90 border border-slate-700 text-white placeholder-slate-400 text-xs font-medium focus:outline-none focus:border-amber-400 transition-all"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-3.5 text-slate-400 hover:text-white"
-                  >
-                    <X size={16} />
-                  </button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <select
-                  value={selectedClass}
-                  onChange={(e) => setSelectedClass(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white outline-none focus:border-amber-400"
+          {/* Search Field & Filter Controls */}
+          <div className="space-y-3 pt-1">
+            <div className="relative">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                id="input-public-resource-search"
+                type="text"
+                placeholder="Filter by filename, subject, or chapter keyword..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-400 text-xs font-medium focus:outline-none focus:border-amber-400 transition-all"
+              />
+              {searchQuery && (
+                <button
+                  id="btn-clear-public-search"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
                 >
-                  {CLASSES_LIST.map(cls => (
-                    <option key={cls} value={cls}>
-                      {cls === 'ALL' ? 'All Classes' : cls}
-                    </option>
-                  ))}
-                </select>
+                  <X size={14} />
+                </button>
+              )}
+            </div>
 
-                <select
-                  value={selectedSubject}
-                  onChange={(e) => setSelectedSubject(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white outline-none focus:border-amber-400"
+            {/* Class & Subject Filter Pills */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
+              <span className="text-[10px] font-extrabold uppercase text-slate-400 shrink-0">Class:</span>
+              {CLASSES_LIST.map(cls => (
+                <button
+                  key={cls}
+                  id={`btn-filter-class-${cls.toLowerCase().replace(/\s+/g, '-')}`}
+                  onClick={() => setSelectedClass(cls)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
+                    selectedClass === cls
+                      ? 'bg-amber-500 text-white'
+                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                  }`}
                 >
-                  {SUBJECTS_LIST.map(s => (
-                    <option key={s} value={s}>
-                      {s === 'ALL' ? 'All Subjects' : s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <button
-                id="btn-browse-all-resources"
-                onClick={scrollToCatalogue}
-                className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <span>Browse All Resources</span>
-                <ArrowRight size={14} />
-              </button>
-            </div>
-          </div>
-
-        </div>
-      </header>
-
-      {/* 2. QUICK CATEGORY CARDS */}
-      <section className="max-w-7xl mx-auto px-4 -mt-8 relative z-20">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {[
-            { id: 'NOTES', title: 'Chapter Notes', count: '150+ PDFs', icon: '📘', color: 'hover:border-blue-400' },
-            { id: 'FORMULA_SHEET', title: 'Formula Sheets', count: '45 Sheets', icon: '🧮', color: 'hover:border-amber-400' },
-            { id: 'PYQ', title: '10-Yr PYQs', count: '80 Papers', icon: '📜', color: 'hover:border-purple-400' },
-            { id: 'WORKSHEET', title: 'Worksheets', count: '120 Sheets', icon: '📋', color: 'hover:border-emerald-400' },
-            { id: 'SAMPLE_PAPER', title: 'Sample Papers', count: '30 Mocks', icon: '🎯', color: 'hover:border-rose-400' },
-            { id: 'NCERT_SOLUTION', title: 'NCERT Solutions', count: '200+ Guides', icon: '📖', color: 'hover:border-indigo-400' },
-          ].map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => {
-                setSelectedCategory(cat.id);
-                scrollToCatalogue();
-              }}
-              className={`p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all text-left group cursor-pointer ${
-                selectedCategory === cat.id ? 'border-amber-500 ring-2 ring-amber-500/20' : cat.color
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-2xl group-hover:scale-110 transition-transform">{cat.icon}</span>
-                <ChevronRight size={14} className="text-slate-400 group-hover:text-amber-500 transition-colors" />
-              </div>
-              <h3 className="font-extrabold text-xs text-slate-800 dark:text-white line-clamp-1">
-                {cat.title}
-              </h3>
-              <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-                {cat.count}
-              </p>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* MAIN CONTAINER */}
-      <div className="max-w-7xl mx-auto px-4 mt-12 space-y-12">
-
-        {/* 3. LATEST UPLOADS SECTION */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                <Sparkles size={12} /> Fresh CMS Uploads
-              </span>
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
-                Latest Learning Materials
-              </h2>
-            </div>
-            <button
-              onClick={scrollToCatalogue}
-              className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 cursor-pointer"
-            >
-              View All Catalogue <ArrowRight size={14} />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {latestUploads.map(item => (
-              <div
-                key={item.id}
-                onClick={() => handleViewDetails(item)}
-                className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-amber-400 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group cursor-pointer"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <div className="flex items-center gap-1.5">
-                      <span className="px-2 py-0.5 rounded-md font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300">
-                        {item.class}
-                      </span>
-                      <span className="px-2 py-0.5 rounded-md font-semibold bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300">
-                        {item.subject}
-                      </span>
-                    </div>
-                    {item.isPublic === false ? (
-                      <span className="px-2 py-0.5 rounded-md font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 flex items-center gap-1">
-                        <Lock size={10} /> Enrolled Only
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded-md font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 flex items-center gap-1">
-                        <Unlock size={10} /> Free PDF
-                      </span>
-                    )}
-                  </div>
-
-                  <h3 className="font-extrabold text-xs text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors line-clamp-2">
-                    {item.title}
-                  </h3>
-
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                    {item.description || item.desc}
-                  </p>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400">
-                  <div className="flex items-center gap-1">
-                    {renderFileTypeIcon(item.materialType, item.file)}
-                    <span>{item.size || 'PDF Document'}</span>
-                  </div>
-                  <button
-                    onClick={(e) => handleDownload(item, e)}
-                    className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] shadow-xs transition-all flex items-center gap-1 cursor-pointer"
-                  >
-                    <Download size={12} /> Download
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* 4. FEATURED STUDY MATERIALS SECTION */}
-        <section className="p-6 bg-gradient-to-br from-amber-500/10 via-white to-slate-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 rounded-3xl border border-amber-200/80 dark:border-slate-800 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                <Flame size={12} className="text-amber-500" /> Essential Study Material
-              </span>
-              <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
-                Featured Notes & Resources
-              </h2>
-            </div>
-            <span className="text-xs font-semibold text-slate-500">
-              Direct access for students
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {popularDownloads.map((item, index) => (
-              <div
-                key={item.id}
-                onClick={() => handleViewDetails(item)}
-                className="p-4 bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-amber-400 shadow-2xs transition-all flex items-start gap-3 group cursor-pointer"
-              >
-                <div className={`w-8 h-8 rounded-xl font-black text-xs flex items-center justify-center shrink-0 ${
-                  index === 0 ? 'bg-amber-500 text-white shadow-sm' : index === 1 ? 'bg-slate-300 dark:bg-slate-700 text-slate-800 dark:text-white' : 'bg-amber-100 dark:bg-slate-800 text-amber-800 dark:text-amber-400'
-                }`}>
-                  #{index + 1}
-                </div>
-
-                <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex items-center gap-2 text-[10px]">
-                    <span className="font-bold text-amber-600 dark:text-amber-400">{item.class}</span>
-                    <span className="text-slate-400">•</span>
-                    <span className="text-slate-500">{item.subject}</span>
-                  </div>
-                  <h3 className="font-bold text-xs text-slate-900 dark:text-white truncate group-hover:text-amber-600 transition-colors">
-                    {item.title}
-                  </h3>
-                  <div className="flex items-center gap-3 text-[10px] text-slate-400 pt-1">
-                    <span className="flex items-center gap-1 text-slate-600 dark:text-slate-300 font-semibold">
-                      <FileText size={11} className="text-amber-500" /> {item.materialType || 'PDF'} • {item.size || 'Free PDF'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* 5. BROWSE ALL RESOURCES CATALOGUE */}
-        <section ref={catalogRef} className="space-y-6 pt-4">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
-            <div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
-                Complete Resource Directory
-              </span>
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
-                Browse Study Materials & Notes
-              </h2>
+                  {cls === 'ALL' ? 'All Classes' : cls}
+                </button>
+              ))}
             </div>
 
-            {/* Mobile Filter Toggle */}
-            <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-end">
-              <button
-                onClick={() => setShowMobileFilters(!showMobileFilters)}
-                className="md:hidden px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 shadow-xs"
-              >
-                <Filter size={14} />
-                <span>Filters {showMobileFilters ? '(Close)' : ''}</span>
-              </button>
-
-              {/* Sort By Dropdown */}
-              <div className="flex items-center gap-2 text-xs font-semibold">
-                <span className="text-slate-500 hidden sm:inline">Sort by:</span>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500 shadow-2xs"
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
+              <span className="text-[10px] font-extrabold uppercase text-slate-400 shrink-0">Subject:</span>
+              {SUBJECTS_LIST.map(s => (
+                <button
+                  key={s}
+                  id={`btn-filter-subject-${s.toLowerCase().replace(/\s+/g, '-')}`}
+                  onClick={() => setSelectedSubject(s)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
+                    selectedSubject === s
+                      ? 'bg-amber-500 text-white'
+                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                  }`}
                 >
-                  <option value="NEWEST">Newest First</option>
-                  <option value="POPULAR">Most Downloaded</option>
-                  <option value="TITLE">Alphabetical (A-Z)</option>
-                </select>
-              </div>
+                  {s === 'ALL' ? 'All Subjects' : s}
+                </button>
+              ))}
             </div>
-          </div>
 
-          {/* DESKTOP & MOBILE FILTER BARS */}
-          <div className={`space-y-4 ${showMobileFilters ? 'block' : 'hidden md:block'}`}>
-            {/* Category Tabs */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {/* Category Filter Pills (Question Bank, Syllabus, PDF Document, etc.) */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
+              <span className="text-[10px] font-extrabold uppercase text-slate-400 shrink-0">Category:</span>
               {CATEGORIES_LIST.map(cat => (
                 <button
                   key={cat.id}
+                  id={`btn-filter-category-${cat.id.toLowerCase().replace(/_/g, '-')}`}
                   onClick={() => setSelectedCategory(cat.id)}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 border ${
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
                     selectedCategory === cat.id
-                      ? 'bg-amber-500 text-white border-amber-500 shadow-xs'
-                      : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-amber-400'
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                   }`}
                 >
                   <span>{cat.icon}</span>
@@ -834,124 +631,54 @@ Contact: +91 9988776655 | Pihani, Hardoi (U.P.)`;
                 </button>
               ))}
             </div>
-
-            {/* Class & Subject Filter Pills */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
-              <div>
-                <label className="block text-[10px] font-extrabold uppercase text-slate-400 mb-1">
-                  Select Class
-                </label>
-                <select
-                  value={selectedClass}
-                  onChange={(e) => setSelectedClass(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500"
-                >
-                  {CLASSES_LIST.map(cls => (
-                    <option key={cls} value={cls}>
-                      {cls === 'ALL' ? 'All Classes' : cls}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-extrabold uppercase text-slate-400 mb-1">
-                  Select Subject
-                </label>
-                <select
-                  value={selectedSubject}
-                  onChange={(e) => setSelectedSubject(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500"
-                >
-                  {SUBJECTS_LIST.map(s => (
-                    <option key={s} value={s}>
-                      {s === 'ALL' ? 'All Subjects' : s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-extrabold uppercase text-slate-400 mb-1">
-                  Access Level
-                </label>
-                <select
-                  value={selectedAccess}
-                  onChange={(e) => setSelectedAccess(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500"
-                >
-                  {ACCESS_LEVELS.map(a => (
-                    <option key={a.id} value={a.id}>
-                      {a.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-end">
-                <button
-                  onClick={() => {
-                    setSearchQuery('');
-                    setSelectedClass('ALL');
-                    setSelectedSubject('ALL');
-                    setSelectedCategory('ALL');
-                    setSelectedAccess('ALL');
-                    setSortBy('NEWEST');
-                  }}
-                  className="w-full py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <RotateCcw size={13} /> Reset Filters
-                </button>
-              </div>
-            </div>
           </div>
 
-          {/* CATALOGUE GRID */}
-          {loading ? (
-            <div className="text-center py-20 space-y-3">
-              <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-xs font-bold text-slate-500">Loading learning library...</p>
-            </div>
-          ) : filteredMaterials.length === 0 ? (
-            <div className="p-12 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 text-center space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-slate-800 text-amber-500 flex items-center justify-center text-3xl mx-auto">
-                🔍
-              </div>
-              <div>
-                <h3 className="text-lg font-extrabold text-slate-800 dark:text-slate-200">
-                  No resources match your search criteria
-                </h3>
-                <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 leading-relaxed">
-                  Try adjusting your search terms, changing the class/subject filter, or clearing selected filters.
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setSelectedClass('ALL');
-                  setSelectedSubject('ALL');
-                  setSelectedCategory('ALL');
-                  setSelectedAccess('ALL');
-                }}
-                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
-              >
-                Reset All Filters
-              </button>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
-              {filteredMaterials.map((item, idx) => (
+        </div>
+      </header>
+
+      {/* MAIN HIGH-DENSITY RESOURCE LIST */}
+      <div className="max-w-5xl mx-auto px-4 mt-6">
+        {loading ? (
+          <div className="text-center py-16 space-y-2">
+            <div className="w-8 h-8 border-3 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-xs font-bold text-slate-500">Loading resources...</p>
+          </div>
+        ) : filteredMaterials.length === 0 ? (
+          <div className="p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-center space-y-3">
+            <BookOpen className="mx-auto text-slate-400" size={32} />
+            <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200">
+              No study materials matching your filter
+            </h3>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              Try searching with another keyword or resetting class, subject, and category filters.
+            </p>
+            <button
+              id="btn-reset-public-filters"
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedClass('ALL');
+                setSelectedSubject('ALL');
+                setSelectedCategory('ALL');
+                setSelectedAccess('ALL');
+              }}
+              className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+            >
+              Reset Filters
+            </button>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
+            {filteredMaterials.map((item, idx) => {
+              const catBadge = getCategoryBadgeInfo(item.materialType || item.category);
+              return (
                 <div
                   key={item.id || idx}
-                  className="p-3 sm:p-4 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  className="p-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
                 >
-                  <div className="flex items-start gap-3 min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60">
+                  <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                    <div className="pt-0.5 shrink-0">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60">
                         {item.subject}
-                      </span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                        {item.class}
                       </span>
                     </div>
 
@@ -960,47 +687,48 @@ Contact: +91 9988776655 | Pihani, Hardoi (U.P.)`;
                         <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
                           {item.title}
                         </h3>
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${catBadge.color}`}>
+                          {catBadge.label}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                          {item.class}
+                        </span>
                         {item.isPublic === false ? (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 flex items-center gap-1 shrink-0">
-                            <Lock size={9} /> Student Only
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 flex items-center gap-0.5 shrink-0">
+                            <Lock size={9} /> Student Exclusive
                           </span>
-                        ) : (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 flex items-center gap-1 shrink-0">
-                            <Unlock size={9} /> Free PDF
-                          </span>
-                        )}
+                        ) : null}
                       </div>
-                      {(item.description || item.desc) && (
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 leading-normal">
-                          {item.description || item.desc}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-end gap-2 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
-                    <button
-                      id={`btn-details-catalog-${item.id || idx}`}
-                      onClick={(e) => handleViewDetails(item, e)}
-                      className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs transition-all cursor-pointer"
-                    >
-                      Details
-                    </button>
-                    <button
-                      id={`btn-dl-catalog-${item.id || idx}`}
-                      onClick={(e) => handleDownload(item, e)}
-                      className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Download size={13} />
-                      <span>Download PDF</span>
-                    </button>
+                    {(item.description || item.desc) && (
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 leading-normal">
+                        {item.description || item.desc}
+                      </p>
+                    )}
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </section>
 
+                <div className="flex items-center justify-end gap-2 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
+                  <button
+                    id={`btn-details-catalog-${item.id || idx}`}
+                    onClick={(e) => handleViewDetails(item, e)}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs transition-all cursor-pointer"
+                  >
+                    Details
+                  </button>
+                  <button
+                    id={`btn-dl-catalog-${item.id || idx}`}
+                    onClick={(e) => handleDownload(item, e)}
+                    className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Download size={13} />
+                    <span>Download PDF</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        )}
       </div>
 
       {/* 6. RESOURCE DETAILS MODAL */}

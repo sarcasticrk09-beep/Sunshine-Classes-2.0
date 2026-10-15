@@ -556,6 +556,7 @@ export type StudyMaterialType =
   | 'NOTES' 
   | 'WORKSHEET' 
   | 'QUESTION_BANK' 
+  | 'SYLLABUS'
   | 'PYQ' 
   | 'SAMPLE_PAPER' 
   | 'FORMULA_SHEET' 

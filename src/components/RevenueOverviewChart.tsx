@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   TrendingUp,
   DollarSign,
@@ -27,6 +27,57 @@ import {
 } from 'recharts';
 import { SubscriptionPayment } from '../types';
 
+// Stable custom tooltip for recharts outside component to prevent render cycle recursion
+const RevenueChartCustomTooltip = React.memo(({ active, payload, label, showChannelBreakdown }: any) => {
+  if (active && payload && payload.length) {
+    const dataPoint = payload[0]?.payload;
+    return (
+      <div className="bg-slate-900/95 backdrop-blur-md text-white border border-slate-700/80 rounded-xl p-3.5 shadow-2xl text-xs min-w-[200px] z-50">
+        <div className="flex items-center justify-between border-b border-slate-700/60 pb-2 mb-2">
+          <span className="font-display font-black text-amber-400 text-xs tracking-wide">
+            {dataPoint?.rawMonth || label}
+          </span>
+          <span className="text-[10px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded font-mono">
+            {dataPoint?.transactions || 0} Txns
+          </span>
+        </div>
+
+        <div className="space-y-1.5 font-sans">
+          <div className="flex justify-between items-center text-emerald-400 font-bold">
+            <span>Total Revenue:</span>
+            <span className="font-mono text-sm">₹{(dataPoint?.revenue || 0).toLocaleString('en-IN')}</span>
+          </div>
+
+          {showChannelBreakdown && (
+            <div className="pt-1.5 border-t border-slate-800 space-y-1 text-[11px] text-slate-300">
+              <div className="flex justify-between items-center">
+                <span className="flex items-center gap-1.5 text-emerald-400">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500"></span> UPI:
+                </span>
+                <span className="font-mono font-medium">₹{(dataPoint?.upi || 0).toLocaleString('en-IN')}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="flex items-center gap-1.5 text-amber-400">
+                  <span className="h-2 w-2 rounded-full bg-amber-500"></span> Cash:
+                </span>
+                <span className="font-mono font-medium">₹{(dataPoint?.cash || 0).toLocaleString('en-IN')}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="flex items-center gap-1.5 text-indigo-400">
+                  <span className="h-2 w-2 rounded-full bg-indigo-500"></span> Digital/Card:
+                </span>
+                <span className="font-mono font-medium">₹{(dataPoint?.online || 0).toLocaleString('en-IN')}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+  return null;
+});
+RevenueChartCustomTooltip.displayName = 'RevenueChartCustomTooltip';
+
 interface RevenueOverviewChartProps {
   subPayments: SubscriptionPayment[];
   dashboardSession?: string;
@@ -41,6 +92,11 @@ export const RevenueOverviewChart: React.FC<RevenueOverviewChartProps> = ({
   const [chartType, setChartType] = useState<'area' | 'bar'>('area');
   const [methodFilter, setMethodFilter] = useState<'ALL' | 'UPI' | 'CASH' | 'ONLINE'>('ALL');
   const [showChannelBreakdown, setShowChannelBreakdown] = useState<boolean>(true);
+
+  const renderTooltip = useCallback(
+    (props: any) => <RevenueChartCustomTooltip {...props} showChannelBreakdown={showChannelBreakdown} />,
+    [showChannelBreakdown]
+  );
 
   // Month ordering & normalizer
   const monthOrderMap: Record<string, number> = {
@@ -192,56 +248,6 @@ export const RevenueOverviewChart: React.FC<RevenueOverviewChartProps> = ({
       }
     };
   }, [filteredPayments, dashboardSession]);
-
-  // Custom tooltip for recharts
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const dataPoint = payload[0]?.payload;
-      return (
-        <div className="bg-slate-900/95 backdrop-blur-md text-white border border-slate-700/80 rounded-xl p-3.5 shadow-2xl text-xs min-w-[200px] z-50">
-          <div className="flex items-center justify-between border-b border-slate-700/60 pb-2 mb-2">
-            <span className="font-display font-black text-amber-400 text-xs tracking-wide">
-              {dataPoint?.rawMonth || label}
-            </span>
-            <span className="text-[10px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded font-mono">
-              {dataPoint?.transactions || 0} Txns
-            </span>
-          </div>
-
-          <div className="space-y-1.5 font-sans">
-            <div className="flex justify-between items-center text-emerald-400 font-bold">
-              <span>Total Revenue:</span>
-              <span className="font-mono text-sm">₹{(dataPoint?.revenue || 0).toLocaleString('en-IN')}</span>
-            </div>
-
-            {showChannelBreakdown && (
-              <div className="pt-1.5 border-t border-slate-800 space-y-1 text-[11px] text-slate-300">
-                <div className="flex justify-between items-center">
-                  <span className="flex items-center gap-1.5 text-emerald-400">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500"></span> UPI:
-                  </span>
-                  <span className="font-mono font-medium">₹{(dataPoint?.upi || 0).toLocaleString('en-IN')}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="flex items-center gap-1.5 text-amber-400">
-                    <span className="h-2 w-2 rounded-full bg-amber-500"></span> Cash:
-                  </span>
-                  <span className="font-mono font-medium">₹{(dataPoint?.cash || 0).toLocaleString('en-IN')}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="flex items-center gap-1.5 text-indigo-400">
-                    <span className="h-2 w-2 rounded-full bg-indigo-500"></span> Digital/Card:
-                  </span>
-                  <span className="font-mono font-medium">₹{(dataPoint?.online || 0).toLocaleString('en-IN')}</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
 
   return (
     <div
@@ -410,7 +416,7 @@ export const RevenueOverviewChart: React.FC<RevenueOverviewChartProps> = ({
       {/* Main Recharts Chart Stage */}
       <div className="rounded-xl border border-slate-200/70 bg-slate-50/30 p-4">
         <div className="h-72 w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minHeight={280} debounce={50}>
             {chartType === 'area' ? (
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                 <defs>
@@ -441,7 +447,7 @@ export const RevenueOverviewChart: React.FC<RevenueOverviewChartProps> = ({
                   tickLine={false}
                   tickFormatter={(val) => (val >= 1000 ? `₹${val / 1000}k` : `₹${val}`)}
                 />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={renderTooltip} />
                 <Legend
                   wrapperStyle={{ paddingTop: '10px', fontSize: '11px', fontWeight: 600 }}
                 />
@@ -503,7 +509,7 @@ export const RevenueOverviewChart: React.FC<RevenueOverviewChartProps> = ({
                   tickLine={false}
                   tickFormatter={(val) => (val >= 1000 ? `₹${val / 1000}k` : `₹${val}`)}
                 />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={renderTooltip} />
                 <Legend
                   wrapperStyle={{ paddingTop: '10px', fontSize: '11px', fontWeight: 600 }}
                 />

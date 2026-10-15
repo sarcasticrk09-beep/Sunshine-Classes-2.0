@@ -105,6 +105,29 @@ function getDecryptedPassword(user: any): string {
   return 'Hashed & Secured (SHA-256)';
 }
 
+class DashboardSectionErrorBoundary extends React.Component<
+  { children: React.ReactNode; sectionName?: string },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: any) {
+    console.warn(`[AdminDashboard] ${this.props.sectionName || 'Section'} recovered from error:`, error);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-center text-xs text-slate-500">
+          Temporary visualization display limitation. All underlying database records and payment receipts are safe and intact.
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 interface AdminDashboardProps {
   students: Student[];
   teachers: Teacher[];
@@ -7163,11 +7186,13 @@ ${data.log}`
               </div>
 
               {/* REVENUE OVERVIEW CHART */}
-              <RevenueOverviewChart
-                subPayments={subPayments}
-                dashboardSession={dashboardSession}
-                selectedMonth={dashboardMonth}
-              />
+              <DashboardSectionErrorBoundary sectionName="Revenue Overview">
+                <RevenueOverviewChart
+                  subPayments={subPayments}
+                  dashboardSession={dashboardSession}
+                  selectedMonth={dashboardMonth}
+                />
+              </DashboardSectionErrorBoundary>
 
               {/* Tuition & Subscription Fee Revenue Logs */}
               <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/50">

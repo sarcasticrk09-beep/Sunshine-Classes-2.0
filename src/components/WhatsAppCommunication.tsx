@@ -113,6 +113,7 @@ export const WhatsAppCommunication: React.FC<WhatsAppCommunicationProps> = ({
   const [isTyping, setIsTyping] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const hasRoutedInitialPhoneRef = useRef<boolean>(false);
 
   // --------------------------------------------------------
   // Permissions Guard Helpers
@@ -138,10 +139,11 @@ export const WhatsAppCommunication: React.FC<WhatsAppCommunicationProps> = ({
       }
       setChats(filtered);
 
-      // Handle initialSelectedPhone routing
-      if (initialSelectedPhone && filtered.length > 0) {
+      // Handle initialSelectedPhone routing once per prop target
+      if (initialSelectedPhone && filtered.length > 0 && !hasRoutedInitialPhoneRef.current) {
         const target = filtered.find(c => c.phone.replace(/\D/g, "") === initialSelectedPhone.replace(/\D/g, ""));
         if (target) {
+          hasRoutedInitialPhoneRef.current = true;
           setActiveChat(target);
           setActiveTab("CHATS");
         }
@@ -165,7 +167,9 @@ export const WhatsAppCommunication: React.FC<WhatsAppCommunicationProps> = ({
       return;
     }
 
-    ConversationService.markAsRead(activeChat.id);
+    if (activeChat.unreadCount > 0) {
+      ConversationService.markAsRead(activeChat.id);
+    }
 
     const unsubscribeMessages = ConversationService.subscribeMessages(activeChat.id, (msgs) => {
       setMessages(msgs);

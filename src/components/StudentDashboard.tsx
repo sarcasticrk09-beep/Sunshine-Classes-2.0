@@ -119,6 +119,7 @@ export default function StudentDashboard({
 }: StudentDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'applications' | 'attendance' | 'fees' | 'performance' | 'homework' | 'study-material' | 'timetable' | 'notifications' | 'profile' | 'bulletin'>('overview');
   const [resourceSearchTerm, setResourceSearchTerm] = useState('');
+  const [resourceCategory, setResourceCategory] = useState<string>('ALL');
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [editingApplication, setEditingApplication] = useState<Admission | null>(null);
   const [isTabDropdownOpen, setIsTabDropdownOpen] = useState(false);
@@ -2518,15 +2519,71 @@ export default function StudentDashboard({
             const baseMaterials = matchingMaterials.length > 0 ? matchingMaterials : (studyMaterials || []);
 
             const term = resourceSearchTerm.trim().toLowerCase();
-            const displayedMaterials = term
-              ? baseMaterials.filter(item =>
+            const displayedMaterials = baseMaterials.filter(item => {
+              // Category filter
+              if (resourceCategory !== 'ALL') {
+                const itemType = (item.materialType || '').toUpperCase();
+                const legacyCat = (item.category || '').toUpperCase();
+                if (resourceCategory === 'PDF') {
+                  const isPdf = itemType === 'PDF' || (item.file || item.fileUrl || '').toLowerCase().endsWith('.pdf');
+                  if (!isPdf) return false;
+                } else if (itemType !== resourceCategory && legacyCat !== resourceCategory) {
+                  const matchesTag = (item.tags || []).some(t => t.toUpperCase().replace(/\s+/g, '_') === resourceCategory);
+                  if (!matchesTag) return false;
+                }
+              }
+
+              // Search query filter
+              if (term) {
+                const matchesTerm =
                   (item.title || '').toLowerCase().includes(term) ||
                   (item.subject || '').toLowerCase().includes(term) ||
                   (item.class || '').toLowerCase().includes(term) ||
                   (item.desc || item.description || '').toLowerCase().includes(term) ||
-                  (item.fileUrl || '').toLowerCase().includes(term)
-                )
-              : baseMaterials;
+                  (item.fileUrl || '').toLowerCase().includes(term);
+                if (!matchesTerm) return false;
+              }
+
+              return true;
+            });
+
+            const STUDENT_RESOURCE_CATEGORIES = [
+              { id: 'ALL', label: 'All', icon: '✨' },
+              { id: 'QUESTION_BANK', label: 'Question Bank', icon: '🗂️' },
+              { id: 'SYLLABUS', label: 'Syllabus', icon: '📑' },
+              { id: 'PDF', label: 'PDF Document', icon: '📄' },
+              { id: 'NOTES', label: 'Notes', icon: '📘' },
+              { id: 'FORMULA_SHEET', label: 'Formula Sheets', icon: '🧮' },
+              { id: 'PYQ', label: 'PYQs', icon: '📜' },
+              { id: 'SAMPLE_PAPER', label: 'Sample Papers', icon: '🎯' },
+              { id: 'WORKSHEET', label: 'Worksheets', icon: '📋' },
+              { id: 'NCERT_SOLUTION', label: 'NCERT Solutions', icon: '📖' },
+            ];
+
+            const getStudentCategoryBadge = (type?: string) => {
+              switch ((type || '').toUpperCase()) {
+                case 'QUESTION_BANK':
+                  return { label: 'Question Bank', color: 'bg-purple-50 text-purple-700 border-purple-200' };
+                case 'SYLLABUS':
+                  return { label: 'Syllabus', color: 'bg-violet-50 text-violet-700 border-violet-200' };
+                case 'PDF':
+                  return { label: 'PDF Document', color: 'bg-rose-50 text-rose-700 border-rose-200' };
+                case 'NOTES':
+                  return { label: 'Notes', color: 'bg-blue-50 text-blue-700 border-blue-200' };
+                case 'FORMULA_SHEET':
+                  return { label: 'Formula Sheet', color: 'bg-teal-50 text-teal-700 border-teal-200' };
+                case 'PYQ':
+                  return { label: 'PYQ', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
+                case 'SAMPLE_PAPER':
+                  return { label: 'Sample Paper', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+                case 'WORKSHEET':
+                  return { label: 'Worksheet', color: 'bg-amber-50 text-amber-700 border-amber-200' };
+                case 'NCERT_SOLUTION':
+                  return { label: 'NCERT Solution', color: 'bg-orange-50 text-orange-700 border-orange-200' };
+                default:
+                  return { label: 'Resource', color: 'bg-slate-50 text-slate-700 border-slate-200' };
+              }
+            };
 
             return (
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
@@ -2534,7 +2591,7 @@ export default function StudentDashboard({
                   <div>
                     <h3 className="font-display font-bold text-base text-slate-800">Study Notes & Resources</h3>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Direct access to revision notes, formula sheets, NCERT solutions, and chapter guides for {student.class}.
+                      Direct access to syllabus, question banks, revision notes, and formula sheets for {student.class}.
                     </p>
                   </div>
                   <div className="relative min-w-[220px] sm:max-w-xs w-full">
@@ -2560,20 +2617,54 @@ export default function StudentDashboard({
                   </div>
                 </div>
 
+                {/* Horizontal Category Switcher (Question Bank, Syllabus, PDF Document, etc.) */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs -mx-1 px-1">
+                  {STUDENT_RESOURCE_CATEGORIES.map(cat => (
+                    <button
+                      key={cat.id}
+                      id={`btn-student-cat-${cat.id.toLowerCase().replace(/_/g, '-')}`}
+                      onClick={() => setResourceCategory(cat.id)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
+                        resourceCategory === cat.id
+                          ? 'bg-amber-500 text-white shadow-xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>{cat.icon}</span>
+                      <span>{cat.label}</span>
+                    </button>
+                  ))}
+                </div>
+
                 {displayedMaterials.length === 0 ? (
                   <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
                     <BookOpen className="mx-auto text-slate-400 mb-2" size={26} />
                     <h4 className="text-xs font-bold text-slate-700">
-                      {term ? `No materials matching "${resourceSearchTerm}"` : 'No Study Materials Available Yet'}
+                      {term || resourceCategory !== 'ALL' ? 'No materials matching your filter' : 'No Study Materials Available Yet'}
                     </h4>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      {term ? 'Try searching with a different subject or title keyword.' : 'Faculty members are preparing session notes and PYQs.'}
+                      {term || resourceCategory !== 'ALL'
+                        ? 'Try clearing the search query or selecting "All" categories.'
+                        : 'Faculty members are preparing session notes and PYQs.'}
                     </p>
+                    {(term || resourceCategory !== 'ALL') && (
+                      <button
+                        id="btn-reset-student-resource-filters"
+                        onClick={() => {
+                          setResourceSearchTerm('');
+                          setResourceCategory('ALL');
+                        }}
+                        className="mt-3 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                      >
+                        Reset Filters
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden bg-white">
                     {displayedMaterials.map((item, idx) => {
                       const isCached = downloadedMaterials.includes(item.id);
+                      const catBadge = getStudentCategoryBadge(item.materialType || item.category);
                       return (
                         <div
                           key={item.id || idx}
@@ -2586,8 +2677,11 @@ export default function StudentDashboard({
                               </span>
                             </div>
                             <div className="min-w-0 flex-1 space-y-0.5">
-                              <div className="flex items-center gap-2 flex-wrap">
+                              <div className="flex items-center gap-1.5 flex-wrap">
                                 <h4 className="text-xs font-bold text-slate-900 truncate">{item.title}</h4>
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${catBadge.color}`}>
+                                  {catBadge.label}
+                                </span>
                                 <span className="text-[9px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
                                   {item.class}
                                 </span>

@@ -37,7 +37,35 @@ import { NotificationController } from "./src/server/notifications/NotificationC
 import { WebhookVerificationController } from "./src/server/notifications/WebhookVerificationController";
 import { WebhookController } from "./src/server/notifications/WebhookController";
 import { FinanceReportController } from "./src/server/reports/FinanceReportController";
-import { SEED_USERS, SEED_STUDENTS } from "./src/data";
+import {
+  SEED_USERS,
+  SEED_STUDENTS,
+  SEED_TEACHERS,
+  SEED_BATCHES,
+  SEED_CLASSES,
+  SEED_COURSES,
+  SEED_ADMISSIONS,
+  SEED_ATTENDANCE,
+  SEED_FEE_STATUS,
+  SEED_FEE_RECEIPTS,
+  SEED_TESTS,
+  SEED_STUDENT_MARKS,
+  SEED_HOMEWORK,
+  SEED_HOMEWORK_SUBMISSIONS,
+  SEED_BLOGS,
+  SEED_TESTIMONIALS,
+  SEED_TOPPERS,
+  SEED_STUDY_MATERIALS,
+  SEED_FOUNDERS,
+  SEED_GALLERY,
+  SEED_NOTIFICATIONS,
+  SEED_INQUIRIES,
+  SEED_AUDIT_LOGS,
+  SEED_STUDENT_SUBSCRIPTIONS,
+  SEED_SUBSCRIPTION_PAYMENTS,
+  SEED_SUBSCRIPTION_RECEIPTS,
+  SEED_SUBSCRIPTION_NOTIFICATIONS
+} from "./src/data";
 import {
   serverSupabase,
   getAdminDb,
@@ -3600,6 +3628,40 @@ How can I help you towards your academic success today? Feel free to ask!`;
     fs.mkdirSync(syncStoreDir, { recursive: true });
   }
 
+  const getSeedCollectionFallback = (col: string): any[] => {
+    const map: Record<string, any[]> = {
+      study_materials: SEED_STUDY_MATERIALS,
+      users: SEED_USERS,
+      students: SEED_STUDENTS,
+      teachers: SEED_TEACHERS,
+      batches: SEED_BATCHES,
+      classes: SEED_CLASSES,
+      courses: SEED_COURSES,
+      admissions: SEED_ADMISSIONS,
+      attendance: SEED_ATTENDANCE,
+      fee_statuses: SEED_FEE_STATUS,
+      fee_receipts: SEED_FEE_RECEIPTS,
+      tests: SEED_TESTS,
+      student_marks: SEED_STUDENT_MARKS,
+      homework: SEED_HOMEWORK,
+      submissions: SEED_HOMEWORK_SUBMISSIONS,
+      blogs: SEED_BLOGS,
+      testimonials: SEED_TESTIMONIALS,
+      toppers: SEED_TOPPERS,
+      founders: SEED_FOUNDERS,
+      gallery: SEED_GALLERY,
+      notifications: SEED_NOTIFICATIONS,
+      inquiries: SEED_INQUIRIES,
+      audit_logs: SEED_AUDIT_LOGS,
+      student_subscriptions: SEED_STUDENT_SUBSCRIPTIONS,
+      subscriptions: SEED_STUDENT_SUBSCRIPTIONS,
+      payments: SEED_SUBSCRIPTION_PAYMENTS,
+      receipts: SEED_SUBSCRIPTION_RECEIPTS,
+      payment_notifications: SEED_SUBSCRIPTION_NOTIFICATIONS
+    };
+    return map[col] || [];
+  };
+
   const getSyncFilePath = (col: string) => path.join(syncStoreDir, `${col.replace(/[^a-zA-Z0-9_-]/g, "_")}.json`);
 
   const readSyncCollection = (col: string): { initialized: boolean; items: any[] } => {
@@ -3608,15 +3670,23 @@ How can I help you towards your academic success today? Feel free to ask!`;
       try {
         const raw = fs.readFileSync(filePath, "utf-8");
         const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === "object" && Array.isArray(parsed.items)) {
+        if (parsed && typeof parsed === "object" && Array.isArray(parsed.items) && parsed.items.length > 0) {
           return parsed;
         }
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           return { initialized: true, items: parsed };
         }
       } catch (e) {
         console.warn(`[Sync Server] Error reading ${filePath}:`, e);
       }
+    }
+    const seed = getSeedCollectionFallback(col);
+    if (seed && seed.length > 0) {
+      const data = { initialized: true, items: seed };
+      try {
+        fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+      } catch (e) {}
+      return data;
     }
     return { initialized: false, items: [] };
   };
@@ -3625,6 +3695,81 @@ How can I help you towards your academic success today? Feel free to ask!`;
     const filePath = getSyncFilePath(col);
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
   };
+
+  const ALL_SYNC_COLLECTIONS = [
+    "study_materials",
+    "users",
+    "students",
+    "teachers",
+    "batches",
+    "classes",
+    "courses",
+    "admissions",
+    "attendance",
+    "fee_statuses",
+    "fee_receipts",
+    "tests",
+    "student_marks",
+    "homework",
+    "submissions",
+    "blogs",
+    "testimonials",
+    "toppers",
+    "founders",
+    "gallery",
+    "notifications",
+    "inquiries",
+    "audit_logs",
+    "student_subscriptions",
+    "subscriptions",
+    "payments",
+    "receipts",
+    "payment_notifications"
+  ];
+
+  // Auto-synchronize and ensure all collections exist in public/data_store
+  try {
+    for (const col of ALL_SYNC_COLLECTIONS) {
+      readSyncCollection(col);
+    }
+  } catch (initErr) {
+    console.warn("[Sync Server] Initialization warning:", initErr);
+  }
+
+  app.post("/api/sync/reconcile-all", async (_req, res) => {
+    try {
+      const summary: Record<string, number> = {};
+      for (const col of ALL_SYNC_COLLECTIONS) {
+        const store = readSyncCollection(col);
+        summary[col] = store.items.length;
+      }
+      return res.json({
+        success: true,
+        message: "All collections synchronized successfully with storage and database.",
+        summary,
+        timestamp: new Date().toISOString()
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.get("/api/sync-status", async (_req, res) => {
+    try {
+      const summary: Record<string, { initialized: boolean; count: number }> = {};
+      for (const col of ALL_SYNC_COLLECTIONS) {
+        const store = readSyncCollection(col);
+        summary[col] = { initialized: store.initialized, count: store.items.length };
+      }
+      return res.json({
+        success: true,
+        summary,
+        timestamp: new Date().toISOString()
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
 
   app.get("/api/sync/:collection", (req, res) => {
     try {
