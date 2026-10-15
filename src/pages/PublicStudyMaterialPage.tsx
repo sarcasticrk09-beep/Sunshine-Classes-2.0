@@ -528,21 +528,21 @@ Contact: +91 9988776655 | Pihani, Hardoi (U.P.)`;
                 {routeMeta.subtitle}
               </p>
 
-              {/* Stats Bar */}
-              <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-2 text-xs text-slate-300">
-                <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-amber-400 text-sm">500+</span>
-                  <span className="text-slate-400">Chapter Notes</span>
+              {/* Feature Badges */}
+              <div className="flex flex-wrap items-center gap-4 pt-2 text-xs text-slate-300">
+                <div className="flex items-center gap-1.5 font-bold text-amber-400">
+                  <CheckCircle2 size={14} />
+                  <span className="text-slate-200">NCERT & CBSE Mapped</span>
                 </div>
                 <div className="w-1 h-1 rounded-full bg-slate-700" />
-                <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-amber-400 text-sm">10-Yr</span>
-                  <span className="text-slate-400">Board PYQs</span>
+                <div className="flex items-center gap-1.5 font-bold text-amber-400">
+                  <CheckCircle2 size={14} />
+                  <span className="text-slate-200">Faculty Verified Notes</span>
                 </div>
                 <div className="w-1 h-1 rounded-full bg-slate-700" />
-                <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-amber-400 text-sm">100%</span>
-                  <span className="text-slate-400">NCERT Mapped</span>
+                <div className="flex items-center gap-1.5 font-bold text-amber-400">
+                  <CheckCircle2 size={14} />
+                  <span className="text-slate-200">1-Click PDF Downloads</span>
                 </div>
               </div>
             </div>
@@ -603,10 +603,11 @@ Contact: +91 9988776655 | Pihani, Hardoi (U.P.)`;
               </div>
 
               <button
+                id="btn-browse-all-resources"
                 onClick={scrollToCatalogue}
                 className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
               >
-                <span>Browse All Resources ({filteredMaterials.length})</span>
+                <span>Browse All Resources</span>
                 <ArrowRight size={14} />
               </button>
             </div>
@@ -783,11 +784,8 @@ Contact: +91 9988776655 | Pihani, Hardoi (U.P.)`;
               <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
                 Complete Resource Directory
               </span>
-              <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <span>Browse All Study Materials</span>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-bold">
-                  {filteredMaterials.length} Items
-                </span>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+                Browse Study Materials & Notes
               </h2>
             </div>
 
@@ -941,93 +939,63 @@ Contact: +91 9988776655 | Pihani, Hardoi (U.P.)`;
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredMaterials.map(item => (
-                <motion.div
-                  key={item.id}
-                  layout
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  onClick={() => handleViewDetails(item)}
-                  className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-amber-400 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between overflow-hidden group cursor-pointer"
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
+              {filteredMaterials.map((item, idx) => (
+                <div
+                  key={item.id || idx}
+                  className="p-3 sm:p-4 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
-                  <div className="p-5 space-y-3">
-                    {/* Top Badges */}
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-0.5 rounded-md font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-                          {item.class}
-                        </span>
-                        <span className="px-2.5 py-0.5 rounded-md font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300">
-                          {item.subject}
-                        </span>
-                      </div>
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60">
+                        {item.subject}
+                      </span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                        {item.class}
+                      </span>
+                    </div>
 
-                      {item.isPublic === false ? (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 flex items-center gap-1">
-                          <Lock size={10} /> Student Only
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 flex items-center gap-1">
-                          <Unlock size={10} /> Free
-                        </span>
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
+                          {item.title}
+                        </h3>
+                        {item.isPublic === false ? (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 flex items-center gap-1 shrink-0">
+                            <Lock size={9} /> Student Only
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 flex items-center gap-1 shrink-0">
+                            <Unlock size={9} /> Free PDF
+                          </span>
+                        )}
+                      </div>
+                      {(item.description || item.desc) && (
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 leading-normal">
+                          {item.description || item.desc}
+                        </p>
                       )}
                     </div>
-
-                    {/* Title */}
-                    <h3 className="font-extrabold text-sm text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
-                      {item.title}
-                    </h3>
-
-                    {/* Chapter */}
-                    {item.chapter && (
-                      <div className="text-[11px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                        <Layers size={12} /> {item.chapter}
-                      </div>
-                    )}
-
-                    {/* Description */}
-                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                      {item.description || item.desc}
-                    </p>
-
-                    {/* Tags */}
-                    {item.tags && item.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 pt-1">
-                        {item.tags.slice(0, 3).map((tag, idx) => (
-                          <span key={idx} className="text-[10px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium">
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
                   </div>
 
-                  {/* Card Footer */}
-                  <div className="px-5 py-3 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2 text-slate-500 text-[11px] font-medium">
-                      <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold uppercase text-[10px]">
-                        {item.materialType || 'PDF'}
-                      </span>
-                      <span>{item.size || 'Free Access'}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={(e) => handleViewDetails(item, e)}
-                        className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition-all cursor-pointer"
-                      >
-                        Details
-                      </button>
-                      <button
-                        onClick={(e) => handleDownload(item, e)}
-                        className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-2xs transition-all flex items-center gap-1 cursor-pointer"
-                      >
-                        <Download size={13} /> PDF
-                      </button>
-                    </div>
+                  <div className="flex items-center justify-end gap-2 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
+                    <button
+                      id={`btn-details-catalog-${item.id || idx}`}
+                      onClick={(e) => handleViewDetails(item, e)}
+                      className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs transition-all cursor-pointer"
+                    >
+                      Details
+                    </button>
+                    <button
+                      id={`btn-dl-catalog-${item.id || idx}`}
+                      onClick={(e) => handleDownload(item, e)}
+                      className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Download size={13} />
+                      <span>Download PDF</span>
+                    </button>
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
           )}

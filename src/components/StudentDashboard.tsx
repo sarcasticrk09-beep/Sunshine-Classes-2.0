@@ -37,7 +37,8 @@ import {
   X,
   Eye,
   EyeOff,
-  Lock
+  Lock,
+  Search
 } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { simpleSecureHash } from '../auth/AuthProvider';
@@ -117,6 +118,7 @@ export default function StudentDashboard({
   batches = []
 }: StudentDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'applications' | 'attendance' | 'fees' | 'performance' | 'homework' | 'study-material' | 'timetable' | 'notifications' | 'profile' | 'bulletin'>('overview');
+  const [resourceSearchTerm, setResourceSearchTerm] = useState('');
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [editingApplication, setEditingApplication] = useState<Admission | null>(null);
   const [isTabDropdownOpen, setIsTabDropdownOpen] = useState(false);
@@ -2513,84 +2515,115 @@ export default function StudentDashboard({
               const itemClass = item.class.toLowerCase();
               return itemClass === classMatch || classMatch.includes(itemClass) || itemClass.includes(classMatch);
             });
-            const displayedMaterials = matchingMaterials.length > 0 ? matchingMaterials : (studyMaterials || []);
+            const baseMaterials = matchingMaterials.length > 0 ? matchingMaterials : (studyMaterials || []);
+
+            const term = resourceSearchTerm.trim().toLowerCase();
+            const displayedMaterials = term
+              ? baseMaterials.filter(item =>
+                  (item.title || '').toLowerCase().includes(term) ||
+                  (item.subject || '').toLowerCase().includes(term) ||
+                  (item.class || '').toLowerCase().includes(term) ||
+                  (item.desc || item.description || '').toLowerCase().includes(term) ||
+                  (item.fileUrl || '').toLowerCase().includes(term)
+                )
+              : baseMaterials;
 
             return (
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <h3 className="font-display font-bold text-lg text-slate-800">Digital Study Library & Notes</h3>
-                    <p className="text-xs text-slate-500">
-                      Revision notes, previous year board papers (PYQ), formula sheets, and chapter solutions for {student.class}.
+                    <h3 className="font-display font-bold text-base text-slate-800">Study Notes & Resources</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Direct access to revision notes, formula sheets, NCERT solutions, and chapter guides for {student.class}.
                     </p>
                   </div>
-                  <span className="text-[11px] font-bold text-indigo-900 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full w-fit">
-                    {displayedMaterials.length} Resources Available
-                  </span>
+                  <div className="relative min-w-[220px] sm:max-w-xs w-full">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                    <input
+                      id="input-filter-resources"
+                      type="text"
+                      value={resourceSearchTerm}
+                      onChange={(e) => setResourceSearchTerm(e.target.value)}
+                      placeholder="Filter by title, subject, filename..."
+                      className="w-full pl-9 pr-8 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all placeholder:text-slate-400 text-slate-800"
+                    />
+                    {resourceSearchTerm && (
+                      <button
+                        id="btn-clear-resource-search"
+                        onClick={() => setResourceSearchTerm('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full"
+                        title="Clear filter"
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {displayedMaterials.length === 0 ? (
-                  <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                    <BookOpen className="mx-auto text-slate-400 mb-2" size={32} />
-                    <h4 className="text-sm font-bold text-slate-700">No Study Materials Available Yet</h4>
-                    <p className="text-xs text-slate-400 mt-1">Faculty members are preparing your session notes and PYQs.</p>
+                  <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    <BookOpen className="mx-auto text-slate-400 mb-2" size={26} />
+                    <h4 className="text-xs font-bold text-slate-700">
+                      {term ? `No materials matching "${resourceSearchTerm}"` : 'No Study Materials Available Yet'}
+                    </h4>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      {term ? 'Try searching with a different subject or title keyword.' : 'Faculty members are preparing session notes and PYQs.'}
+                    </p>
                   </div>
                 ) : (
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden bg-white">
                     {displayedMaterials.map((item, idx) => {
                       const isCached = downloadedMaterials.includes(item.id);
                       return (
                         <div
                           key={item.id || idx}
-                          className="rounded-xl border border-slate-100 p-4 hover:border-slate-300 hover:shadow-sm transition-all flex justify-between items-start gap-4 bg-slate-50/20"
+                          className="p-3 hover:bg-slate-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
                         >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-                              <span className="text-[9px] font-black uppercase text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+                          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                            <div className="pt-0.5 shrink-0">
+                              <span className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200/80">
                                 {item.subject}
                               </span>
-                              <span className="text-[9px] font-black uppercase text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
-                                {item.materialType || item.category || 'NOTES'}
-                              </span>
-                              <span className="text-[9px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
-                                {item.class}
-                              </span>
-                              {isCached && (
-                                <span className="text-[8px] font-bold text-green-700 bg-green-50 px-1.5 py-0.5 rounded border border-green-200">
-                                  ✓ Cached
+                            </div>
+                            <div className="min-w-0 flex-1 space-y-0.5">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="text-xs font-bold text-slate-900 truncate">{item.title}</h4>
+                                <span className="text-[9px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                  {item.class}
                                 </span>
+                              </div>
+                              {(item.desc || item.description) && (
+                                <p className="text-[11px] text-slate-500 line-clamp-1 leading-tight">
+                                  {item.desc || item.description}
+                                </p>
                               )}
                             </div>
-                            <h4 className="text-xs font-bold text-slate-800 line-clamp-1">{item.title}</h4>
-                            <p className="text-[10px] text-slate-500 mt-1 line-clamp-2">{item.desc || item.description}</p>
-                            {item.chapter && (
-                              <p className="text-[9px] font-medium text-slate-400 mt-1">📖 {item.chapter}</p>
-                            )}
                           </div>
-                          <div className="flex flex-col items-end gap-1.5 shrink-0">
-                            <button
-                              id={`btn-dl-material-${item.id || idx}`}
-                              onClick={() => handleDownloadMaterial(item)}
-                              title={isCached ? "Remove from device cache" : "Download / Save Offline"}
-                              className={`rounded-lg p-2 border transition-all cursor-pointer ${
-                                isCached 
-                                  ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' 
-                                  : 'bg-indigo-50 hover:bg-indigo-900 hover:text-white border-indigo-100 text-indigo-700'
-                              }`}
-                            >
-                              <Download size={15} />
-                            </button>
+
+                          <div className="flex items-center justify-end gap-2 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                             {(item.fileUrl || item.fileData) && (
                               <a
                                 id={`link-view-material-${item.id || idx}`}
                                 href={item.fileUrl || item.fileData}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="text-[9px] font-bold text-slate-500 hover:text-indigo-900 underline"
+                                className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 text-[11px] font-bold transition-all"
                               >
-                                Open ↗
+                                View ↗
                               </a>
                             )}
+                            <button
+                              id={`btn-dl-material-${item.id || idx}`}
+                              onClick={() => handleDownloadMaterial(item)}
+                              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                                isCached
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                                  : 'bg-amber-500 hover:bg-amber-600 text-white shadow-xs'
+                              }`}
+                            >
+                              <Download size={13} />
+                              <span>{isCached ? 'Saved' : 'Download PDF'}</span>
+                            </button>
                           </div>
                         </div>
                       );

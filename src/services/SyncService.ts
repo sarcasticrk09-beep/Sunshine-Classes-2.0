@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
+import { safeSetItem, safeGetItem, safeRemoveItem } from "../utils/safeLocalStorage";
 import {
   SEED_USERS,
   SEED_STUDENTS,
@@ -616,7 +617,7 @@ class SyncServiceClass {
             } else {
               parsed.push(data);
             }
-            localStorage.setItem(storageKey, JSON.stringify(parsed));
+            safeSetItem(storageKey, JSON.stringify(parsed));
           }
         }
       }
@@ -646,8 +647,8 @@ class SyncServiceClass {
     try {
       if (typeof window !== 'undefined') {
         const storageKey = `sunshine_${collectionName}`;
-        localStorage.setItem(`${storageKey}_initialized`, 'true');
-        localStorage.setItem(storageKey, JSON.stringify(items || []));
+        safeSetItem(`${storageKey}_initialized`, 'true');
+        safeSetItem(storageKey, JSON.stringify(items || []));
       }
     } catch (e) {}
 
@@ -856,49 +857,15 @@ class SyncServiceClass {
 
     // Helper to safely write to localStorage without crashing on browser QuotaExceededError
     const safeLocalStorageSet = (key: string, val: any) => {
-      try {
-        localStorage.setItem(key, JSON.stringify(val));
-      } catch (err: any) {
-        if (err?.name === 'QuotaExceededError' || err?.code === 22 || err?.number === -2147024882) {
-          console.warn(`[SyncService] LocalStorage quota reached for "${key}". Sanitizing heavy data payloads...`);
-          try {
-            if (Array.isArray(val)) {
-              const sanitized = val.map(item => {
-                if (typeof item === 'object' && item !== null) {
-                  const copy = { ...item };
-                  if (copy.fileData && copy.fileData.length > 200) delete copy.fileData;
-                  if (copy.fileUrl && copy.fileUrl.startsWith('data:') && copy.fileUrl.length > 500) {
-                    copy.fileUrl = '';
-                  }
-                  return copy;
-                }
-                return item;
-              });
-              localStorage.setItem(key, JSON.stringify(sanitized));
-              return;
-            }
-            if (typeof val === 'object' && val !== null) {
-              const copy = { ...val };
-              if (copy.fileData && copy.fileData.length > 200) delete copy.fileData;
-              if (copy.fileUrl && copy.fileUrl.startsWith('data:') && copy.fileUrl.length > 500) {
-                copy.fileUrl = '';
-              }
-              localStorage.setItem(key, JSON.stringify(copy));
-              return;
-            }
-          } catch {
-            console.warn(`[SyncService] LocalStorage quota completely saturated. Operating safely in memory.`);
-          }
-        }
-      }
+      safeSetItem(key, JSON.stringify(val));
     };
 
     // Mirror mutation to localStorage so local persistence stays completely synchronized
     try {
       if (typeof window !== 'undefined') {
         const storageKey = `sunshine_${collectionName}`;
-        localStorage.setItem(`${storageKey}_initialized`, 'true');
-        const stored = localStorage.getItem(storageKey);
+        safeSetItem(`${storageKey}_initialized`, 'true');
+        const stored = safeGetItem(storageKey);
         if (stored) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed)) {
@@ -1069,8 +1036,8 @@ class SyncServiceClass {
           if (payload.success && Array.isArray(payload.data)) {
             // If server collection is initialized, trust it completely (even if length is 0!)
             if (payload.initialized) {
-              localStorage.setItem(`sunshine_${collectionName}`, JSON.stringify(payload.data));
-              localStorage.setItem(`sunshine_${collectionName}_initialized`, 'true');
+              safeSetItem(`sunshine_${collectionName}`, JSON.stringify(payload.data));
+              safeSetItem(`sunshine_${collectionName}_initialized`, 'true');
               if (!this.cache.has(collectionName)) {
                 this.cache.set(collectionName, new Map());
               }

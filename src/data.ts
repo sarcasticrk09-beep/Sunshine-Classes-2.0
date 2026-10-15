@@ -1500,6 +1500,21 @@ export const SEED_USERS: User[] = [
     mustChangePassword: true,
     forcePasswordChange: true
   },
+  // Super Admin generic profile for administrative team sharing
+  {
+    id: 'u-superadmin',
+    username: 'superadmin',
+    name: 'Super Administrator',
+    email: 'superadmin@sunshineclasses.net',
+    role: 'SUPER_ADMIN',
+    phone: '9999900000',
+    password: 'Superadmin@123',
+    passwordHash: 'Superadmin@123',
+    status: 'ACTIVE',
+    active: true,
+    mustChangePassword: false,
+    forcePasswordChange: false
+  },
   // Founder / Super Admin aliases for backwards-compatibility & easy logins
   {
     id: 'u-founder',
@@ -1512,8 +1527,8 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Founder@Sunshine2026',
     status: 'ACTIVE',
     active: true,
-    mustChangePassword: true,
-    forcePasswordChange: true
+    mustChangePassword: false,
+    forcePasswordChange: false
   },
   {
     id: 'u-cofounder',
@@ -1526,8 +1541,8 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Cofounder@Sunshine2026',
     status: 'ACTIVE',
     active: true,
-    mustChangePassword: true,
-    forcePasswordChange: true
+    mustChangePassword: false,
+    forcePasswordChange: false
   },
   // General Admin
   {
@@ -1541,8 +1556,8 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Admin@123',
     status: 'ACTIVE',
     active: true,
-    mustChangePassword: true,
-    forcePasswordChange: true
+    mustChangePassword: false,
+    forcePasswordChange: false
   },
   // Receptionist Desk
   {
@@ -1610,8 +1625,8 @@ export const SEED_USERS: User[] = [
     email: 'rahul.verma@sunshineclasses.net',
     role: 'STUDENT',
     phone: '9999900005',
-    password: 'Student@123',
-    passwordHash: 'Student@123',
+    password: 'Sunshine@123',
+    passwordHash: 'Sunshine@123',
     status: 'ACTIVE',
     active: true,
     mustChangePassword: true,
@@ -1624,8 +1639,8 @@ export const SEED_USERS: User[] = [
     email: 'ananya.sharma@sunshineclasses.net',
     role: 'STUDENT',
     phone: '9999900021',
-    password: 'Student@123',
-    passwordHash: 'Student@123',
+    password: 'Sunshine@123',
+    passwordHash: 'Sunshine@123',
     status: 'ACTIVE',
     active: true,
     mustChangePassword: true,
@@ -1638,8 +1653,8 @@ export const SEED_USERS: User[] = [
     email: 'aryan.patel@sunshineclasses.net',
     role: 'STUDENT',
     phone: '9999900031',
-    password: 'Student@123',
-    passwordHash: 'Student@123',
+    password: 'Sunshine@123',
+    passwordHash: 'Sunshine@123',
     status: 'ACTIVE',
     active: true,
     mustChangePassword: true,

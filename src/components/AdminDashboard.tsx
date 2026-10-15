@@ -10781,7 +10781,7 @@ ${data.log}`
                       setClassFormName('');
                       setClassFormCode('');
                       setClassFormDefaultFee(1000);
-                      setClassFormCapacity(40);
+                      setClassFormCapacity(1000);
                       setClassFormSession('2026-2027');
                       setClassFormStream('');
                       setClassFormSubjects('');
@@ -10882,7 +10882,7 @@ ${data.log}`
                       const classStudents = students.filter(
                         (s) => s.class === classItem.name || s.preferredBatch?.startsWith(classItem.name)
                       );
-                      const totalClassCap = classItem.totalCapacity || 40;
+                      const totalClassCap = classItem.totalCapacity || 1000;
                       const fillPercentage = Math.min(100, Math.round((classStudents.length / totalClassCap) * 100));
 
                       return (
@@ -11040,7 +11040,7 @@ ${data.log}`
                                            (s.preferredTiming === timing.timeRange || s.preferredBatch?.includes(timing.label))
                                   ).length;
 
-                                  const timingCap = timing.capacity || 20;
+                                  const timingCap = timing.capacity || 1000;
                                   const timingFill = Math.min(100, Math.round((timingEnrolledCount / timingCap) * 100));
 
                                   return (

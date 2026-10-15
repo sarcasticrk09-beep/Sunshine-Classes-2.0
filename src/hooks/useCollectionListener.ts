@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { SyncService, isBenignOfflineOrFallbackError } from '../services/SyncService';
+import { safeSetItem } from '../utils/safeLocalStorage';
 
 interface UseCollectionListenerOptions<T> {
   collectionName: string;
@@ -235,9 +236,7 @@ export function useCollectionListener<T = any>({
       if (Array.isArray(items)) {
         onDataRef.current(items);
         if (storageKey) {
-          try {
-            localStorage.setItem(storageKey, JSON.stringify(items));
-          } catch (e) {}
+          safeSetItem(storageKey, JSON.stringify(items));
         }
       }
     }).catch(() => {});
@@ -257,9 +256,7 @@ export function useCollectionListener<T = any>({
             if (Array.isArray(items)) {
               onDataRef.current(items);
               if (storageKey) {
-                try {
-                  localStorage.setItem(storageKey, JSON.stringify(items));
-                } catch (e) {}
+                safeSetItem(storageKey, JSON.stringify(items));
               }
             }
           }).catch(() => {});

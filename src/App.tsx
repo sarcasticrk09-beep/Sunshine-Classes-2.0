@@ -83,6 +83,7 @@ import {
 } from './data';
 
 import { migrateExistingData, generateFeeRecords, getCurrentAndNextMonths } from './lib/feeUtils';
+import { safeSetItem, safeGetItem } from './utils/safeLocalStorage';
 import { generateReceiptPdf } from './lib/pdfGenerator';
 
 import LandingPage from './components/LandingPage';
@@ -224,16 +225,16 @@ export function simpleSecureHash(password: string): string {
 
 // Synchronous local state loader and initial seeder to ensure instant render with no lagging
 function getOrSeedLocal<T>(key: string, seed: T): T {
-  const isInitialized = typeof window !== 'undefined' && localStorage.getItem(`sunshine_${key}_initialized`) === 'true';
-  const stored = typeof window !== 'undefined' ? localStorage.getItem(`sunshine_${key}`) : null;
+  const isInitialized = typeof window !== 'undefined' && safeGetItem(`sunshine_${key}_initialized`) === 'true';
+  const stored = typeof window !== 'undefined' ? safeGetItem(`sunshine_${key}`) : null;
   if (stored) {
     try {
       const parsed = JSON.parse(stored);
       if (key === 'students' && Array.isArray(parsed) && Array.isArray(seed) && parsed.length < seed.length) {
         const idSet = new Set(parsed.map((p: any) => p.id || p.rollNo));
         const merged = [...parsed, ...seed.filter((s: any) => !idSet.has(s.id || s.rollNo))];
-        localStorage.setItem(`sunshine_${key}`, JSON.stringify(merged));
-        localStorage.setItem(`sunshine_${key}_initialized`, 'true');
+        safeSetItem(`sunshine_${key}`, JSON.stringify(merged));
+        safeSetItem(`sunshine_${key}_initialized`, 'true');
         return merged as unknown as T;
       }
       return parsed;
@@ -245,8 +246,8 @@ function getOrSeedLocal<T>(key: string, seed: T): T {
     return (Array.isArray(seed) ? [] : seed) as unknown as T;
   }
   try {
-    localStorage.setItem(`sunshine_${key}`, JSON.stringify(seed));
-    localStorage.setItem(`sunshine_${key}_initialized`, 'true');
+    safeSetItem(`sunshine_${key}`, JSON.stringify(seed));
+    safeSetItem(`sunshine_${key}_initialized`, 'true');
   } catch (e) {
     console.warn(`[Local Cache] Error setting initial key "sunshine_${key}":`, e);
   }
@@ -515,7 +516,7 @@ export default function App() {
     });
 
     if (changed) {
-      localStorage.setItem('sunshine_users', JSON.stringify(migrated));
+      safeSetItem('sunshine_users', JSON.stringify(migrated));
     }
     return migrated;
   });
@@ -545,7 +546,7 @@ export default function App() {
   const [toppers, setToppers] = useState<Topper[]>(() => {
     const raw = getOrSeedLocal('toppers', SEED_TOPPERS);
     if (!raw || raw.length === 0 || raw.some(t => t.name === 'Priya Mishra' || t.id === 'top1')) {
-      localStorage.setItem('sunshine_toppers', JSON.stringify(SEED_TOPPERS));
+      safeSetItem('sunshine_toppers', JSON.stringify(SEED_TOPPERS));
       return SEED_TOPPERS;
     }
     return raw;
@@ -595,7 +596,7 @@ export default function App() {
       return f;
     });
     if (changed) {
-      localStorage.setItem('sunshine_founders', JSON.stringify(migrated));
+      safeSetItem('sunshine_founders', JSON.stringify(migrated));
     }
     return migrated;
   });
@@ -639,8 +640,8 @@ export default function App() {
     }
 
     // 1. Instantly write to localStorage for zero-latency client state
-    localStorage.setItem(`sunshine_${key}`, JSON.stringify(sanitizedData));
-    localStorage.setItem(`sunshine_${key}_initialized`, 'true');
+    safeSetItem(`sunshine_${key}`, JSON.stringify(sanitizedData));
+    safeSetItem(`sunshine_${key}_initialized`, 'true');
 
     // 2. Delegate to SyncService optimistic write & background transaction log
     if (Array.isArray(sanitizedData)) {
@@ -785,18 +786,18 @@ export default function App() {
                 )
               ]);
 
-              const isInitialized = typeof window !== 'undefined' && localStorage.getItem(`sunshine_${key}_initialized`) === 'true';
+              const isInitialized = typeof window !== 'undefined' && safeGetItem(`sunshine_${key}_initialized`) === 'true';
 
               if (Array.isArray(list)) {
                 if (list.length > 0 || isInitialized) {
-                  localStorage.setItem(`sunshine_${key}`, JSON.stringify(list));
-                  localStorage.setItem(`sunshine_${key}_initialized`, 'true');
+                  safeSetItem(`sunshine_${key}`, JSON.stringify(list));
+                  safeSetItem(`sunshine_${key}_initialized`, 'true');
                   return list as unknown as T;
                 }
               }
 
               if (isInitialized) {
-                const stored = localStorage.getItem(`sunshine_${key}`);
+                const stored = safeGetItem(`sunshine_${key}`);
                 if (stored) {
                   try { return JSON.parse(stored); } catch (e) {}
                 }
@@ -810,8 +811,8 @@ export default function App() {
               })).catch(err => {
                 console.warn(`[Cloud Database] Background seed failed for collection "${key}":`, err);
               });
-              localStorage.setItem(`sunshine_${key}`, JSON.stringify(seed));
-              localStorage.setItem(`sunshine_${key}_initialized`, 'true');
+              safeSetItem(`sunshine_${key}`, JSON.stringify(seed));
+              safeSetItem(`sunshine_${key}_initialized`, 'true');
               return seed;
             } else {
               const data = await Promise.race([
@@ -822,19 +823,19 @@ export default function App() {
               ]);
 
               if (data) {
-                localStorage.setItem(`sunshine_${key}`, JSON.stringify(data));
+                safeSetItem(`sunshine_${key}`, JSON.stringify(data));
                 return data as T;
               } else {
                 SyncService.set(key, 'main', seed as any).catch(err => {
                   console.warn(`[Cloud Database] Background seed failed for doc "${key}":`, err);
                 });
-                localStorage.setItem(`sunshine_${key}`, JSON.stringify(seed));
+                safeSetItem(`sunshine_${key}`, JSON.stringify(seed));
                 return seed;
               }
             }
           } catch (error) {
             console.warn(`[Cloud Database] Offline or failed to load key "${key}", using LocalStorage:`, error);
-            const stored = localStorage.getItem(`sunshine_${key}`);
+            const stored = safeGetItem(`sunshine_${key}`);
             if (stored) {
               try { return JSON.parse(stored); } catch (e) { console.error(e); }
             }
@@ -1131,13 +1132,13 @@ export default function App() {
       });
 
       if (subsUpdated) {
-        localStorage.setItem(`sunshine_student_subscriptions`, JSON.stringify(newSubs));
+        safeSetItem(`sunshine_student_subscriptions`, JSON.stringify(newSubs));
       }
       if (notifsUpdated) {
-        localStorage.setItem(`sunshine_payment_notifications`, JSON.stringify(currentNotifs));
+        safeSetItem(`sunshine_payment_notifications`, JSON.stringify(currentNotifs));
       }
       if (logsUpdated) {
-        localStorage.setItem(`sunshine_audit_logs`, JSON.stringify(currentLogs));
+        safeSetItem(`sunshine_audit_logs`, JSON.stringify(currentLogs));
       }
 
       return {
@@ -1597,7 +1598,7 @@ export default function App() {
         setAdmissions(prev => {
           const filtered = prev.filter((a: any) => a.id !== finalId);
           const updated = [finalAdm, ...filtered];
-          localStorage.setItem('sunshine_admissions', JSON.stringify(updated));
+          safeSetItem('sunshine_admissions', JSON.stringify(updated));
           return updated;
         });
         SyncService.set('admissions', finalId, finalAdm).catch(() => {});
@@ -1606,7 +1607,7 @@ export default function App() {
           setAuditLogs(prev => {
             const filtered = prev.filter((a: any) => a.id !== res.auditLog.id);
             const updated = [res.auditLog, ...filtered];
-            localStorage.setItem('sunshine_audit_logs', JSON.stringify(updated));
+            safeSetItem('sunshine_audit_logs', JSON.stringify(updated));
             return updated;
           });
         }
@@ -1629,7 +1630,7 @@ export default function App() {
     setAdmissions(prev => {
       const filtered = prev.filter((a: any) => a.id !== fallbackId);
       const updated = [fallbackAdm, ...filtered];
-      localStorage.setItem('sunshine_admissions', JSON.stringify(updated));
+      safeSetItem('sunshine_admissions', JSON.stringify(updated));
       return updated;
     });
     SyncService.set('admissions', fallbackId, fallbackAdm).catch(() => {});

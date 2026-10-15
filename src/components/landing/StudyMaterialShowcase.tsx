@@ -230,7 +230,7 @@ export const StudyMaterialShowcase: React.FC<StudyMaterialShowcaseProps> = ({
             onClick={onNavigateResources}
             className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs px-6 py-3 shadow-md transition-all cursor-pointer min-h-[44px]"
           >
-            <span>Browse All Study Material (100+ Free PDFs)</span>
+            <span>Browse All Study Material & Notes</span>
             <ArrowRight size={15} />
           </button>
         </div>

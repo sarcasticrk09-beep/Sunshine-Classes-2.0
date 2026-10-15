@@ -8,6 +8,7 @@ import { SyncService } from '../services/SyncService';
 import { getCachedIdToken } from '../lib/supabase';
 import { SEED_STUDENTS } from '../data';
 import { Student } from '../types';
+import { safeSetItem } from '../utils/safeLocalStorage';
 
 export interface StudentDirectoryFilters {
   searchTerm: string;
@@ -137,9 +138,7 @@ export function useStudentDirectory({
       const idSet = new Set(baseList.map((p: any) => p.id || p.rollNo));
       const merged = [...baseList, ...SEED_STUDENTS.filter((s: any) => !idSet.has(s.id || s.rollNo))];
       if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('sunshine_students', JSON.stringify(merged));
-        } catch {}
+        safeSetItem('sunshine_students', JSON.stringify(merged));
       }
       return merged;
     }
@@ -232,9 +231,7 @@ export function useStudentDirectory({
   const restoreSeedFallback = () => {
     const fallback = Array.isArray(SEED_STUDENTS) ? [...SEED_STUDENTS] : [];
     if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('sunshine_students', JSON.stringify(fallback));
-      } catch {}
+      safeSetItem('sunshine_students', JSON.stringify(fallback));
     }
     setStudents(fallback.slice(0, limit));
     setPaginationInfo({
