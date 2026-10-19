@@ -4,6 +4,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import { MessageSquare, X, Send, Sparkles, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import SunshineLogo from './SunshineLogo';
@@ -169,7 +170,7 @@ export default function ChatBot() {
                             <li
                               key={idx}
                               className="ml-3 list-disc"
-                              dangerouslySetInnerHTML={{ __html: styledLine.substring(2) }}
+                              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(styledLine.substring(2)) }}
                             />
                           );
                         }
@@ -177,7 +178,7 @@ export default function ChatBot() {
                           <p
                             key={idx}
                             className="mb-1 last:mb-0"
-                            dangerouslySetInnerHTML={{ __html: styledLine }}
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(styledLine) }}
                           />
                         );
                       })}

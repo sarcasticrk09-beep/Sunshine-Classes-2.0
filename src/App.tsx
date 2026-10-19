@@ -132,95 +132,10 @@ import { initializeAndSeedDatabase, forceResetDatabase } from './services/initDb
 import { LogIn, Shield, Users, BookOpen, UserCheck, Key, LogOut, X, Sun, Moon, Eye, EyeOff, Cloud, CloudOff, RefreshCw, Bell, BellRing, Check, CheckCheck, AlertCircle, Mail, MessageSquare, Crown, Share2, MessageCircle, Copy, Phone } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
+import { simpleSecureHash as secureHashHelper, verifyPassword } from './utils/security';
+
 export function simpleSecureHash(password: string): string {
-  function sha256(ascii: string): string {
-    function rightRotate(value: number, amount: number) {
-      return (value >>> amount) | (value << (32 - amount));
-    }
-    const mathPow = Math.pow;
-    const maxWord = mathPow(2, 32);
-    const lengthProperty = 'length';
-    let i, j;
-    let result = '';
-
-    const words: any[] = [];
-    const asciiLength = ascii[lengthProperty];
-    const hash = (sha256 as any).h = (sha256 as any).h || [];
-    const k = (sha256 as any).k = (sha256 as any).k || [];
-    let primeCounter = k[lengthProperty];
-
-    const isComposite: any = {};
-    for (let candidate = 2; primeCounter < 64; candidate++) {
-      if (!isComposite[candidate]) {
-        for (i = 0; i < 313; i += candidate) {
-          isComposite[i] = 1;
-        }
-        hash[primeCounter] = (mathPow(candidate, .5) * maxWord) | 0;
-        k[primeCounter++] = (mathPow(candidate, 1 / 3) * maxWord) | 0;
-      }
-    }
-
-    ascii += '\x80';
-    while (ascii[lengthProperty] % 64 - 56) ascii += '\x00';
-    for (i = 0; i < ascii[lengthProperty]; i++) {
-      j = ascii.charCodeAt(i);
-      if (j >> 8) return '';
-      words[i >> 2] |= j << ((3 - i % 4) * 8);
-    }
-    words[words[lengthProperty]] = ((asciiLength * 8) / maxWord) | 0;
-    words[words[lengthProperty]] = (asciiLength * 8) | 0;
-
-    let h0 = hash[0], h1 = hash[1], h2 = hash[2], h3 = hash[3], h4 = hash[4], h5 = hash[5], h6 = hash[6], h7 = hash[7];
-
-    for (i = 0; i < words[lengthProperty]; i += 16) {
-      const w = words.slice(i, i + 16);
-      const oldH0 = h0, oldH1 = h1, oldH2 = h2, oldH3 = h3, oldH4 = h4, oldH5 = h5, oldH6 = h6, oldH7 = h7;
-
-      for (j = 0; j < 64; j++) {
-        if (j < 16) {
-          // No-op
-        } else {
-          const s0 = rightRotate(w[j - 15], 7) ^ rightRotate(w[j - 15], 18) ^ (w[j - 15] >>> 3);
-          const s1 = rightRotate(w[j - 2], 17) ^ rightRotate(w[j - 2], 19) ^ (w[j - 2] >>> 10);
-          w[j] = (w[j - 16] + s0 + w[j - 7] + s1) | 0;
-        }
-
-        const ch = (h4 & h5) ^ (~h4 & h6);
-        const maj = (h0 & h1) ^ (h0 & h2) ^ (h1 & h2);
-        const sigma0 = rightRotate(h0, 2) ^ rightRotate(h0, 13) ^ rightRotate(h0, 22);
-        const sigma1 = rightRotate(h4, 6) ^ rightRotate(h4, 11) ^ rightRotate(h4, 25);
-        const temp1 = (h7 + sigma1 + ch + k[j] + (w[j] || 0)) | 0;
-        const temp2 = (sigma0 + maj) | 0;
-
-        h7 = h6;
-        h6 = h5;
-        h5 = h4;
-        h4 = (h3 + temp1) | 0;
-        h3 = h2;
-        h2 = h1;
-        h1 = h0;
-        h0 = (temp1 + temp2) | 0;
-      }
-
-      h0 = (h0 + oldH0) | 0;
-      h1 = (h1 + oldH1) | 0;
-      h2 = (h2 + oldH2) | 0;
-      h3 = (h3 + oldH3) | 0;
-      h4 = (h4 + oldH4) | 0;
-      h5 = (h5 + oldH5) | 0;
-      h6 = (h6 + oldH6) | 0;
-      h7 = (h7 + oldH7) | 0;
-    }
-
-    const wordsToHex = [h0, h1, h2, h3, h4, h5, h6, h7];
-    for (i = 0; i < 8; i++) {
-      const hex = (wordsToHex[i] >>> 0).toString(16).padStart(8, '0');
-      result += hex;
-    }
-    return result;
-  }
-
-  return 'sha256_' + sha256(password);
+  return secureHashHelper(password);
 }
 
 // Synchronous local state loader and initial seeder to ensure instant render with no lagging
@@ -473,46 +388,22 @@ export default function App() {
     // Encrypt/hash passwords on-load for 100% security
     migrated = migrated.map(u => {
       let pwd = u.password;
-      let plainPass = (u as any).plainPassword;
       if (!pwd) {
         const lowerUser = u.username.toLowerCase();
-        plainPass = `${lowerUser}123`;
-        if (lowerUser === 'admin') plainPass = 'admin123';
-        else if (lowerUser === 'teacher') plainPass = 'teacher123';
-        else if (lowerUser === 'reception') plainPass = 'reception123';
-        else if (lowerUser === 'student') plainPass = 'student123';
-        pwd = simpleSecureHash(plainPass);
+        let defaultPass = `${lowerUser}123`;
+        if (lowerUser === 'admin') defaultPass = 'admin123';
+        else if (lowerUser === 'teacher') defaultPass = 'teacher123';
+        else if (lowerUser === 'reception') defaultPass = 'reception123';
+        else if (lowerUser === 'student') defaultPass = 'student123';
+        pwd = simpleSecureHash(defaultPass);
         changed = true;
-      } else if (!pwd.startsWith('sha256_') && !pwd.startsWith('sha256_mock_')) {
-        plainPass = pwd;
+      } else if (!pwd.startsWith('sha256_') && !pwd.startsWith('sha256_mock_') && !pwd.startsWith('sha256_salted_')) {
         pwd = simpleSecureHash(pwd);
         changed = true;
-      } else if (!plainPass) {
-        // Try to infer default plain password
-        const lowerUser = u.username.toLowerCase();
-        const defaultPasses = [
-          'Sunshine123',
-          `${lowerUser}123`,
-          'admin123',
-          'teacher123',
-          'reception123',
-          'student123',
-          'default123',
-          'sunshine123'
-        ];
-        for (const candidate of defaultPasses) {
-          if (pwd === simpleSecureHash(candidate)) {
-            plainPass = candidate;
-            break;
-          }
-        }
       }
       
-      const updated = { ...u, password: pwd };
-      if (plainPass) {
-        (updated as any).plainPassword = plainPass;
-      }
-      return updated;
+      const { plainPassword, ...rest } = u as any;
+      return { ...rest, password: pwd };
     });
 
     if (changed) {
@@ -1285,46 +1176,22 @@ export default function App() {
     // Encrypt/hash passwords on-load from database to ensure 100% security policy compliance
     migratedLoadedUsers = migratedLoadedUsers.map(u => {
       let pwd = u.password;
-      let plainPass = (u as any).plainPassword;
       if (!pwd) {
         const lowerUser = u.username.toLowerCase();
-        plainPass = `${lowerUser}123`;
-        if (lowerUser === 'admin') plainPass = 'admin123';
-        else if (lowerUser === 'teacher') plainPass = 'teacher123';
-        else if (lowerUser === 'reception') plainPass = 'reception123';
-        else if (lowerUser === 'student') plainPass = 'student123';
-        pwd = simpleSecureHash(plainPass);
+        let defaultPass = `${lowerUser}123`;
+        if (lowerUser === 'admin') defaultPass = 'admin123';
+        else if (lowerUser === 'teacher') defaultPass = 'teacher123';
+        else if (lowerUser === 'reception') defaultPass = 'reception123';
+        else if (lowerUser === 'student') defaultPass = 'student123';
+        pwd = simpleSecureHash(defaultPass);
         usersMigrated = true;
-      } else if (!pwd.startsWith('sha256_') && !pwd.startsWith('sha256_mock_')) {
-        plainPass = pwd;
+      } else if (!pwd.startsWith('sha256_') && !pwd.startsWith('sha256_mock_') && !pwd.startsWith('sha256_salted_')) {
         pwd = simpleSecureHash(pwd);
         usersMigrated = true;
-      } else if (!plainPass) {
-        // Try to infer default plain password
-        const lowerUser = u.username.toLowerCase();
-        const defaultPasses = [
-          'Sunshine123',
-          `${lowerUser}123`,
-          'admin123',
-          'teacher123',
-          'reception123',
-          'student123',
-          'default123',
-          'sunshine123'
-        ];
-        for (const candidate of defaultPasses) {
-          if (pwd === simpleSecureHash(candidate)) {
-            plainPass = candidate;
-            break;
-          }
-        }
       }
       
-      const updated = { ...u, password: pwd };
-      if (plainPass) {
-        (updated as any).plainPassword = plainPass;
-      }
-      return updated;
+      const { plainPassword, ...rest } = u as any;
+      return { ...rest, password: pwd };
     });
 
     let foundersMigrated = false;
@@ -3319,7 +3186,7 @@ Sunshine Classes`;
     const hashed = newPassword.startsWith('sha256_mock_') ? newPassword : simpleSecureHash(newPassword);
     const updatedUsers = users.map((u) => {
       if (u.id === userId) {
-        const updated = { ...u, password: hashed, plainPassword: newPassword };
+        const updated = { ...u, password: hashed };
         return updated;
       }
       return u;
@@ -3526,7 +3393,7 @@ Sunshine Classes`;
     const hashed = simpleSecureHash(trimmedNewPwd);
     const updatedUsers = users.map((u) => {
       if (u.id === targetResetUser.id) {
-        const updated = { ...u, password: hashed, plainPassword: trimmedNewPwd };
+        const updated = { ...u, password: hashed };
         return updated;
       }
       return u;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import { 
   Mail, Send, Inbox, RefreshCw, CheckCircle2, AlertCircle, 
   User, Sparkles, X, ChevronRight, FileText, Search, ExternalLink,
@@ -636,7 +637,7 @@ export const GmailHub: React.FC<GmailHubProps> = ({
                   <span>Loading full email message body...</span>
                 </div>
               ) : selectedMessage.body ? (
-                <div dangerouslySetInnerHTML={{ __html: selectedMessage.body }} />
+                <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(selectedMessage.body) }} />
               ) : (
                 <p className="text-slate-400 italic">{selectedMessage.snippet}</p>
               )}

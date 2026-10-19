@@ -280,15 +280,28 @@ export const AdminMeritManager: React.FC<AdminMeritManagerProps> = ({
     reader.onload = (evt) => {
       try {
         const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wb = XLSX.read(bstr, { type: 'binary', dense: true });
         const wsName = wb.SheetNames[0];
         const ws = wb.Sheets[wsName];
-        const rows: any[] = XLSX.utils.sheet_to_json(ws);
+        const rawRows: any[] = XLSX.utils.sheet_to_json(ws);
 
-        if (!rows || rows.length === 0) {
+        if (!rawRows || rawRows.length === 0) {
           setImportStatus('No rows found in Excel sheet.');
           return;
         }
+
+        // Prototype pollution guard: filter __proto__, constructor, and prototype keys
+        const rows = rawRows.map((r) => {
+          const clean: Record<string, any> = Object.create(null);
+          if (r && typeof r === 'object') {
+            for (const [k, v] of Object.entries(r)) {
+              if (k !== '__proto__' && k !== 'constructor' && k !== 'prototype') {
+                clean[k] = v;
+              }
+            }
+          }
+          return clean;
+        });
 
         let importedCount = 0;
         rows.forEach((row, idx) => {

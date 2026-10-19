@@ -13,8 +13,8 @@ const envAnonKey = isStaging
   ? (metaEnv.VITE_STAGING_SUPABASE_ANON_KEY || '')
   : (metaEnv.VITE_SUPABASE_ANON_KEY || '');
 
-const localUrl = typeof window !== 'undefined' ? localStorage.getItem(isStaging ? 'sunshine_staging_supabase_url' : 'sunshine_supabase_url') || '' : '';
-const localAnonKey = typeof window !== 'undefined' ? localStorage.getItem(isStaging ? 'sunshine_staging_supabase_anon_key' : 'sunshine_supabase_anon_key') || '' : '';
+const localUrl = typeof window !== 'undefined' ? (sessionStorage.getItem(isStaging ? 'sunshine_staging_supabase_url' : 'sunshine_supabase_url') || localStorage.getItem(isStaging ? 'sunshine_staging_supabase_url' : 'sunshine_supabase_url') || '') : '';
+const localAnonKey = typeof window !== 'undefined' ? (sessionStorage.getItem(isStaging ? 'sunshine_staging_supabase_anon_key' : 'sunshine_supabase_anon_key') || localStorage.getItem(isStaging ? 'sunshine_staging_supabase_anon_key' : 'sunshine_supabase_anon_key') || '') : '';
 
 const PROD_PROJECT_REF = 'nqxthuycvltpuptejjot';
 
@@ -26,8 +26,8 @@ if (!isStaging && envUrl) {
   finalUrl = envUrl;
   finalAnonKey = envAnonKey;
   if (typeof window !== 'undefined' && localUrl && localUrl.includes('rhscrvrgtcsotakdyswx')) {
-    localStorage.setItem('sunshine_supabase_url', envUrl);
-    if (envAnonKey) localStorage.setItem('sunshine_supabase_anon_key', envAnonKey);
+    sessionStorage.setItem('sunshine_supabase_url', envUrl);
+    localStorage.removeItem('sunshine_supabase_anon_key');
   }
 }
 

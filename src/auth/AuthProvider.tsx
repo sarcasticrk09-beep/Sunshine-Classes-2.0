@@ -4,11 +4,8 @@ import { auditLogsService } from '../services/dbService';
 import { AuthContext } from './AuthContext';
 import { User, UserRole, AuditLog } from '../types';
 import { SEED_USERS, SEED_STUDENTS } from '../data';
-
-// Cryptographically secure synchronous SHA-256 hash implementation placeholder for compatibility
-export function simpleSecureHash(password: string): string {
-  return "sha256_" + password;
-}
+import { simpleSecureHash, verifyPassword } from '../utils/security';
+export { simpleSecureHash, verifyPassword };
 
 // Client info helper for secure audit trail logging
 export function getClientInfo() {
@@ -674,7 +671,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       parentName: cleanParentName,
       parentMobile: cleanParentMobile,
       role: 'STUDENT',
-      password: cleanPassword,
+      password: simpleSecureHash(cleanPassword),
       status: 'ACTIVE',
       createdAt: new Date().toISOString()
     };

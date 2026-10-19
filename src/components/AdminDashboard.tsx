@@ -14,6 +14,7 @@ import { SunshineStoreAdmin } from './SunshineStoreAdmin';
 import { AdminMeritManager } from './merit/AdminMeritManager';
 import { AdminCourseManager } from './cms/AdminCourseManager';
 import { FeeReceiptQrScannerModal } from './common/FeeReceiptQrScannerModal';
+import DOMPurify from 'dompurify';
 
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -613,16 +614,19 @@ export default function AdminDashboard({
 
   // --- START OF SUPABASE CONFIGURATION REFERENCES ---
   const metaEnv = (import.meta as any).env || {};
-  const [supabaseConfigUrl, setSupabaseConfigUrl] = useState<string>(() => localStorage.getItem('sunshine_supabase_url') || metaEnv.VITE_SUPABASE_URL || '');
-  const [supabaseConfigAnonKey, setSupabaseConfigAnonKey] = useState<string>(() => localStorage.getItem('sunshine_supabase_anon_key') || metaEnv.VITE_SUPABASE_ANON_KEY || '');
-  const [supabaseConfigStorageBucket, setSupabaseConfigStorageBucket] = useState<string>(() => localStorage.getItem('sunshine_supabase_bucket') || 'sunshine-media');
+  const [supabaseConfigUrl, setSupabaseConfigUrl] = useState<string>(() => sessionStorage.getItem('sunshine_supabase_url') || localStorage.getItem('sunshine_supabase_url') || metaEnv.VITE_SUPABASE_URL || '');
+  const [supabaseConfigAnonKey, setSupabaseConfigAnonKey] = useState<string>(() => sessionStorage.getItem('sunshine_supabase_anon_key') || metaEnv.VITE_SUPABASE_ANON_KEY || '');
+  const [supabaseConfigStorageBucket, setSupabaseConfigStorageBucket] = useState<string>(() => sessionStorage.getItem('sunshine_supabase_bucket') || localStorage.getItem('sunshine_supabase_bucket') || 'sunshine-media');
 
   const handleSaveSupabaseConfig = (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('sunshine_supabase_url', supabaseConfigUrl.trim());
-    localStorage.setItem('sunshine_supabase_anon_key', supabaseConfigAnonKey.trim());
-    localStorage.setItem('sunshine_supabase_bucket', supabaseConfigStorageBucket.trim());
-    alert('Success: Supabase Database, Authentication, and Storage configuration updated successfully!');
+    sessionStorage.setItem('sunshine_supabase_url', supabaseConfigUrl.trim());
+    sessionStorage.setItem('sunshine_supabase_anon_key', supabaseConfigAnonKey.trim());
+    sessionStorage.setItem('sunshine_supabase_bucket', supabaseConfigStorageBucket.trim());
+    try {
+      localStorage.removeItem('sunshine_supabase_anon_key');
+    } catch {}
+    alert('Success: Supabase Database, Authentication, and Storage configuration updated for current session!');
   };
 
   // --- BACKUP & RESTORE STATES & SIMULATION ---
@@ -719,8 +723,7 @@ export default function AdminDashboard({
         username: resData.username || trimmedUsername,
         email: targetEmail,
         role: newUserRole,
-        password: hashed,
-        plainPassword: passwordToUse
+        password: hashed
       } as any;
 
       const updatedUsers = [...users, newUser];
@@ -11751,7 +11754,7 @@ ${data.log}`
                           <div className="border-t border-slate-100 my-1.5"></div>
                           <div 
                             className="max-h-36 overflow-y-auto leading-relaxed text-[11px] select-none text-slate-500" 
-                            dangerouslySetInnerHTML={{ __html: bulkTemplateMode === 'REMINDER' ? emailTemplates.reminderBody : emailTemplates.receiptBody }}
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(bulkTemplateMode === 'REMINDER' ? emailTemplates.reminderBody : emailTemplates.receiptBody) }}
                           ></div>
                         </div>
                       </div>
@@ -14223,7 +14226,7 @@ ${data.log}`
                         return html ? (
                           <div
                             className="bg-white rounded-lg shadow-sm overflow-hidden p-4 border border-slate-100"
-                            dangerouslySetInnerHTML={{ __html: html }}
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
                           />
                         ) : (
                           <div className="text-center py-12 text-slate-400 text-xs italic">

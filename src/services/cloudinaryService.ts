@@ -44,6 +44,18 @@ export interface CloudinaryUploadResult {
 }
 
 /**
+ * Strict hostname check to prevent URL substring spoofing (CodeQL #33, #34)
+ */
+function isCloudinaryHost(urlStr: string): boolean {
+  try {
+    const parsed = new URL(urlStr);
+    return parsed.protocol === 'https:' && (parsed.hostname === 'res.cloudinary.com' || parsed.hostname.endsWith('.cloudinary.com'));
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Extracts the storage identifier/path from Supabase Storage or Cloudinary URL
  */
 export function getPublicIdFromUrl(url: string): string | null {
@@ -57,8 +69,8 @@ export function getPublicIdFromUrl(url: string): string | null {
     return fullPath.replace(/^sunshine-media\//, "");
   }
 
-  // Legacy Cloudinary URL
-  if (url.includes("cloudinary.com")) {
+  // Legacy Cloudinary URL with strict hostname validation
+  if (isCloudinaryHost(url)) {
     const uploadIdx = url.indexOf("/upload/");
     if (uploadIdx === -1) return null;
     
@@ -88,8 +100,8 @@ export function getPublicIdFromUrl(url: string): string | null {
 export function getOptimizedImageUrl(url: string, type?: "profile" | "thumbnail" | "gallery"): string {
   if (!url) return "";
   
-  // Legacy Cloudinary optimization transforms
-  if (url.includes("cloudinary.com")) {
+  // Legacy Cloudinary optimization transforms with strict hostname validation
+  if (isCloudinaryHost(url)) {
     const extension = url.split(".").pop()?.toLowerCase() || "";
     const isImage = ["jpg", "jpeg", "png", "webp", "gif"].includes(extension);
     if (!isImage) return url;

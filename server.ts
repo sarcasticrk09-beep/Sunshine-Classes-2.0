@@ -332,6 +332,58 @@ async function startServer() {
   });
   app.use("/api/auth/login", loginLimiter);
 
+  // Tiered rate limiter for write actions & transactional endpoints (CodeQL #35)
+  const actionLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: process.env.NODE_ENV === "production" ? 1500 : 15000,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many transactions submitted from this IP. Please wait a few minutes." }
+  });
+  app.use("/api/admin/", actionLimiter);
+  app.use("/api/enrollment/", actionLimiter);
+  app.use("/api/fees/", actionLimiter);
+
+  // SSRF prevention: Strict destination allowlist & private IP blocking (CodeQL #1, #2)
+  const ALLOWED_OUTBOUND_DOMAINS = [
+    "graph.facebook.com",
+    "api.twilio.com",
+    "api.cloudinary.com",
+    "res.cloudinary.com",
+    "supabase.co",
+    "github.com",
+    "api.github.com"
+  ];
+
+  function isSafeOutboundUrl(rawUrl: string): boolean {
+    try {
+      const parsed = new URL(rawUrl);
+      if (parsed.protocol !== "https:") return false;
+      const hostname = parsed.hostname.toLowerCase();
+
+      if (
+        hostname === "localhost" ||
+        hostname === "127.0.0.1" ||
+        hostname === "::1" ||
+        hostname.endsWith(".localhost") ||
+        hostname.endsWith(".local") ||
+        hostname === "169.254.169.254" ||
+        hostname.startsWith("169.254.") ||
+        /^10\./.test(hostname) ||
+        /^192\.168\./.test(hostname) ||
+        /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
+      ) {
+        return false;
+      }
+
+      return ALLOWED_OUTBOUND_DOMAINS.some(
+        (allowed) => hostname === allowed || hostname.endsWith("." + allowed)
+      );
+    } catch {
+      return false;
+    }
+  }
+
   // Custom request logging middleware (logs API and primary endpoints; skips Vite internal source modules)
   app.use((req, res, next) => {
     const url = req.url || '';
@@ -3970,6 +4022,10 @@ How can I help you towards your academic success today? Feel free to ask!`;
           };
         }
 
+        if (!isSafeOutboundUrl(url)) {
+          throw new Error(`SSRF Blocked: Destination ${url} is not an authorized outbound endpoint.`);
+        }
+
         const response = await fetch(url, {
           method: "POST",
           headers: {
@@ -3985,6 +4041,9 @@ How can I help you towards your academic success today? Feel free to ask!`;
       } 
       else if (activeProvider === "TWILIO" && activeSid && activeToken) {
         const url = `https://api.twilio.com/2010-04-01/Accounts/${activeSid}/Messages.json`;
+        if (!isSafeOutboundUrl(url)) {
+          throw new Error(`SSRF Blocked: Destination ${url} is not an authorized outbound endpoint.`);
+        }
         const authHeader = "Basic " + Buffer.from(`${activeSid}:${activeToken}`).toString("base64");
         
         const params = new URLSearchParams();
@@ -4246,6 +4305,9 @@ Sunshine Classes — *Excellence in Education* ☀️`;
         const formattedTo = senderNumber.replace(/\D/g, "");
 
         try {
+          if (!isSafeOutboundUrl(url)) {
+            throw new Error(`SSRF Blocked: Destination ${url} is not an authorized outbound endpoint.`);
+          }
           const response = await fetch(url, {
             method: "POST",
             headers: {
@@ -4284,6 +4346,9 @@ Sunshine Classes — *Excellence in Education* ☀️`;
         params.append("Body", replyText);
 
         try {
+          if (!isSafeOutboundUrl(url)) {
+            throw new Error(`SSRF Blocked: Destination ${url} is not an authorized outbound endpoint.`);
+          }
           const response = await fetch(url, {
             method: "POST",
             headers: {
