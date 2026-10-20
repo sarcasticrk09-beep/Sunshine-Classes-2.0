@@ -456,7 +456,7 @@ export default function AdmissionsModule() {
           studentName: data.student?.name || adm.studentName,
           rollNo: data.student?.rollNo || data.student?.id || adm.rollNo || adm.id,
           username: data.user?.username || data.username || '',
-          temporaryPassword: data.user?.temporaryPassword || data.defaultPass || 'Sunshine@2026',
+          temporaryPassword: data.user?.temporaryPassword || data.defaultPass || 'Sunshine123',
           className: data.student?.class || adm.className,
           initialFee: data.feeRecords?.[0]?.totalFee || adm.monthlyFee || 500
         });

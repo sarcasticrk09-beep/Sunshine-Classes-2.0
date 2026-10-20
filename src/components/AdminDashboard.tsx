@@ -14,6 +14,7 @@ import { SunshineStoreAdmin } from './SunshineStoreAdmin';
 import { AdminMeritManager } from './merit/AdminMeritManager';
 import { AdminCourseManager } from './cms/AdminCourseManager';
 import { FeeReceiptQrScannerModal } from './common/FeeReceiptQrScannerModal';
+import { SyncStatusBadge } from './SyncStatusBadge';
 import DOMPurify from 'dompurify';
 
 import { motion, AnimatePresence } from 'motion/react';
@@ -887,6 +888,40 @@ export default function AdminDashboard({
     } catch (err: any) {
       console.error("Failed to export credentials:", err);
       alert(`Export failed: ${err.message || err}`);
+    }
+  };
+
+  const [isSyncingPasswords, setIsSyncingPasswords] = useState(false);
+  const [syncPasswordResult, setSyncPasswordResult] = useState<string | null>(null);
+
+  const handleSyncAllPasswords = async () => {
+    if (!window.confirm("Synchronize all account credentials to 'Sunshine123' across Supabase Auth and database?")) {
+      return;
+    }
+    setIsSyncingPasswords(true);
+    setSyncPasswordResult(null);
+    try {
+      const token = sessionStorage.getItem('sunshine_access_token') || localStorage.getItem('sunshine_access_token');
+      const response = await fetch('/api/admin/sync-passwords', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        const msg = `Successfully synced ${data.updatedAuthCount} accounts in Supabase Auth & ${data.updatedDbCount} in database to Sunshine123!`;
+        setSyncPasswordResult(msg);
+        alert(msg);
+      } else {
+        alert(`Sync failed: ${data.message || data.error || 'Server error'}`);
+      }
+    } catch (err: any) {
+      console.error("Password sync error:", err);
+      alert(`Sync error: ${err.message || err}`);
+    } finally {
+      setIsSyncingPasswords(false);
     }
   };
 
@@ -5651,9 +5686,12 @@ ${data.log}`
           </div>
         </div>
 
-        <div className="text-right">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">System Security Token</span>
-          <span className="font-mono text-xs font-bold text-emerald-400">STATUS: ADMIN_ROOT_ACTIVE</span>
+        <div className="flex flex-col items-end gap-2 text-right">
+          <SyncStatusBadge />
+          <div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">System Security Token</span>
+            <span className="font-mono text-xs font-bold text-emerald-400">STATUS: ADMIN_ROOT_ACTIVE</span>
+          </div>
         </div>
       </div>
 
@@ -15894,6 +15932,18 @@ ${data.log}`
                       className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-950 px-3.5 py-2 text-xs font-bold transition-all cursor-pointer shadow-2xs"
                     >
                       <Download size={14} /> Export Credentials CSV
+                    </button>
+
+                    <button
+                      type="button"
+                      id="btn-sync-all-passwords"
+                      disabled={isSyncingPasswords}
+                      onClick={handleSyncAllPasswords}
+                      className="flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-950 px-3.5 py-2 text-xs font-bold transition-all cursor-pointer shadow-2xs disabled:opacity-50"
+                      title="Sync all accounts across Supabase Auth and Database to Sunshine123"
+                    >
+                      <RefreshCw size={14} className={isSyncingPasswords ? "animate-spin" : ""} />
+                      {isSyncingPasswords ? 'Syncing...' : 'Sync All Passwords to Sunshine123'}
                     </button>
                     <div className="relative w-full sm:w-64">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">

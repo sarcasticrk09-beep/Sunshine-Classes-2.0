@@ -18,7 +18,8 @@
     "test:security": "tsx scripts/security-audit-test.ts",
     "migrate:staging": "tsx scripts/apply-staging-migrations.ts",
     "test:staging": "tsx scripts/validate-staging-live.ts",
-    "staging:test-accounts": "tsx scripts/manage-staging-test-accounts.ts"
+    "staging:test-accounts": "tsx scripts/manage-staging-test-accounts.ts",
+    "sync:passwords": "tsx scripts/sync-all-passwords-supabase.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -43,6 +44,7 @@
     "jsqr": "^1.4.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
+    "multer": "^2.4.0",
     "nodemailer": "^10.1.2",
     "pg": "^8.23.0",
     "qrcode": "^1.5.4",
@@ -65,11 +67,12 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.3.0",
     "@types/node": "^22.14.0",
     "@types/nodemailer": "^8.0.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@types/sharp": "^0.32.0",
-    "sharp": "^0.35.4"
+    "sharp": "^0.35.5"
   }
 }

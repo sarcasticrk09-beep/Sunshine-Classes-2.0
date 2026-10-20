@@ -166,6 +166,14 @@ export default function LandingPage({
     }
   }, [location.pathname]);
 
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const emailParam = searchParams.get('email');
+    if (emailParam) {
+      setAdmEmail(emailParam);
+    }
+  }, [location.search]);
+
   const setActiveSection = (section: 'home' | 'about' | 'faculty' | 'courses' | 'admissions' | 'results' | 'resources' | 'gallery' | 'contact') => {
     if (section === 'home') navigate('/');
     else if (section === 'admissions') navigate('/enroll');
@@ -648,6 +656,8 @@ export default function LandingPage({
             setAdmPhone={setAdmMobile}
             admWhatsapp={admWhatsapp}
             setAdmWhatsapp={setAdmWhatsapp}
+            admEmail={admEmail}
+            setAdmEmail={setAdmEmail}
             admAddress={admAddress}
             setAdmAddress={setAdmAddress}
             admBatch={admBatch}

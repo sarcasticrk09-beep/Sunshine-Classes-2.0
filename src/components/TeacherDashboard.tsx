@@ -33,6 +33,7 @@ import {
 import { Teacher, Student, Attendance, Homework, HomeworkSubmission, Test, StudentMark, TimetableEntry, BatchBulletinPost, SubscriptionConfig } from '../types';
 import { CloudinaryUpload } from './CloudinaryUpload';
 import { StudyMaterialCMS } from './StudyMaterialCMS';
+import { SyncStatusBadge } from './SyncStatusBadge';
 
 interface TeacherDashboardProps {
   teacher: Teacher;
@@ -435,9 +436,12 @@ export default function TeacherDashboard({
           </div>
         </div>
 
-        <div className="text-right">
-          <span className="text-[10px] font-bold text-emerald-200 uppercase tracking-widest block">Core Faculty ID</span>
-          <span className="font-mono text-sm font-bold text-amber-300">FACULTY-{teacher.id.toUpperCase()}</span>
+        <div className="flex flex-col items-end gap-2 text-right">
+          <SyncStatusBadge />
+          <div>
+            <span className="text-[10px] font-bold text-emerald-200 uppercase tracking-widest block">Core Faculty ID</span>
+            <span className="font-mono text-sm font-bold text-amber-300">FACULTY-{teacher.id.toUpperCase()}</span>
+          </div>
         </div>
       </div>
 

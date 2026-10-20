@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Shield, RefreshCw, AlertCircle, Key, UserCheck, Lock, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import SunshineLogo from '../components/SunshineLogo';
+import { SyncStatusBadge } from '../components/SyncStatusBadge';
 
 interface LoginProps {
   onBackToWebsite?: () => void;
@@ -333,6 +334,9 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
               ? 'Internal Staff Access Terminal' 
               : 'Secure ERP Access'}
           </p>
+          <div className="mt-2.5 flex justify-center">
+            <SyncStatusBadge />
+          </div>
         </div>
 
         {/* Mode Switcher Tabs */}
@@ -499,13 +503,16 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
           <>
         <form onSubmit={handlePasswordLogin} className="space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-bold text-slate-700">Email Address or Username</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-700">Roll No, Mobile, or Username</label>
+              <span className="text-[10px] text-slate-400 font-medium">Students & Parents</span>
+            </div>
             <input
               id="auth-email"
               type="text"
               required
               disabled={loading}
-              placeholder="Enter your registered email or username"
+              placeholder="e.g. SC-101, 9876543210, or student username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-blue/10 transition-all font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
@@ -515,6 +522,7 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-bold text-slate-700">Account Password</label>
+              <span className="text-[10px] text-amber-600 font-medium">Default: Sunshine123</span>
             </div>
             <div className="relative">
               <input
@@ -522,13 +530,14 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
                 type={showPassword ? "text" : "password"}
                 required
                 disabled={loading}
-                placeholder="Enter your password"
+                placeholder="Enter password (default: Sunshine123)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-3.5 pr-10 py-2.5 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-blue/10 transition-all font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
               />
               <button
                 type="button"
+                id="btn-toggle-login-pass"
                 disabled={loading}
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1 disabled:opacity-50"
@@ -537,6 +546,9 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
+            <p className="text-[11px] text-slate-400 mt-1">
+              For new admissions, sign in with your Roll No and password <code className="px-1 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-[10px]">sunshine123</code>
+            </p>
           </div>
 
           {/* Remember Me Checkbox */}
@@ -660,6 +672,10 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
             <span>{googleLoginStep}</span>
           </div>
         )}
+
+        <p className="mt-2.5 text-center text-[10.5px] font-medium text-slate-400">
+          Google Sign-In is enabled for registered students, parents, and faculty.
+        </p>
       </>
     )}
       </div>

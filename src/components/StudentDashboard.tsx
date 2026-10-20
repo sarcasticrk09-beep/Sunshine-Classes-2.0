@@ -49,6 +49,7 @@ import { getFeeStatusForRecord, isFeeDueSoon } from '../lib/feeUtils';
 import { getPaymentProvider } from '../lib/paymentProviders';
 import { generateReceiptPdf, generatePaymentHistoryPdf } from '../lib/pdfGenerator';
 import { EnrollmentWizard } from './admissions/EnrollmentWizard';
+import { SyncStatusBadge } from './SyncStatusBadge';
 
 interface StudentDashboardProps {
   student: Student;
@@ -790,6 +791,7 @@ export default function StudentDashboard({
         </div>
 
         <div className="flex flex-wrap items-center gap-3 relative z-20">
+          <SyncStatusBadge />
           {/* Quick Actions Dropdown Menu */}
           <div className="relative">
             <button

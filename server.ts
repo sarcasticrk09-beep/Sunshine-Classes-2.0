@@ -16,6 +16,12 @@ import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
 import fs from "fs";
 import crypto from "crypto";
+import sharp from "sharp";
+import multer from "multer";
+
+const storageUpload = multer({
+  limits: { fileSize: 25 * 1024 * 1024 }
+});
 
 const isUUID = (val: string): boolean =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(val || '').trim());
@@ -1226,7 +1232,7 @@ async function startServer() {
         updatedAt: new Date().toISOString()
       };
 
-      const defaultPass = "Sunshine123";
+      const defaultPass = "sunshine123";
       const hashedPassword = simpleSecureHash(defaultPass);
       const newUser = {
         id: userId,
@@ -1431,7 +1437,7 @@ async function startServer() {
         counter++;
       }
 
-      const defaultPass = "Sunshine@123";
+      const defaultPass = "Sunshine123";
       const hashedPassword = simpleSecureHash(defaultPass);
       const passwordHash = await PasswordService.hashPassword(defaultPass);
       const finalEmail = (targetAdm.email && targetAdm.email.includes('@')) 
@@ -1540,7 +1546,7 @@ async function startServer() {
         phone: sMobile,
         password: hashedPassword,
         passwordHash: passwordHash,
-        mustChangePassword: true,
+        mustChangePassword: false,
         active: true,
         status: 'ACTIVE',
         createdAt: new Date().toISOString(),
@@ -1848,7 +1854,7 @@ async function startServer() {
         counter++;
       }
       const finalEmail = (email && email.trim()) ? email.trim() : `${generatedUsername}@sunshineclasses.net`;
-      const defaultPass = "Sunshine@123";
+      const defaultPass = "sunshine123";
 
       // Supabase Auth Admin account creation
       let authUserId: string;
@@ -2546,9 +2552,17 @@ async function startServer() {
 
   // --- Phase 2.1 Complete Authentication & Authorization REST APIs ---
 
-  // 1. Login endpoint (username + password)
+  // 1. Login endpoint (username / rollNo / mobile + password)
   app.post("/api/auth/login", async (req, res) => {
     return AuthController.login(req, res);
+  });
+
+  // 1b. Student account resolution endpoint (for quick login by rollNo or mobile)
+  app.get("/api/auth/resolve-student", async (req, res) => {
+    return AuthController.resolveStudent(req, res);
+  });
+  app.post("/api/auth/resolve-student", async (req, res) => {
+    return AuthController.resolveStudent(req, res);
   });
 
   // 2. Logout endpoint
@@ -3091,6 +3105,93 @@ async function startServer() {
     }
   });
 
+  // 7. Universal Password Sync to Supabase Auth & PostgreSQL
+  app.post("/api/admin/sync-passwords", authMiddleware, roleMiddleware(['FOUNDER', 'CO_FOUNDER', 'SUPER_ADMIN', 'ADMIN']), async (req: AuthenticatedRequest, res) => {
+    try {
+      const TARGET_PASSWORD = "Sunshine123";
+      const passwordHash = await PasswordService.hashPassword(TARGET_PASSWORD);
+      let updatedAuthCount = 0;
+      let provisionedAuthCount = 0;
+      let updatedDbCount = 0;
+
+      // Update Supabase Auth users
+      try {
+        const { data: userListRes } = await serverSupabase.auth.admin.listUsers({ perPage: 1000 });
+        const authUsers = userListRes?.users || [];
+
+        for (const u of authUsers) {
+          try {
+            const { error: updateErr } = await serverSupabase.auth.admin.updateUserById(u.id, {
+              password: TARGET_PASSWORD
+            });
+            if (!updateErr) updatedAuthCount++;
+          } catch {}
+        }
+
+        // Provision missing seed users into Auth
+        for (const seed of SEED_USERS) {
+          const alreadyInAuth = authUsers.some(
+            u => u.email?.toLowerCase() === seed.email.toLowerCase()
+          );
+          if (!alreadyInAuth && seed.email) {
+            try {
+              const { error: createErr } = await serverSupabase.auth.admin.createUser({
+                email: seed.email,
+                password: TARGET_PASSWORD,
+                email_confirm: true,
+                user_metadata: {
+                  name: seed.name,
+                  username: seed.username,
+                  role: seed.role
+                }
+              });
+              if (!createErr) provisionedAuthCount++;
+            } catch {}
+          }
+        }
+      } catch (authErr: any) {
+        console.warn("[Admin Sync Passwords] Supabase Auth update warning:", authErr.message);
+      }
+
+      // Update public.users in Supabase PostgreSQL
+      try {
+        const { data: dbUsers } = await serverSupabase.from('users').select('id, email, username');
+        if (dbUsers && dbUsers.length > 0) {
+          for (const u of dbUsers) {
+            try {
+              await serverSupabase.from('users').update({
+                password_hash: passwordHash,
+                must_change_password: false,
+                updated_at: new Date().toISOString()
+              }).eq('id', u.id);
+              updatedDbCount++;
+            } catch {}
+          }
+        }
+      } catch (pgErr: any) {
+        console.warn("[Admin Sync Passwords] PostgreSQL update warning:", pgErr.message);
+      }
+
+      AuditLogger.log(
+        "PASSWORD_SYNC",
+        req.user?.username || "Admin",
+        `Synchronized ${updatedAuthCount} Supabase Auth users and ${updatedDbCount} database rows to ${TARGET_PASSWORD}`
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: `Successfully synchronized passwords to ${TARGET_PASSWORD}`,
+        updatedAuthCount,
+        provisionedAuthCount,
+        updatedDbCount,
+        targetPassword: TARGET_PASSWORD
+      });
+    } catch (err: any) {
+      console.error("[Admin Sync Passwords Error]:", err);
+      return res.status(500).json({ error: err.message || "Failed to synchronize passwords" });
+    }
+  });
+
   // --- End of Secure Pure Express + JWT Authentication Routes ---
 
   // Serve static assets from public folder
@@ -3592,20 +3693,64 @@ How can I help you towards your academic success today? Feel free to ask!`;
     }
   });
 
-  // 1.6b Unified Supabase Storage File Upload API
-  app.post("/api/storage/upload", async (req, res) => {
+  // 1.6b Unified Supabase Storage File Upload API (Multipart + Base64 with Sharp Compression)
+  app.post("/api/storage/upload", storageUpload.single("file"), async (req: any, res: any) => {
     try {
-      const { fileBase64, fileName, contentType, folder, bucket = "sunshine-media" } = req.body;
-      if (!fileBase64 || !fileName) {
-        return res.status(400).json({ success: false, error: "fileBase64 and fileName are required." });
+      const bucket = req.body?.bucket || "sunshine-media";
+      const folder = req.body?.folder || "";
+      
+      let rawBuffer: Buffer;
+      let originalSize: number;
+      let fileName: string = "";
+      let contentType: string = "";
+
+      if (req.file) {
+        // Multipart upload path
+        rawBuffer = req.file.buffer;
+        originalSize = req.file.size;
+        fileName = req.file.originalname || "upload";
+        contentType = req.file.mimetype || "application/octet-stream";
+      } else if (req.body?.fileBase64 && req.body?.fileName) {
+        // Base64 JSON payload path
+        const base64Data = req.body.fileBase64.includes(",") ? req.body.fileBase64.split(",")[1] : req.body.fileBase64;
+        rawBuffer = Buffer.from(base64Data, "base64");
+        originalSize = rawBuffer.length;
+        fileName = req.body.fileName;
+        contentType = req.body.contentType || "application/octet-stream";
+      } else {
+        return res.status(400).json({ success: false, error: "Either multipart 'file' or 'fileBase64' with 'fileName' is required." });
       }
 
-      // Convert Base64 or DataURL to Buffer
-      const base64Data = fileBase64.includes(",") ? fileBase64.split(",")[1] : fileBase64;
-      const buffer = Buffer.from(base64Data, "base64");
+      // Ensure storage bucket exists
+      try {
+        await serverSupabase.storage.createBucket(bucket, { public: true });
+      } catch {
+        // Ignore if already created
+      }
+
+      let buffer = rawBuffer;
+      let finalContentType = contentType || "application/octet-stream";
+      let cleanName = String(fileName).replace(/[^a-zA-Z0-9._-]/g, "_");
+
+      // Auto-compress images (JPEG, PNG, WebP) to save bandwidth and storage for students
+      const isImage = (contentType && contentType.startsWith("image/")) || /\.(jpe?g|png|webp|gif)$/i.test(fileName);
+      if (isImage && !fileName.toLowerCase().endsWith(".gif")) {
+        try {
+          buffer = await sharp(rawBuffer)
+            .resize({ width: 1920, height: 1920, fit: 'inside', withoutEnlargement: true })
+            .webp({ quality: 80 })
+            .toBuffer();
+          finalContentType = "image/webp";
+          if (!cleanName.toLowerCase().endsWith(".webp")) {
+            cleanName = cleanName.replace(/\.[^.]+$/, "") + ".webp";
+          }
+        } catch (compressionErr) {
+          console.warn("[Storage API] Image compression fallback to raw buffer:", compressionErr);
+          buffer = rawBuffer;
+        }
+      }
 
       const cleanFolder = folder ? `${String(folder).replace(/\/+$/, "")}/` : "";
-      const cleanName = String(fileName).replace(/[^a-zA-Z0-9._-]/g, "_");
       const filePath = `${cleanFolder}${Date.now()}_${cleanName}`;
 
       let publicUrl = "";
@@ -3616,7 +3761,7 @@ How can I help you towards your academic success today? Feel free to ask!`;
           .from(bucket)
           .upload(filePath, buffer, {
             upsert: true,
-            contentType: contentType || "application/octet-stream"
+            contentType: finalContentType
           });
 
         if (error) {
@@ -3645,7 +3790,10 @@ How can I help you towards your academic success today? Feel free to ask!`;
         path: storagePath,
         bucket,
         name: cleanName,
-        size: buffer.length
+        size: buffer.length,
+        originalSize,
+        compressedSize: buffer.length,
+        savedPercent: originalSize > buffer.length ? Math.round(((originalSize - buffer.length) / originalSize) * 100) : 0
       });
     } catch (err: any) {
       console.error("[Supabase Storage API] Internal error:", err);

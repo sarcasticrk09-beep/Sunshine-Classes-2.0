@@ -62,6 +62,9 @@ export interface SyncErrorEvent {
   timestamp: string;
 }
 
+export type GlobalSyncStatus = 'synced' | 'syncing' | 'offline' | 'error';
+export type SyncStatusListener = (status: GlobalSyncStatus, message?: string) => void;
+
 export type SyncListener<T = any> = (collectionName: string, docId: string, data: T | null) => void;
 export type SyncErrorListener = (event: SyncErrorEvent) => void;
 
@@ -345,6 +348,8 @@ class SyncServiceClass {
   private queue: Promise<any> = Promise.resolve();
   private listeners: Set<SyncListener> = new Set();
   private errorListeners: Set<SyncErrorListener> = new Set();
+  private statusListeners: Set<SyncStatusListener> = new Set();
+  private currentStatus: GlobalSyncStatus = (typeof navigator !== 'undefined' && !navigator.onLine) ? 'offline' : 'synced';
   private cache: Map<string, Map<string, any>> = new Map();
   private lastNetworkFailure: number = 0;
   private readonly FAILURE_COOLDOWN_MS = 15000;
@@ -355,13 +360,43 @@ class SyncServiceClass {
   private isProcessingQueue = false;
   private queueTimer: any = null;
 
+  public getSyncStatus(): GlobalSyncStatus {
+    return this.currentStatus;
+  }
+
+  public onStatusChange(listener: SyncStatusListener): () => void {
+    this.statusListeners.add(listener);
+    listener(this.currentStatus);
+    return () => {
+      this.statusListeners.delete(listener);
+    };
+  }
+
+  public setStatus(status: GlobalSyncStatus, message?: string): void {
+    if (this.currentStatus !== status) {
+      this.currentStatus = status;
+      this.statusListeners.forEach(listener => {
+        try {
+          listener(status, message);
+        } catch (e) {
+          console.error('[SyncService] Error in statusListener:', e);
+        }
+      });
+    }
+  }
+
   constructor() {
     this.loadTransactionLog();
 
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => {
         this.recordNetworkSuccess();
+        this.setStatus('synced', 'Back online');
         this.flushTransactionLog();
+      });
+
+      window.addEventListener('offline', () => {
+        this.setStatus('offline', 'Working in offline mode');
       });
 
       // Realtime cross-tab synchronization channel

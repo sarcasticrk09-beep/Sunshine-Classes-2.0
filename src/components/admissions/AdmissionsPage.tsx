@@ -24,7 +24,8 @@ import {
   ChevronRight,
   Download,
   Printer,
-  Check
+  Check,
+  AlertCircle
 } from 'lucide-react';
 import { CloudinaryUpload } from '../CloudinaryUpload';
 
@@ -49,6 +50,8 @@ interface AdmissionsPageProps {
   setAdmPhone: (v: string) => void;
   admWhatsapp: string;
   setAdmWhatsapp: (v: string) => void;
+  admEmail?: string;
+  setAdmEmail?: (v: string) => void;
   admAddress: string;
   setAdmAddress: (v: string) => void;
   admBatch: string;
@@ -87,6 +90,8 @@ export const AdmissionsPage: React.FC<AdmissionsPageProps> = ({
   setAdmPhone,
   admWhatsapp,
   setAdmWhatsapp,
+  admEmail = '',
+  setAdmEmail,
   admAddress,
   setAdmAddress,
   admBatch,
@@ -106,6 +111,16 @@ export const AdmissionsPage: React.FC<AdmissionsPageProps> = ({
   const location = useLocation();
   const navigate = useNavigate();
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
+
+  const searchParams = new URLSearchParams(location.search);
+  const isUnregisteredGoogle = searchParams.get('notice') === 'unregistered_google';
+  const queryEmail = searchParams.get('email') || '';
+
+  useEffect(() => {
+    if (queryEmail && setAdmEmail && !admEmail) {
+      setAdmEmail(queryEmail);
+    }
+  }, [queryEmail, setAdmEmail, admEmail]);
 
   const getAdmissionsSeo = () => {
     const p = location.pathname.toLowerCase();
@@ -316,6 +331,18 @@ export const AdmissionsPage: React.FC<AdmissionsPageProps> = ({
                 </p>
               </div>
 
+              {isUnregisteredGoogle && (
+                <div id="banner-unregistered-google" className="rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 p-4 flex items-start gap-3 text-left">
+                  <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-xs font-bold text-amber-900 dark:text-amber-200">Google Account Not Yet Enrolled</h4>
+                    <p className="text-xs text-amber-800 dark:text-amber-300 mt-1 leading-relaxed">
+                      The account <strong className="font-mono text-amber-950 dark:text-amber-100">{queryEmail || admEmail || 'your Google account'}</strong> is not currently registered as an active student or staff member at Sunshine Classes. Submit your enrolment inquiry below to get started!
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <form onSubmit={handleAdmissionSubmit} className="space-y-6">
                 
                 {/* 1. STUDENT IDENTITY */}
@@ -506,6 +533,20 @@ export const AdmissionsPage: React.FC<AdmissionsPageProps> = ({
                         value={admWhatsapp}
                         onChange={(e) => setAdmWhatsapp(e.target.value.replace(/\D/g, ''))}
                         placeholder="WhatsApp contact number..."
+                        className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 px-3.5 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-amber-500 focus:bg-white dark:focus:bg-slate-800"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Student / Guardian Email Address (For Google Sign-In & Notices)
+                      </label>
+                      <input
+                        id="adm-input-email"
+                        type="email"
+                        value={admEmail}
+                        onChange={(e) => setAdmEmail && setAdmEmail(e.target.value)}
+                        placeholder="e.g. student@gmail.com..."
                         className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 px-3.5 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-amber-500 focus:bg-white dark:focus:bg-slate-800"
                       />
                     </div>

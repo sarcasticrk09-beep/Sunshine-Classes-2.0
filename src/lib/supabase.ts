@@ -358,6 +358,46 @@ export async function uploadToSupabaseStorage(
   const cleanName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
   const filePath = `${folder}${Date.now()}_${cleanName}`;
 
+  // 1. First try server-side compressed upload endpoint (authoritative, compression-enabled)
+  try {
+    const base64Promise = new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const fileBase64 = await base64Promise;
+    const response = await fetch('/api/storage/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileBase64,
+        fileName,
+        contentType: options.contentType || (file instanceof File ? file.type : 'application/octet-stream'),
+        folder: options.folder || '',
+        bucket
+      })
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      if (result.success && result.url) {
+        return {
+          url: result.url,
+          path: result.path || filePath,
+          bucket: result.bucket || bucket,
+          name: result.name || cleanName,
+          size: result.size || (file as any).size,
+          type: (file as any).type
+        };
+      }
+    }
+  } catch (apiErr: any) {
+    console.warn('[Storage Pipeline] Server upload proxy bypassed to direct Supabase client:', apiErr.message);
+  }
+
+  // 2. Direct Supabase Storage client attempt
   if (isSupabaseConfigured) {
     try {
       const { data, error } = await supabase.storage.from(bucket).upload(filePath, file, {
@@ -366,7 +406,7 @@ export async function uploadToSupabaseStorage(
       });
 
       if (error) {
-        console.warn(`[Supabase Storage] Upload error to bucket "${bucket}":`, error.message);
+        console.warn(`[Supabase Storage] Direct upload error to bucket "${bucket}":`, error.message);
         throw error;
       }
 
@@ -380,7 +420,7 @@ export async function uploadToSupabaseStorage(
         type: (file as any).type
       };
     } catch (e: any) {
-      console.warn('[Supabase Storage] Falling back to base64 DataURL:', e.message);
+      console.warn('[Supabase Storage] Direct upload failed, falling back to base64 DataURL:', e.message);
     }
   }
 
