@@ -280,15 +280,12 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
         data = await getPublicStudyMaterials();
       }
       
-      const isInit = typeof window !== 'undefined' && localStorage.getItem('sunshine_study_materials_initialized') === 'true';
-      if (Array.isArray(data) && (data.length > 0 || isInit)) {
-        setMaterials(data.filter(m => m.status === 'PUBLISHED' || !m.status));
-      } else {
-        setMaterials([]);
-      }
+      const hasDummy = Array.isArray(data) && data.some(m => m.fileUrl?.includes('dummy.pdf'));
+      const activeData = (Array.isArray(data) && data.length > 0 && !hasDummy) ? data : SEED_STUDY_MATERIALS;
+      setMaterials(activeData.filter(m => m.status === 'PUBLISHED' || !m.status));
     } catch (err) {
       console.warn('Study materials fetch notice:', err);
-      setMaterials([]);
+      setMaterials(SEED_STUDY_MATERIALS.filter(m => m.status === 'PUBLISHED' || !m.status));
     } finally {
       setLoading(false);
     }
@@ -425,8 +422,8 @@ Faculty: ${item.createdBy || 'Priyanshu Gupta Sir'}
 Description:
 ${item.description || item.desc}
 
-Official Website: https://sunshineclasses.in
-Contact: +91 9988776655 | Pihani, Hardoi (U.P.)`;
+Official Website: https://sunshineclasses.net
+Contact: +91 8707738284 | Pihani, Hardoi (U.P.)`;
 
       const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);

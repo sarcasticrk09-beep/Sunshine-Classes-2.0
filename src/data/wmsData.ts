@@ -270,7 +270,7 @@ export const SEED_WMS_DATA: WMSData = {
       youtube: 'https://youtube.com/@sunshineclassespihani',
       linkedin: 'https://linkedin.com/company/sunshineclassespihani',
       telegram: 'https://t.me/sunshineclassespihani',
-      whatsapp: 'https://wa.me/919999900000'
+      whatsapp: 'https://wa.me/918707738284'
     }
   },
 
@@ -333,7 +333,7 @@ export const SEED_WMS_DATA: WMSData = {
       seoTitle: 'Sunshine Classes Pihani | Best Coaching for Class 1 to 10 in Hardoi',
       metaDescription: 'Sunshine Classes is Pihani\'s premier coaching institute for Class 1 to 10. Master Science, Maths and English with expert faculty, weekly tests and topper results.',
       keywords: ['Sunshine Classes Pihani', 'Coaching in Pihani', 'Best Tuition Pihani', 'Class 10 CBSE Coaching Hardoi', 'Priyanshu Gupta Sunshine'],
-      canonicalUrl: 'https://sunshineclasses.edu.in/',
+      canonicalUrl: 'https://sunshineclasses.net/',
       ogImage: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=1200',
       twitterCard: 'summary_large_image',
       schemaJson: '{\n  "@context": "https://schema.org",\n  "@type": "EducationalOrganization",\n  "name": "Sunshine Classes Pihani",\n  "address": "Pihani, Hardoi, Uttar Pradesh"\n}',
@@ -346,7 +346,7 @@ export const SEED_WMS_DATA: WMSData = {
       seoTitle: 'Sunshine Store | Faculty Recommended Books & Study Resources',
       metaDescription: 'Explore expert recommended textbooks, reference guides, PYQ books and stationery for Class 1 to 10 students.',
       keywords: ['Sunshine Store', 'Class 10 RD Sharma', 'Class 10 NCERT Solutions', 'Best Books for CBSE Class 10'],
-      canonicalUrl: 'https://sunshineclasses.edu.in/store',
+      canonicalUrl: 'https://sunshineclasses.net/store',
       ogImage: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&q=80&w=1200',
       twitterCard: 'summary_large_image',
       schemaJson: '{\n  "@context": "https://schema.org",\n  "@type": "Store",\n  "name": "Sunshine Store"\n}',
@@ -359,7 +359,7 @@ export const SEED_WMS_DATA: WMSData = {
       seoTitle: 'Free Study Material, Question Banks & Practice Sets | Sunshine Classes',
       metaDescription: 'Download free PDF study notes, chapter summaries, formula sheets and sample papers for Class 1st to 10th.',
       keywords: ['Free Study Material', 'Class 10 Science Notes', 'Maths Formula Sheet PDF', 'Board Sample Papers'],
-      canonicalUrl: 'https://sunshineclasses.edu.in/study-material',
+      canonicalUrl: 'https://sunshineclasses.net/study-material',
       ogImage: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&q=80&w=1200',
       twitterCard: 'summary_large_image',
       schemaJson: '{\n  "@context": "https://schema.org",\n  "@type": "WebPage",\n  "name": "Study Material"\n}',
@@ -370,14 +370,14 @@ export const SEED_WMS_DATA: WMSData = {
   mediaItems: [
     { id: 'm-1', name: 'campus-hero.jpg', folder: 'banners', url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=1200', sizeKb: 245, compressionStatus: 'Optimized', usageCount: 2, uploadedAt: '2026-07-10' },
     { id: 'm-2', name: 'sunshine-logo.png', folder: 'logos', url: 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?auto=format&fit=crop&q=80&w=200', sizeKb: 48, compressionStatus: 'Compressed', usageCount: 5, uploadedAt: '2026-06-15' },
-    { id: 'm-3', name: 'class10-syllabus-guide.pdf', folder: 'pdfs', url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', sizeKb: 850, compressionStatus: 'Original', usageCount: 3, uploadedAt: '2026-07-01' },
+    { id: 'm-3', name: 'class10-syllabus-guide.pdf', folder: 'pdfs', url: 'https://cbseacademic.nic.in/web_material/CurriculumMain25/Sec/Maths_Sec_2024-25.pdf', sizeKb: 850, compressionStatus: 'Original', usageCount: 3, uploadedAt: '2026-07-01' },
     { id: 'm-4', name: 'rd-sharma-maths-cover.jpg', folder: 'images', url: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&q=80&w=600', sizeKb: 120, compressionStatus: 'Optimized', usageCount: 1, uploadedAt: '2026-07-20' }
   ],
 
   contactConfig: {
     address: 'Mohalla Mishrana, Opp. Subhash Park, Pihani, Hardoi, Uttar Pradesh - 241406',
     phoneNumbers: ['+91 8707738284', '+91 9140411354'],
-    emails: ['sunshineclassespihani@gmail.com', 'info@sunshineclasses.edu.in'],
+    emails: ['sunshineclassespihani@gmail.com', 'contact@sunshineclasses.net'],
     whatsappNumber: '+91 8707738284',
     googleMapsEmbed: 'https://maps.google.com/maps?q=Mohalla+Mishrana+Pihani+Hardoi&t=&z=14&ie=UTF8&iwloc=&output=embed',
     officeHours: 'Mon - Sat: 07:00 AM - 07:00 PM | Sun: Closed'
@@ -389,7 +389,7 @@ export const SEED_WMS_DATA: WMSData = {
     youtube: 'https://youtube.com/@sunshineclassespihani',
     linkedin: 'https://linkedin.com/company/sunshineclassespihani',
     telegram: 'https://t.me/sunshineclassespihani',
-    whatsapp: 'https://wa.me/919999900000'
+    whatsapp: 'https://wa.me/918707738284'
   },
 
   websiteSettings: {

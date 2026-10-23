@@ -2744,7 +2744,7 @@ export const SunshineStoreAdmin: React.FC<{ currentUser?: User }> = () => {
                 <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1 shadow-sm font-sans">
                   <div className="flex items-center gap-2 text-[11px] text-slate-600 dark:text-slate-400">
                     <div className="w-4 h-4 rounded-full bg-amber-500 text-white font-black flex items-center justify-center text-[9px]">S</div>
-                    <span>sunshineclasses.edu.in › store › {editingProduct.type?.toLowerCase() || 'book'} › <span className="font-mono text-slate-800 dark:text-slate-200">{editingProduct.slug || 'product-slug'}</span></span>
+                    <span>sunshineclasses.net › store › {editingProduct.type?.toLowerCase() || 'book'} › <span className="font-mono text-slate-800 dark:text-slate-200">{editingProduct.slug || 'product-slug'}</span></span>
                   </div>
                   <h5 className="text-base font-bold text-blue-700 dark:text-blue-400 hover:underline cursor-pointer line-clamp-1">
                     {editingProduct.seoTitle || editingProduct.title || 'Product Title - Sunshine Classes Store'}

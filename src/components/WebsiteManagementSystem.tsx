@@ -1303,7 +1303,7 @@ export const WebsiteManagementSystem: React.FC<WebsiteManagementSystemProps> = (
                     seoTitle: 'Page Title | Sunshine Classes',
                     metaDescription: 'Meta description for search engine listings.',
                     keywords: ['Sunshine Classes', 'Pihani'],
-                    canonicalUrl: 'https://sunshineclasses.edu.in/custom',
+                    canonicalUrl: 'https://sunshineclasses.net/custom',
                     ogImage: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=1200',
                     twitterCard: 'summary_large_image',
                     schemaJson: '{}',

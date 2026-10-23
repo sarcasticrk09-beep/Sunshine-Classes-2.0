@@ -19,7 +19,11 @@ export function generateSlug(title: string): string {
 export async function getStudyMaterials(): Promise<StudyMaterial[]> {
   try {
     const list = await SyncService.list<StudyMaterial>(COLLECTION_NAME);
-    if (Array.isArray(list)) {
+    if (Array.isArray(list) && list.length > 0) {
+      const hasDummy = list.some(m => m.fileUrl?.includes('dummy.pdf'));
+      if (hasDummy) {
+        return SEED_STUDY_MATERIALS;
+      }
       return list.map((data) => ({
         ...data,
         id: data.id,
@@ -34,7 +38,7 @@ export async function getStudyMaterials(): Promise<StudyMaterial[]> {
   }
   
   if (typeof window !== 'undefined' && localStorage.getItem('sunshine_study_materials_initialized') === 'true') {
-    return [];
+    return SEED_STUDY_MATERIALS;
   }
   return SEED_STUDY_MATERIALS;
 }
@@ -45,14 +49,18 @@ export async function getStudyMaterials(): Promise<StudyMaterial[]> {
 export async function getPublicStudyMaterials(): Promise<StudyMaterial[]> {
   try {
     const list = await SyncService.list<StudyMaterial>(COLLECTION_NAME);
-    if (Array.isArray(list)) {
+    if (Array.isArray(list) && list.length > 0) {
+      const hasDummy = list.some(m => m.fileUrl?.includes('dummy.pdf'));
+      if (hasDummy) {
+        return SEED_STUDY_MATERIALS.filter((m) => m.isPublic && m.status === 'PUBLISHED');
+      }
       return list.filter((m) => (m.isPublic === undefined || m.isPublic) && (m.status === undefined || m.status === 'PUBLISHED'));
     }
   } catch (err) {
     console.warn('Error fetching public study materials:', err);
   }
   if (typeof window !== 'undefined' && localStorage.getItem('sunshine_study_materials_initialized') === 'true') {
-    return [];
+    return SEED_STUDY_MATERIALS.filter((m) => m.isPublic && m.status === 'PUBLISHED');
   }
   return SEED_STUDY_MATERIALS.filter((m) => m.isPublic && m.status === 'PUBLISHED');
 }

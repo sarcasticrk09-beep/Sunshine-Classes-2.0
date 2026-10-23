@@ -522,8 +522,8 @@ const StudentDirectoryInner: React.FC<StudentDirectoryProps> = ({
 
   const handleDownloadSampleCsv = () => {
     const csvContent = "Name,RollNo,Class,FatherName,MotherName,Mobile,Email,PreferredBatch,Status\n" +
-      "Aarav Sharma,SC-2026-101,Class 10 Board Specialists,Ramesh Sharma,Sunita Sharma,9876543210,aarav.sharma@example.com,Class 10 Morning,ACTIVE\n" +
-      "Diya Verma,SC-2026-102,Class 9 Foundation Course,Anil Verma,Pooja Verma,9876543211,diya.verma@example.com,Class 9 Foundation,ACTIVE\n";
+      "Aarav Sharma,SC-2026-101,Class 10 Board Specialists,Ramesh Sharma,Sunita Sharma,9876543210,aarav.sharma@sunshineclasses.net,Class 10 Morning,ACTIVE\n" +
+      "Diya Verma,SC-2026-102,Class 9 Foundation Course,Anil Verma,Pooja Verma,9876543211,diya.verma@sunshineclasses.net,Class 9 Foundation,ACTIVE\n";
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');

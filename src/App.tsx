@@ -1250,6 +1250,14 @@ export default function App() {
       syncState('toppers', SEED_TOPPERS);
     }
 
+    const finalStudyMaterials = (!loadedStudyMaterials || loadedStudyMaterials.length === 0 || loadedStudyMaterials.some(m => m.fileUrl?.includes('dummy.pdf'))) 
+      ? SEED_STUDY_MATERIALS 
+      : loadedStudyMaterials;
+
+    if (finalStudyMaterials !== loadedStudyMaterials) {
+      syncState('study_materials', SEED_STUDY_MATERIALS);
+    }
+
     setStudents(migratedStudents);
     setTeachers(loadedTeachers);
     setUsers(migratedLoadedUsers);
@@ -1270,7 +1278,7 @@ export default function App() {
     setBlogs(loadedBlogs);
     setTestimonials(loadedTestimonials);
     setToppers(finalToppers);
-    setStudyMaterials(loadedStudyMaterials);
+    setStudyMaterials(finalStudyMaterials);
     setFounders(migratedLoadedFounders);
     setGallery(loadedGallery);
     setNotifications(finalNotifs);
