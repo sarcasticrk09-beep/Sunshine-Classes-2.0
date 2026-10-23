@@ -65,7 +65,7 @@ export const WhyChooseUsSection: React.FC<WhyChooseUsSectionProps> = ({ strength
             Built on Academic Excellence & Proven Results
           </h2>
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-w-2xl mx-auto">
-            Discover why hundreds of parents in Pihani trust Sunshine Classes for their children's board preparation, conceptual clarity, and academic transformation.
+            Discover why parents and students across Hardoi district and Pihani trust Sunshine Classes for their children's board preparation, conceptual clarity, and academic transformation.
           </p>
         </div>
 

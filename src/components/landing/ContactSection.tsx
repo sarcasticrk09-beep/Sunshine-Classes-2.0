@@ -43,7 +43,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ onNavigateSectio
               Reach Sunshine Classes Office
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-              Visit our campus in Pihani, call our reception desk, or connect with us on WhatsApp for instant guidance.
+              Visit our campus in Pihani (Hardoi District), call our admission desk, or connect with us on WhatsApp for instant guidance across Hardoi district.
             </p>
           </div>
 

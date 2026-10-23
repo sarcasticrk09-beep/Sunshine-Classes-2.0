@@ -140,8 +140,8 @@ export const UNIVERSAL_COURSES: UniversalCourse[] = [
         answer: 'Class 1 batch runs daily from 02:00 PM to 03:30 PM to align with primary school closing hours.'
       }
     ],
-    metaTitle: 'Class 1 Tuition & Primary Coaching in Pihani | Sunshine Classes',
-    metaDescription: 'Enroll your child in Class 1 tuition at Sunshine Classes Pihani. Official ₹500/month fee, phonics, math counting & handwriting. Call 8707738284.'
+    metaTitle: 'Class 1 Tuition & Coaching in Hardoi District & Pihani | Sunshine Classes',
+    metaDescription: 'Enroll your child in Class 1 tuition at Sunshine Classes (Hardoi District & Pihani). Official ₹500/month fee, phonics, math counting & handwriting. Call 8707738284.'
   },
   {
     id: 'class-2',
@@ -207,8 +207,8 @@ export const UNIVERSAL_COURSES: UniversalCourse[] = [
         answer: 'The official fee for Class 2 is ₹500/month across all subjects.'
       }
     ],
-    metaTitle: 'Class 2 Tuition & Primary Coaching in Pihani | Sunshine Classes',
-    metaDescription: 'Class 2 tuition classes in Pihani at Sunshine Classes. Official ₹500/month fee, strong foundation in Maths, English & EVS. Call 8707738284.'
+    metaTitle: 'Class 2 Tuition & Coaching in Hardoi District & Pihani | Sunshine Classes',
+    metaDescription: 'Class 2 tuition classes in Hardoi District & Pihani at Sunshine Classes. Official ₹500/month fee, strong foundation in Maths, English & EVS. Call 8707738284.'
   },
   {
     id: 'class-3',
@@ -273,8 +273,8 @@ export const UNIVERSAL_COURSES: UniversalCourse[] = [
         answer: 'The official fee for Class 3 is ₹500 per month with complete study material included.'
       }
     ],
-    metaTitle: 'Class 3 Tuition & Primary Coaching in Pihani | Sunshine Classes',
-    metaDescription: 'Enroll in Class 3 primary tuition at Sunshine Classes Pihani. Official ₹500/month fee, expert Math, Science & English guidance. Call 8707738284.'
+    metaTitle: 'Class 3 Tuition & Coaching in Hardoi District & Pihani | Sunshine Classes',
+    metaDescription: 'Enroll in Class 3 primary tuition at Sunshine Classes (Hardoi District & Pihani). Official ₹500/month fee, expert Math, Science & English guidance. Call 8707738284.'
   },
   {
     id: 'class-4',
@@ -339,8 +339,8 @@ export const UNIVERSAL_COURSES: UniversalCourse[] = [
         answer: 'The official fee for Class 4 is ₹500 per month covering Math, Science, English, and Social Studies.'
       }
     ],
-    metaTitle: 'Class 4 Tuition & Primary Coaching in Pihani | Sunshine Classes',
-    metaDescription: 'Enroll in Class 4 primary tuition at Sunshine Classes Pihani. Official ₹500/month fee, expert Math & Science coaching. Call 8707738284.'
+    metaTitle: 'Class 4 Tuition & Coaching in Hardoi District & Pihani | Sunshine Classes',
+    metaDescription: 'Enroll in Class 4 primary tuition at Sunshine Classes (Hardoi District & Pihani). Official ₹500/month fee, expert Math & Science coaching. Call 8707738284.'
   },
   {
     id: 'class-5',
@@ -406,8 +406,8 @@ export const UNIVERSAL_COURSES: UniversalCourse[] = [
         answer: 'The official fee for Class 5 is ₹700 per month across all subjects.'
       }
     ],
-    metaTitle: 'Class 5 Tuitions & Coaching in Pihani | Sunshine Classes',
-    metaDescription: 'Class 5 coaching classes in Pihani at Sunshine Classes. Official ₹700/month fee, strong foundational learning in Maths & Science. Call 8707738284.'
+    metaTitle: 'Class 5 Tuitions & Coaching in Hardoi District & Pihani | Sunshine Classes',
+    metaDescription: 'Class 5 coaching classes in Hardoi District & Pihani at Sunshine Classes. Official ₹700/month fee, strong foundational learning in Maths & Science. Call 8707738284.'
   },
   {
     id: 'class-6',
@@ -476,8 +476,8 @@ export const UNIVERSAL_COURSES: UniversalCourse[] = [
         answer: 'We maintain a warm, friendly classroom environment where every child is encouraged to ask questions without hesitation.'
       }
     ],
-    metaTitle: 'Class 6 Coaching & Tuitions in Pihani | Sunshine Classes',
-    metaDescription: 'Enroll your child in Class 6 Junior Foundation at Sunshine Classes Pihani. Official ₹700/month fee, patient teachers, small batch size. Call 8707738284.'
+    metaTitle: 'Class 6 Coaching & Tuitions in Hardoi District & Pihani | Sunshine Classes',
+    metaDescription: 'Enroll your child in Class 6 Junior Foundation at Sunshine Classes (Hardoi District & Pihani). Official ₹700/month fee, patient teachers, small batch size. Call 8707738284.'
   },
   {
     id: 'class-7',
@@ -547,8 +547,8 @@ export const UNIVERSAL_COURSES: UniversalCourse[] = [
         answer: 'The official fee for Class 7 is ₹700/month.'
       }
     ],
-    metaTitle: 'Class 7 Tuitions & Coaching in Pihani | Sunshine Classes',
-    metaDescription: 'Class 7 coaching classes in Pihani at Sunshine Classes. Official ₹700/month fee, strong foundational learning in Maths, Science & Grammar. Call 8707738284.'
+    metaTitle: 'Class 7 Tuitions & Coaching in Hardoi District & Pihani | Sunshine Classes',
+    metaDescription: 'Class 7 coaching classes in Hardoi District & Pihani at Sunshine Classes. Official ₹700/month fee, strong foundational learning in Maths, Science & Grammar. Call 8707738284.'
   },
   {
     id: 'class-8',
@@ -621,8 +621,8 @@ export const UNIVERSAL_COURSES: UniversalCourse[] = [
         answer: 'The official fee for Class 8 is ₹700 per month.'
       }
     ],
-    metaTitle: 'Class 8 Coaching & Tuitions in Pihani | Sunshine Classes',
-    metaDescription: 'Enroll in Class 8 Apex Learning tuition at Sunshine Classes Pihani. Official ₹700/month fee, expert teachers for Math, Science & English. Call 8707738284.'
+    metaTitle: 'Class 8 Coaching & Tuitions in Hardoi District & Pihani | Sunshine Classes',
+    metaDescription: 'Enroll in Class 8 Apex Learning tuition at Sunshine Classes (Hardoi District & Pihani). Official ₹700/month fee, expert teachers for Math, Science & English. Call 8707738284.'
   },
   {
     id: 'class-9',
@@ -696,8 +696,8 @@ export const UNIVERSAL_COURSES: UniversalCourse[] = [
         answer: 'The official fee for Class 9 is ₹1,000 per month.'
       }
     ],
-    metaTitle: 'Class 9 Tuition & Coaching in Pihani | Sunshine Classes',
-    metaDescription: 'Join Class 9 Board Foundation program at Sunshine Classes Pihani. Official ₹1,000/month fee, expert Math & Science coaching, regular tests. Call 8707738284.'
+    metaTitle: 'Class 9 Tuition & Coaching in Hardoi District & Pihani | Sunshine Classes',
+    metaDescription: 'Join Class 9 Board Foundation program at Sunshine Classes (Hardoi District & Pihani). Official ₹1,000/month fee, expert Math & Science coaching, regular tests. Call 8707738284.'
   },
   {
     id: 'class-10',
@@ -771,8 +771,8 @@ export const UNIVERSAL_COURSES: UniversalCourse[] = [
         answer: 'Yes! Printed formula booklets, chapter-wise test papers, and daily DPP worksheets are included with no hidden extra charges.'
       }
     ],
-    metaTitle: 'CBSE & UP Board Class 10 Coaching in Pihani | Sunshine Classes',
-    metaDescription: 'Enroll in Class 10 Board Specialist tuition at Sunshine Classes Pihani. Official ₹1,200/mo fee, 100% NCERT mastery, weekly mock tests & top faculty. Call 8707738284.'
+    metaTitle: 'CBSE & UP Board Class 10 Coaching in Hardoi District & Pihani | Sunshine Classes',
+    metaDescription: 'Enroll in Class 10 Board Specialist tuition at Sunshine Classes (Hardoi District & Pihani). Official ₹1,200/mo fee, 100% NCERT mastery, weekly mock tests & top faculty. Call 8707738284.'
   }
 ];
 

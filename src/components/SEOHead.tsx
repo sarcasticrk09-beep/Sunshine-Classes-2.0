@@ -93,7 +93,7 @@ export function SEOHead({ title, description, keywords }: SEOHeadProps = {}) {
         return {
           title: `${course.metaTitle}`,
           description: `${course.metaDescription}`,
-          keywords: `${course.className} Coaching Pihani, ${course.className} Tuition, ${course.badge} Pihani, Sunshine Classes`
+          keywords: `${course.className} Coaching Hardoi, ${course.className} Tuition Hardoi District, ${course.className} Coaching Pihani, ${course.className} Tuition, ${course.badge} Hardoi, Best Coaching in Hardoi, Sunshine Classes`
         };
       }
     }
@@ -101,80 +101,80 @@ export function SEOHead({ title, description, keywords }: SEOHeadProps = {}) {
     switch (pathname) {
       case '/about':
         return {
-          title: "About Sunshine Classes | Premium Tuition & Coaching in Pihani, Hardoi",
-          description: "Learn more about Sunshine Classes, Pihani's leading coaching institute. Dedicated to excellence in education for Classes 1 to 10 with highly qualified teachers, regular weekly test series, and board exam preparation support.",
-          keywords: "About Sunshine Classes, Coaching Institute Pihani, Tuition Pihani, Best Teachers Pihani, Academic Excellence Pihani, Hardoi Coaching"
+          title: "About Sunshine Classes | Premium Tuition & Coaching in Hardoi District & Pihani",
+          description: "Learn more about Sunshine Classes, Hardoi district & Pihani's leading coaching institute. Dedicated to excellence in education for Classes 1 to 10 with highly qualified teachers, regular weekly test series, and board exam preparation support.",
+          keywords: "About Sunshine Classes, Coaching Institute Hardoi, Best Coaching Hardoi District, Tuition Pihani, Best Teachers Hardoi, Academic Excellence Pihani, Hardoi Coaching Institute"
         };
       case '/faculty':
         return {
-          title: "Expert Teaching Faculty & Mentors | Sunshine Classes Pihani",
-          description: "Meet the experienced educators and mentor team at Sunshine Classes Pihani. Specialized subject teachers for Mathematics, Science, English, and Social Studies dedicated to board excellence.",
-          keywords: "Faculty Sunshine Classes, Teachers Pihani, Best Math Teacher Pihani, Science Teacher Hardoi, Coaching Mentors Pihani"
+          title: "Expert Teaching Faculty & Mentors | Sunshine Classes Hardoi District & Pihani",
+          description: "Meet the experienced educators and mentor team at Sunshine Classes. Specialized subject teachers for Mathematics, Science, English, and Social Studies serving students from Pihani, Shahabad, and across Hardoi district.",
+          keywords: "Faculty Sunshine Classes, Teachers Hardoi, Best Math Teacher Hardoi, Science Teacher Hardoi District, Coaching Mentors Pihani"
         };
       case '/courses':
         return {
-          title: "Tuition Directory & Coaching Programs in Pihani | Sunshine Classes",
-          description: "Explore active classroom tuition programs for Class 1 to Class 10 at Sunshine Classes Pihani. Transparent monthly fees (Class 1-4: ₹500/mo, Class 5-8: ₹700/mo, Class 9: ₹1,000/mo, Class 10: ₹1,200/mo), NCERT mapping, weekly tests, and expert faculty.",
-          keywords: "Classes 1-10 Coaching, Math Coaching Pihani, Science Coaching Pihani, Tuition Directory, Board Preparation Pihani, CBSE UP Board Hardoi"
+          title: "Tuition Directory & Coaching Programs in Hardoi District & Pihani | Sunshine Classes",
+          description: "Explore active classroom tuition programs for Class 1 to Class 10 at Sunshine Classes. Transparent monthly fees (Class 1-4: ₹500/mo, Class 5-8: ₹700/mo, Class 9: ₹1,000/mo, Class 10: ₹1,200/mo), NCERT mapping, weekly tests, and expert faculty in Hardoi district.",
+          keywords: "Classes 1-10 Coaching Hardoi, Math Coaching Hardoi, Science Coaching Hardoi District, Tuition Directory Hardoi, Board Preparation Hardoi, CBSE UP Board Hardoi, Coaching Pihani"
         };
       case '/enroll':
       case '/admissions':
         return {
-          title: "Admission Open 2026-2027 | Enroll Now at Sunshine Classes Pihani",
-          description: "Admissions open for classes 1-10 at Sunshine Classes, Pihani. Submit your digital credentials, upload school marks, and reserve your seat instantly for the new academic session. Direct roll number allocated on admin approval!",
-          keywords: "Enroll in Sunshine Classes, Admission Pihani Coaching, Online Admission Tuition, Best Classes Near Me, Register Tuition Pihani"
+          title: "Admission Open 2026-2027 | Enroll Now at Sunshine Classes Hardoi District & Pihani",
+          description: "Admissions open for classes 1-10 at Sunshine Classes. Serving students across Hardoi district and Pihani. Submit your digital credentials, upload school marks, and reserve your seat instantly for the new academic session.",
+          keywords: "Enroll in Sunshine Classes, Admission Hardoi Coaching, Online Admission Tuition Hardoi, Best Classes Near Me Hardoi, Register Tuition Pihani"
         };
       case '/results':
         return {
-          title: "Academic Topper Results & Testimonials | Sunshine Classes Pihani",
-          description: "See the outstanding results and success stories of Sunshine Classes students. High school board exam toppers, course certificates, scorecards, and testimonials from proud parents and students in Pihani, Hardoi.",
-          keywords: "Sunshine Classes Results, Board Exam Toppers Pihani, Parent Testimonials Tuition, Coaching Success Hardoi, Student Scorecards"
+          title: "Academic Topper Results & Testimonials | Sunshine Classes Hardoi District",
+          description: "See the outstanding results and success stories of Sunshine Classes students. High school board exam toppers, course certificates, scorecards, and testimonials from proud parents and students across Hardoi district and Pihani.",
+          keywords: "Sunshine Classes Results, Board Exam Toppers Hardoi, Parent Testimonials Tuition Hardoi, Coaching Success Hardoi District, Student Scorecards"
         };
       case '/resources':
       case '/study-material':
         return {
-          title: "Free E-Learning Resources, Syllabus & Homework Portals | Sunshine Classes",
-          description: "Access high-quality study materials, chapter-wise notes, and class assignments curated by expert teachers. Log in to the Sunshine student portal for digital homework submissions and test schedules.",
-          keywords: "Coaching Study Materials, Free Syllabus Pihani, Tuitions Notes PDF, Homework Portal Sunshine, Student Learning Resources"
+          title: "Free E-Learning Resources, Syllabus & Homework Portals | Sunshine Classes Hardoi",
+          description: "Access high-quality study materials, chapter-wise notes, and class assignments curated by expert teachers. Log in to the Sunshine student portal for digital homework submissions and test schedules across Hardoi district.",
+          keywords: "Coaching Study Materials Hardoi, Free Syllabus Hardoi, Tuitions Notes PDF, Homework Portal Sunshine, Student Learning Resources Hardoi District"
         };
       case '/store':
       case '/books':
         return {
-          title: "Sunshine Store & Book Depot | Textbooks & Stationery in Pihani",
-          description: "Browse and order NCERT textbooks, practice test workbooks, sample papers, science lab manuals, and school stationery directly from Sunshine Classes campus book depot in Pihani.",
-          keywords: "Sunshine Store, NCERT Books Pihani, Coaching Books Hardoi, School Stationery Pihani, CBSE Books Depot"
+          title: "Sunshine Store & Book Depot | Textbooks & Stationery in Hardoi District & Pihani",
+          description: "Browse and order NCERT textbooks, practice test workbooks, sample papers, science lab manuals, and school stationery directly from Sunshine Classes campus book depot in Pihani, Hardoi.",
+          keywords: "Sunshine Store, NCERT Books Hardoi, Coaching Books Hardoi District, School Stationery Pihani, CBSE Books Depot Hardoi"
         };
       case '/gallery':
         return {
-          title: "Coaching Infrastructure & Classroom Gallery | Sunshine Classes Pihani",
-          description: "Browse images of our premium teaching infrastructure, interactive smart boards, clean student study halls, award ceremonies, and extracurricular learning activities at Sunshine Classes, Pihani.",
-          keywords: "Sunshine Classes Gallery, Coaching Infrastructure Pihani, Tuition Classrooms Hardoi, Study Hall Photos, Student Activities"
+          title: "Coaching Infrastructure & Classroom Gallery | Sunshine Classes Hardoi District",
+          description: "Browse images of our premium teaching infrastructure, interactive smart boards, clean student study halls, award ceremonies, and extracurricular learning activities at Sunshine Classes, Pihani, Hardoi.",
+          keywords: "Sunshine Classes Gallery, Coaching Infrastructure Hardoi, Tuition Classrooms Hardoi District, Study Hall Photos, Student Activities"
         };
       case '/contact':
         return {
-          title: "Contact Sunshine Classes | Phone, Email & Google Maps Location in Pihani",
-          description: "Get in touch with Sunshine Classes in Pihani, Hardoi. Reach us at +91-8707738284, +91-9161586254, or contact@sunshineclasses.org. Campus address: Mohalla Mishrana, Opp. Subhash Park, Pihani, Hardoi.",
-          keywords: "Contact Sunshine Classes, Phone Number Pihani Tuition, Address Coaching Pihani, Google Maps Sunshine Classes, Support Email ERP"
+          title: "Contact Sunshine Classes | Campus Location & Helpdesk in Hardoi District & Pihani",
+          description: "Get in touch with Sunshine Classes in Pihani, Hardoi district. Reach us at +91-8707738284, +91-9161586254, or contact@sunshineclasses.org. Campus address: Mohalla Mishrana, Opp. Subhash Park, Pihani, Hardoi.",
+          keywords: "Contact Sunshine Classes, Phone Number Hardoi Tuition, Address Coaching Pihani Hardoi, Google Maps Sunshine Classes, Support Email ERP"
         };
       case '/fees':
         return {
-          title: "Transparent Fee Structure & Secure Online Payment Portal | Sunshine Classes",
-          description: "View our affordable monthly fee ledgers, payment schedules, and pay securely via UPI, QR, or bank transfer. Print immediate, officially signed digital receipts with instant status synchronizations.",
-          keywords: "Affordable Fees Tuition, Tuition Fee Portal, Online Fee Payment Pihani, UPI QR Fees, Sunshine Classes Billing"
+          title: "Transparent Fee Structure & Secure Online Payment Portal | Sunshine Classes Hardoi",
+          description: "View our affordable monthly fee ledgers, payment schedules, and pay securely via UPI, QR, or bank transfer. Providing affordable, high-quality tuition education across Hardoi district.",
+          keywords: "Affordable Fees Tuition Hardoi, Tuition Fee Portal, Online Fee Payment Hardoi District, UPI QR Fees, Sunshine Classes Billing"
         };
       case '/privacy':
       case '/privacy-policy':
         return {
-          title: "Privacy Policy & Student Data Protection | Sunshine Classes Pihani",
-          description: "Official privacy statement and student data protection standards for Sunshine Classes Pihani. Learn how we safeguard student records, parent contact numbers, and ERP credentials.",
-          keywords: "Privacy Policy Sunshine Classes, Student Data Protection Pihani, Coaching ERP Security, Sunshine Privacy"
+          title: "Privacy Policy & Student Data Protection | Sunshine Classes Hardoi District",
+          description: "Official privacy statement and student data protection standards for Sunshine Classes (Hardoi District & Pihani). Learn how we safeguard student records, parent contact numbers, and ERP credentials.",
+          keywords: "Privacy Policy Sunshine Classes, Student Data Protection Hardoi, Coaching ERP Security, Sunshine Privacy"
         };
       case '/terms':
       case '/terms-and-conditions':
         return {
-          title: "Terms of Admission & Student Code of Conduct | Sunshine Classes",
-          description: "Review the institutional rules, attendance regulations, monthly fee billing schedules, and campus code of conduct for enrolled students at Sunshine Classes Pihani, Hardoi.",
-          keywords: "Terms of Admission Sunshine Classes, Coaching Code of Conduct Pihani, Institute Rules Hardoi, Tuition Fee Terms"
+          title: "Terms of Admission & Student Code of Conduct | Sunshine Classes Hardoi District",
+          description: "Review the institutional rules, attendance regulations, monthly fee billing schedules, and campus code of conduct for enrolled students at Sunshine Classes (Hardoi District & Pihani).",
+          keywords: "Terms of Admission Sunshine Classes, Coaching Code of Conduct Hardoi, Institute Rules Hardoi District, Tuition Fee Terms"
         };
       case '/login':
       case '/login/student':
@@ -183,27 +183,27 @@ export function SEOHead({ title, description, keywords }: SEOHeadProps = {}) {
       case '/admin/login':
         return {
           title: "Portal Login | Sunshine Classes ERP Management System",
-          description: "Secure login portal for Sunshine Classes students, teachers, receptionists, and administrators. Access homework, tests, attendance, and fee status records.",
-          keywords: "Sunshine ERP Login, Student Login Pihani, Coaching Admin Portal, Teacher Dashboard Login"
+          description: "Secure login portal for Sunshine Classes students, teachers, receptionists, and administrators across Hardoi district. Access homework, tests, attendance, and fee status records.",
+          keywords: "Sunshine ERP Login, Student Login Hardoi, Coaching Admin Portal, Teacher Dashboard Login"
         };
       case '/404':
         return {
-          title: "404 - Page Not Found | Sunshine Classes Pihani",
-          description: "The requested page on Sunshine Classes could not be found. Explore our tuition courses, study material hub, or contact our campus helpdesk in Pihani.",
-          keywords: "404 Page Not Found, Sunshine Classes Pihani"
+          title: "404 - Page Not Found | Sunshine Classes Hardoi District & Pihani",
+          description: "The requested page on Sunshine Classes could not be found. Explore our tuition courses, study material hub, or contact our campus helpdesk in Pihani, Hardoi.",
+          keywords: "404 Page Not Found, Sunshine Classes Hardoi, Sunshine Classes Pihani"
         };
       default:
         if (pathname.includes('/store/') || pathname.includes('/books/') || pathname.includes('/product/')) {
           return {
-            title: "Sunshine Store Product Details | Textbooks & Resources Pihani",
+            title: "Sunshine Store Product Details | Textbooks & Resources Hardoi District & Pihani",
             description: "Explore book details, edition specifications, and available stock at Sunshine Classes campus store in Pihani, Hardoi.",
-            keywords: "Sunshine Store Books, Textbook Pihani, School Study Book Hardoi"
+            keywords: "Sunshine Store Books, Textbook Hardoi, School Study Book Hardoi District"
           };
         }
         return {
-          title: "Sunshine Classes | Best Coaching Institute & Tuitions in Pihani, Hardoi",
-          description: "Sunshine Classes is the leading coaching center in Pihani, Hardoi, offering highly premium education for Classes 1 to 10. Experienced educators, personalized learning paths, weekly mock tests, and smart tech integration.",
-          keywords: "Best Coaching Institute in Pihani, Coaching Classes in Pihani, Best Tuition Classes in Pihani, Top Coaching Near Me, Affordable Tuition, Board Preparation, CBSE Coaching"
+          title: "Sunshine Classes | Best Coaching Institute & Tuitions in Hardoi District & Pihani",
+          description: "Sunshine Classes is the leading coaching institute in Hardoi district & Pihani, offering premium education for Classes 1 to 10. Experienced educators, personalized learning paths, weekly mock tests, and smart tech integration.",
+          keywords: "Best Coaching in Hardoi, Coaching Institute in Hardoi District, Top Tuitions in Hardoi, Best Coaching Classes in Pihani, Top Coaching Near Me Hardoi, Affordable Tuition Hardoi, Board Preparation Hardoi, CBSE UP Board Coaching"
         };
     }
   };
@@ -288,8 +288,8 @@ export function SEOHead({ title, description, keywords }: SEOHeadProps = {}) {
       "url": siteUrl,
       "logo": `${siteUrl}/logo.png`,
       "image": "https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=800&q=80",
-      "description": "Leading coaching center in Pihani, Hardoi for Classes 1 to 10. Excellence in mathematics, sciences, and languages.",
-      "telephone": "+91-9140411354",
+      "description": "Leading coaching center in Hardoi district & Pihani for Classes 1 to 10. Excellence in Mathematics, Sciences, Languages, and Board Examinations.",
+      "telephone": "+91-8707738284",
       "email": "contact@sunshineclasses.org",
       "foundingDate": "2018",
       "address": {
@@ -305,6 +305,29 @@ export function SEOHead({ title, description, keywords }: SEOHeadProps = {}) {
         "latitude": "27.6258",
         "longitude": "80.2014"
       },
+      "areaServed": [
+        {
+          "@type": "AdministrativeArea",
+          "name": "Hardoi District",
+          "addressRegion": "Uttar Pradesh"
+        },
+        {
+          "@type": "City",
+          "name": "Hardoi"
+        },
+        {
+          "@type": "City",
+          "name": "Pihani"
+        },
+        {
+          "@type": "City",
+          "name": "Shahabad"
+        },
+        {
+          "@type": "City",
+          "name": "Gopamau"
+        }
+      ],
       "sameAs": [
         "https://www.facebook.com/sunshineclassespihani",
         "https://www.youtube.com/@sunshineclassespihani",
@@ -318,7 +341,7 @@ export function SEOHead({ title, description, keywords }: SEOHeadProps = {}) {
       "@id": `${siteUrl}/#localbusiness`,
       "name": "Sunshine Classes Coaching Institute",
       "image": "https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=800&q=80",
-      "telephone": "+919140411354",
+      "telephone": "+918707738284",
       "email": "contact@sunshineclasses.org",
       "priceRange": "₹₹",
       "address": {
@@ -349,10 +372,29 @@ export function SEOHead({ title, description, keywords }: SEOHeadProps = {}) {
           "closes": "14:00"
         }
       ],
-      "areaServed": {
-        "@type": "AdministrativeArea",
-        "name": "Pihani, Hardoi"
-      }
+      "areaServed": [
+        {
+          "@type": "AdministrativeArea",
+          "name": "Hardoi District",
+          "addressRegion": "Uttar Pradesh"
+        },
+        {
+          "@type": "City",
+          "name": "Hardoi"
+        },
+        {
+          "@type": "City",
+          "name": "Pihani"
+        },
+        {
+          "@type": "City",
+          "name": "Shahabad"
+        },
+        {
+          "@type": "City",
+          "name": "Gopamau"
+        }
+      ]
     };
 
     // Breadcrumb schema
@@ -408,10 +450,18 @@ export function SEOHead({ title, description, keywords }: SEOHeadProps = {}) {
       "mainEntity": [
         {
           "@type": "Question",
-          "name": "Which is the best coaching institute in Pihani, Hardoi?",
+          "name": "Which is the best coaching institute in Hardoi district and Pihani?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Sunshine Classes is recognized as the leading coaching institute in Pihani, Hardoi, specializing in academic tuitions and comprehensive exam preparation for students from Classes 1 to 10."
+            "text": "Sunshine Classes is recognized as the leading coaching institute in Hardoi district and Pihani, specializing in academic tuitions and comprehensive exam preparation for students from Classes 1 to 10."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Do students from across Hardoi district attend Sunshine Classes?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, Sunshine Classes welcomes students from all across Hardoi district (including Pihani, Hardoi city, Shahabad, Gopamau, and nearby tehsils) with high-impact classroom batches and digital ERP access for notes, online tests, and homework."
           }
         },
         {
@@ -432,10 +482,10 @@ export function SEOHead({ title, description, keywords }: SEOHeadProps = {}) {
         },
         {
           "@type": "Question",
-          "name": "Is the fee structure affordable?",
+          "name": "Is the fee structure affordable across Hardoi district?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Absolutely. We pride ourselves on delivering standard, top-tier academic coaching at highly affordable tuition prices in Hardoi. Invoices, receipt logs, and UPI QR payments can all be processed via our secure student portal."
+            "text": "Absolutely. We pride ourselves on delivering standard, top-tier academic coaching at highly affordable tuition prices in Hardoi (starting from ₹500/month). Invoices, receipt logs, and UPI QR payments can all be processed via our secure student portal."
           }
         }
       ]

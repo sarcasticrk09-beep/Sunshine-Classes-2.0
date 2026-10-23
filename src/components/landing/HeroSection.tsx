@@ -32,7 +32,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigateSection }) =
 
             {/* Main Headline */}
             <h1 className="font-display text-2xl xs:text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 dark:text-white leading-[1.18] tracking-tight">
-              Pihani's Premier Center for{' '}
+              Hardoi District & Pihani's Premier Center for{' '}
               <span className="bg-gradient-to-r from-amber-500 via-orange-500 to-blue-600 bg-clip-text text-transparent">
                 CBSE Coaching & Academic Excellence
               </span>
@@ -40,7 +40,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigateSection }) =
 
             {/* Supporting Paragraph */}
             <p className="text-xs sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed font-medium max-w-2xl">
-              Empowering students with experienced teachers, personalized guidance, structured test series, free NCERT study material, and campus book depot at Sunshine Store in Pihani, Hardoi.
+              Empowering students across Hardoi district and Pihani with experienced teachers, personalized guidance, structured test series, free NCERT study material, and campus book depot at Sunshine Store in Pihani, Hardoi.
             </p>
 
             {/* Hero Action System: Clean 1+2 layout on mobile, inline row on desktop */}
@@ -123,7 +123,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigateSection }) =
                     </div>
                     <div>
                       <h3 className="font-display font-black text-xs sm:text-sm text-slate-900 dark:text-white">Sunshine Advantage</h3>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400">Pihani's Dedicated Coaching Institute</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">Dedicated Coaching Institute - Hardoi District & Pihani</p>
                     </div>
                   </div>
                   <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
