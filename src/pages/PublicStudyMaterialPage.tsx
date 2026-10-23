@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { StudyMaterial, StudyMaterialType, User } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { StudyMaterial, User } from '../types';
 import { 
   getPublicStudyMaterials, 
   getStudyMaterials, 
-  incrementDownloadCount, 
-  incrementViewCount 
+  incrementDownloadCount 
 } from '../services/studyMaterialService';
 import { SEED_STUDY_MATERIALS } from '../data';
 import { SyncService } from '../services/SyncService';
@@ -12,37 +11,16 @@ import {
   BookOpen, 
   Search, 
   Download, 
-  Eye, 
   FileText, 
-  Sparkles, 
-  ChevronRight, 
-  Filter, 
-  GraduationCap, 
-  Share2, 
-  ExternalLink, 
-  Youtube, 
   CheckCircle2, 
   ArrowLeft,
   X,
-  Tag,
-  Clock,
-  Layers,
-  FileCheck,
   Lock,
   Unlock,
-  TrendingUp,
-  Flame,
-  ArrowUpRight,
-  Video,
-  FileSpreadsheet,
-  FolderArchive,
-  Image as ImageIcon,
-  RotateCcw,
   LogIn,
   ShieldAlert,
-  ArrowRight,
-  SlidersHorizontal,
-  Check
+  Eye,
+  ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -54,7 +32,6 @@ const getRouteMeta = (pathname: string) => {
     return {
       title: 'NCERT Chapter Notes & Summaries',
       subtitle: 'In-depth, chapter-by-chapter revision guides and key concept breakdowns for Math, Science & Grammar.',
-      breadcrumbLabel: 'Chapter Notes',
       categoryPreset: 'NOTES',
       seoTitle: 'NCERT Chapter Notes & Summaries | Sunshine Classes Pihani',
       seoDesc: 'Download NCERT chapter notes and concise revision summaries prepared by expert faculty at Sunshine Classes.'
@@ -64,7 +41,6 @@ const getRouteMeta = (pathname: string) => {
     return {
       title: 'Previous Year Papers (PYQs) & Board Archives',
       subtitle: '10-year solved CBSE & UP Board question papers with marking schemes and step-by-step solutions.',
-      breadcrumbLabel: 'PYQs & Board Papers',
       categoryPreset: 'PYQ',
       seoTitle: 'Board Exam PYQs & Solved Question Papers | Sunshine Classes Pihani',
       seoDesc: '10-year solved CBSE & UP Board examination papers for Class 9 and 10 students.'
@@ -74,7 +50,6 @@ const getRouteMeta = (pathname: string) => {
     return {
       title: 'Formula Cheat-Sheets & Math Quick Tricks',
       subtitle: 'Instant revision formula sheets for Mathematics, Physics equations, Chemistry reactions, and shortcuts.',
-      breadcrumbLabel: 'Formula Sheets',
       categoryPreset: 'FORMULA_SHEET',
       seoTitle: 'Math & Physics Formula Sheets | Sunshine Classes Pihani',
       seoDesc: 'Download printable Math and Physics formula cheat sheets for Class 9 and 10 revision.'
@@ -84,7 +59,6 @@ const getRouteMeta = (pathname: string) => {
     return {
       title: 'Practice Worksheets & Problem Sets',
       subtitle: 'Topic-wise practice problem sets and classroom worksheets mapped to NCERT exercises.',
-      breadcrumbLabel: 'Worksheets',
       categoryPreset: 'WORKSHEET',
       seoTitle: 'Classroom & Homework Practice Worksheets | Sunshine Classes Pihani',
       seoDesc: 'Structured Math and Science practice worksheets and problem sets for Class 6 to 10.'
@@ -94,7 +68,6 @@ const getRouteMeta = (pathname: string) => {
     return {
       title: 'Mock Practice Papers & Model Exam Kits',
       subtitle: 'Full-length model question papers and sample test packages formatted as per the latest exam pattern.',
-      breadcrumbLabel: 'Practice Papers',
       categoryPreset: 'SAMPLE_PAPER',
       seoTitle: 'Board Mock Practice Papers & Sample Exams | Sunshine Classes Pihani',
       seoDesc: 'Practice full-length mock exams and sample question papers for Class 10 board preparation.'
@@ -104,7 +77,6 @@ const getRouteMeta = (pathname: string) => {
     return {
       title: 'Comprehensive Study Material Library',
       subtitle: 'Printed notes, complete course kits, and downloadable PDF modules across all tuition subjects.',
-      breadcrumbLabel: 'Study Material',
       categoryPreset: 'ALL',
       seoTitle: 'Comprehensive Study Material Library | Sunshine Classes Pihani',
       seoDesc: 'Access complete PDF study materials and course packages for Sunshine Classes students.'
@@ -114,7 +86,6 @@ const getRouteMeta = (pathname: string) => {
     return {
       title: 'Board Exam Syllabus & Official Blueprints',
       subtitle: 'Complete syllabus breakdown, chapter weightage, and marking patterns for Classes 6 to 10.',
-      breadcrumbLabel: 'Syllabus & Blueprint',
       categoryPreset: 'SYLLABUS',
       seoTitle: 'Board Exam Syllabus & Marking Scheme Blueprints | Sunshine Classes Pihani',
       seoDesc: 'Download syllabus, chapter weightage, and exam blueprints for Sunshine Classes students.'
@@ -124,16 +95,14 @@ const getRouteMeta = (pathname: string) => {
     return {
       title: 'Chapter-Wise Question Banks & Practice Sets',
       subtitle: 'Comprehensive question banks, 1-mark MCQs, case study questions, and long answer sets.',
-      breadcrumbLabel: 'Question Banks',
       categoryPreset: 'QUESTION_BANK',
       seoTitle: 'Class 9 & 10 Question Banks | Sunshine Classes Pihani',
       seoDesc: 'Chapter-wise question banks with solved problems for Class 9 and 10 board prep.'
     };
   }
   return {
-    title: 'Study Material & Learning Resource Portal',
-    subtitle: 'Discover, preview, and download chapter revision notes, formula cheat-sheets, worksheets, NCERT solutions, and 10-year board paper archives.',
-    breadcrumbLabel: 'All Resources',
+    title: 'Study Resources',
+    subtitle: 'Find notes, chapter PDFs, worksheets and previous-year papers.',
     categoryPreset: 'ALL',
     seoTitle: 'Study Resources & Download Center | Sunshine Classes Pihani',
     seoDesc: 'Download NCERT study notes, PYQs, formula sheets, and worksheets from Sunshine Classes.'
@@ -147,75 +116,57 @@ interface PublicStudyMaterialPageProps {
   onOpenLoginModal?: () => void;
 }
 
-const CLASSES_LIST = [
-  'ALL',
-  'Class 10',
-  'Class 9',
-  'Class 8',
-  'Class 7',
-  'Class 6',
-  'Class 5',
-  'Board Specials'
+const RESOURCE_TYPES = [
+  { id: 'ALL', label: 'All Resources' },
+  { id: 'QUESTION_BANK', label: 'Question Bank' },
+  { id: 'SYLLABUS', label: 'Syllabus & Blueprint' },
+  { id: 'PDF', label: 'PDF Documents' },
+  { id: 'NOTES', label: 'Revision Notes' },
+  { id: 'FORMULA_SHEET', label: 'Formula Sheets' },
+  { id: 'PYQ', label: 'Previous Year Papers' },
+  { id: 'WORKSHEET', label: 'Worksheets' },
+  { id: 'SAMPLE_PAPER', label: 'Sample Papers' },
+  { id: 'NCERT_SOLUTION', label: 'NCERT Solutions' }
 ];
 
-const SUBJECTS_LIST = [
-  'ALL',
-  'Mathematics',
-  'Science',
-  'Physics',
-  'Chemistry',
-  'Biology',
-  'English',
-  'Social Studies',
-  'Hindi'
-];
-
-const CATEGORIES_LIST = [
-  { id: 'ALL', label: 'All Categories', icon: '✨' },
-  { id: 'QUESTION_BANK', label: 'Question Bank', icon: '🗂️' },
-  { id: 'SYLLABUS', label: 'Syllabus & Blueprint', icon: '📑' },
-  { id: 'PDF', label: 'PDF Documents', icon: '📄' },
-  { id: 'NOTES', label: 'Revision Notes', icon: '📘' },
-  { id: 'FORMULA_SHEET', label: 'Formula Sheets', icon: '🧮' },
-  { id: 'PYQ', label: 'Previous Year Papers (PYQs)', icon: '📜' },
-  { id: 'WORKSHEET', label: 'Worksheets & Practice', icon: '📋' },
-  { id: 'SAMPLE_PAPER', label: 'Sample Papers', icon: '🎯' },
-  { id: 'NCERT_SOLUTION', label: 'NCERT Solutions', icon: '📖' },
-  { id: 'VIDEO_LINK', label: 'Video Lectures', icon: '🎥' }
-];
-
-export const getCategoryBadgeInfo = (type?: string) => {
-  switch ((type || '').toUpperCase()) {
+const getResourceTypeLabel = (type?: string, category?: string) => {
+  const t = (type || category || '').toUpperCase();
+  switch (t) {
     case 'QUESTION_BANK':
-      return { label: 'Question Bank', color: 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200/60 dark:border-purple-800/60' };
+      return 'Question Bank';
     case 'SYLLABUS':
-      return { label: 'Syllabus', color: 'bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border-violet-200/60 dark:border-violet-800/60' };
+      return 'Syllabus & Blueprint';
     case 'PDF':
-      return { label: 'PDF Document', color: 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200/60 dark:border-rose-800/60' };
+      return 'PDF Document';
     case 'NOTES':
-      return { label: 'Revision Notes', color: 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200/60 dark:border-blue-800/60' };
+      return 'Revision Notes';
     case 'FORMULA_SHEET':
-      return { label: 'Formula Sheet', color: 'bg-teal-100 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border-teal-200/60 dark:border-teal-800/60' };
+      return 'Formula Sheet';
     case 'PYQ':
-      return { label: 'PYQ Paper', color: 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200/60 dark:border-indigo-800/60' };
-    case 'SAMPLE_PAPER':
-      return { label: 'Sample Paper', color: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-800/60' };
+      return 'Previous Year Paper';
     case 'WORKSHEET':
-      return { label: 'Worksheet', color: 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200/60 dark:border-amber-800/60' };
+      return 'Worksheet';
+    case 'SAMPLE_PAPER':
+      return 'Sample Paper';
     case 'NCERT_SOLUTION':
-      return { label: 'NCERT Solution', color: 'bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 border-orange-200/60 dark:border-orange-800/60' };
+      return 'NCERT Solution';
     case 'VIDEO_LINK':
-      return { label: 'Video Lecture', color: 'bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border-red-200/60 dark:border-red-800/60' };
+      return 'Video Lecture';
     default:
-      return { label: 'Study Resource', color: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700' };
+      return 'Study Resource';
   }
 };
 
-const ACCESS_LEVELS = [
-  { id: 'ALL', label: 'All Content' },
-  { id: 'PUBLIC', label: 'Free Public 🌐' },
-  { id: 'RESTRICTED', label: 'Enrolled Student Only 🔒' }
-];
+const formatResourceDate = (dateStr?: string) => {
+  if (!dateStr) return null;
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  } catch {
+    return null;
+  }
+};
 
 export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = ({
   currentUser,
@@ -225,21 +176,19 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const catalogRef = useRef<HTMLDivElement>(null);
 
   const routeMeta = useMemo(() => getRouteMeta(location.pathname), [location.pathname]);
 
   const [materials, setMaterials] = useState<StudyMaterial[]>(cmsMaterials || []);
   const [loading, setLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClass, setSelectedClass] = useState('ALL');
   const [selectedSubject, setSelectedSubject] = useState('ALL');
   const [selectedCategory, setSelectedCategory] = useState(routeMeta.categoryPreset);
-  const [selectedAccess, setSelectedAccess] = useState('ALL');
-  const [sortBy, setSortBy] = useState<'NEWEST' | 'POPULAR' | 'TITLE'>('NEWEST');
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // Sync category when path changes
   useEffect(() => {
@@ -247,9 +196,21 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
   }, [routeMeta.categoryPreset]);
 
   // Modal States
-  const [selectedMaterial, setSelectedMaterial] = useState<StudyMaterial | null>(null);
+  const [previewMaterial, setPreviewMaterial] = useState<StudyMaterial | null>(null);
   const [restrictedModalMaterial, setRestrictedModalMaterial] = useState<StudyMaterial | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Close modals on Escape key press
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (previewMaterial) setPreviewMaterial(null);
+        if (restrictedModalMaterial) setRestrictedModalMaterial(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewMaterial, restrictedModalMaterial]);
 
   // Load study materials on mount or update when cmsMaterials changes
   useEffect(() => {
@@ -271,8 +232,8 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
 
   const loadMaterials = async () => {
     setLoading(true);
+    setHasError(false);
     try {
-      // If user is authenticated as Student/Admin/Teacher, load all materials (including student-only)
       let data: StudyMaterial[] = [];
       if (currentUser) {
         data = await getStudyMaterials();
@@ -281,34 +242,76 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
       }
       
       const hasDummy = Array.isArray(data) && data.some(m => m.fileUrl?.includes('dummy.pdf'));
-      const activeData = (Array.isArray(data) && data.length > 0 && !hasDummy) ? data : SEED_STUDY_MATERIALS;
+      const existingIds = new Set((data || []).map(m => m.id || m.materialId));
+      const combined = hasDummy ? [...SEED_STUDY_MATERIALS] : [...(data || [])];
+      if (!hasDummy) {
+        SEED_STUDY_MATERIALS.forEach(seedItem => {
+          if (!existingIds.has(seedItem.id) && !existingIds.has(seedItem.materialId)) {
+            combined.push(seedItem);
+          }
+        });
+      }
+      const activeData = combined.length > 0 ? combined : SEED_STUDY_MATERIALS;
       setMaterials(activeData.filter(m => m.status === 'PUBLISHED' || !m.status));
     } catch (err) {
       console.warn('Study materials fetch notice:', err);
-      setMaterials(SEED_STUDY_MATERIALS.filter(m => m.status === 'PUBLISHED' || !m.status));
+      if (!materials || materials.length === 0) {
+        setHasError(true);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // Helper for Toast notification
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Latest Uploads (Top 6 newest)
-  const latestUploads = useMemo(() => {
-    return [...materials]
-      .sort((a, b) => new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime())
-      .slice(0, 6);
+  // Dynamically derive available subjects from actual materials
+  const availableSubjects = useMemo(() => {
+    const subs = new Set<string>();
+    materials.forEach(m => {
+      if (m.subject) subs.add(m.subject);
+    });
+    const priority = ['Mathematics', 'Science', 'Physics', 'Chemistry', 'Biology', 'English', 'Social Studies', 'Hindi'];
+    const ordered: string[] = [];
+    priority.forEach(s => {
+      if (subs.has(s)) {
+        ordered.push(s);
+        subs.delete(s);
+      }
+    });
+    subs.forEach(s => ordered.push(s));
+    return ordered;
   }, [materials]);
 
-  // Featured Resources (Curated top study materials)
-  const popularDownloads = useMemo(() => {
-    return [...materials]
-      .sort((a, b) => new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime())
-      .slice(0, 6);
+  // Dynamically derive available classes from actual materials
+  const availableClasses = useMemo(() => {
+    const classes = new Set<string>();
+    materials.forEach(m => {
+      if (m.class) classes.add(m.class);
+    });
+    const standard = ['Class 10', 'Class 9', 'Class 8', 'Class 7', 'Class 6', 'Class 5', 'Board Specials'];
+    const ordered = ['ALL'];
+    standard.forEach(c => {
+      if (classes.has(c)) ordered.push(c);
+    });
+    classes.forEach(c => {
+      if (!ordered.includes(c)) ordered.push(c);
+    });
+    return ordered;
+  }, [materials]);
+
+  // Compute resource count per subject for sidebar
+  const subjectCounts = useMemo(() => {
+    const counts: Record<string, number> = { ALL: materials.length };
+    materials.forEach(m => {
+      if (m.subject) {
+        counts[m.subject] = (counts[m.subject] || 0) + 1;
+      }
+    });
+    return counts;
   }, [materials]);
 
   // Main Filtered Materials
@@ -330,9 +333,6 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
           if (!matchesTag) return false;
         }
       }
-      // Access Level
-      if (selectedAccess === 'PUBLIC' && item.isPublic === false) return false;
-      if (selectedAccess === 'RESTRICTED' && item.isPublic !== false) return false;
 
       // Search Query
       if (searchQuery.trim()) {
@@ -351,30 +351,65 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
 
       return true;
     }).sort((a, b) => {
-      if (sortBy === 'POPULAR') {
-        return (b.downloadCount || 0) - (a.downloadCount || 0);
-      }
-      if (sortBy === 'TITLE') {
-        return a.title.localeCompare(b.title);
-      }
-      // Default: NEWEST
+      // Chapter numerical order if available, else date
+      const getCh = (item: StudyMaterial): number => {
+        if (item.chapter) {
+          const p = parseInt(item.chapter.replace(/\D/g, ''), 10);
+          if (!isNaN(p)) return p;
+        }
+        const m = (item.title || '').match(/Chapter\s*(\d+)/i);
+        if (m) return parseInt(m[1], 10);
+        return 999;
+      };
+      const chA = getCh(a);
+      const chB = getCh(b);
+      if (chA !== chB) return chA - chB;
       return new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime();
     });
-  }, [materials, selectedClass, selectedSubject, selectedCategory, selectedAccess, searchQuery, sortBy]);
+  }, [materials, selectedClass, selectedSubject, selectedCategory, searchQuery]);
 
-  // Related Resources for Modal
-  const relatedResources = useMemo(() => {
-    if (!selectedMaterial) return [];
-    return materials
-      .filter(m => m.id !== selectedMaterial.id && (m.class === selectedMaterial.class || m.subject === selectedMaterial.subject || m.materialType === selectedMaterial.materialType))
-      .slice(0, 4);
-  }, [materials, selectedMaterial]);
+  const hasActiveFilters = searchQuery.trim() !== '' || selectedClass !== 'ALL' || selectedSubject !== 'ALL' || selectedCategory !== 'ALL';
+
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setSelectedClass('ALL');
+    setSelectedSubject('ALL');
+    setSelectedCategory('ALL');
+  };
 
   // Check access permission for restricted materials
   const hasAccessToMaterial = (material: StudyMaterial): boolean => {
     if (material.isPublic !== false) return true;
-    if (currentUser) return true; // Enrolled student or admin/teacher
+    if (currentUser) return true;
     return false;
+  };
+
+  // Extract browser-compatible preview URL
+  const getPreviewUrl = (material?: StudyMaterial | null): string | null => {
+    if (!material) return null;
+    if (material.fileUrl && material.fileUrl.startsWith('http')) {
+      return material.fileUrl;
+    }
+    if (material.externalUrl && material.externalUrl.startsWith('http')) {
+      return material.externalUrl;
+    }
+    if (material.fileData && (material.fileData.startsWith('http') || material.fileData.startsWith('data:application/pdf'))) {
+      return material.fileData;
+    }
+    return null;
+  };
+
+  // Handle Preview Request
+  const handlePreview = (item: StudyMaterial, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+
+    // Check Access Guard
+    if (!hasAccessToMaterial(item)) {
+      setRestrictedModalMaterial(item);
+      return;
+    }
+
+    setPreviewMaterial(item);
   };
 
   // Handle Download Request
@@ -387,34 +422,37 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
       return;
     }
 
+    setDownloadingId(item.id);
+
     try {
       await incrementDownloadCount(item.id);
       setMaterials(prev => prev.map(m => m.id === item.id ? { ...m, downloadCount: (m.downloadCount || 0) + 1 } : m));
     } catch (err) {
-      console.warn('Metrics recording failed:', err);
+      console.warn('Metrics recording notice:', err);
     }
 
-    // Trigger File Download or View
-    if (item.fileUrl && item.fileUrl.startsWith('http')) {
-      window.open(item.fileUrl, '_blank', 'noopener,noreferrer');
-      showToast(`Downloading "${item.title}" PDF...`);
-    } else if (item.externalUrl && item.externalUrl.startsWith('http')) {
-      window.open(item.externalUrl, '_blank', 'noopener,noreferrer');
-    } else if (item.fileData) {
-      if (item.fileData.startsWith('http://') || item.fileData.startsWith('https://')) {
-        window.open(item.fileData, '_blank', 'noopener,noreferrer');
+    try {
+      // Trigger File Download or View
+      if (item.fileUrl && item.fileUrl.startsWith('http')) {
+        window.open(item.fileUrl, '_blank', 'noopener,noreferrer');
+        showToast(`Downloading "${item.title}" PDF...`);
+      } else if (item.externalUrl && item.externalUrl.startsWith('http')) {
+        window.open(item.externalUrl, '_blank', 'noopener,noreferrer');
+      } else if (item.fileData) {
+        if (item.fileData.startsWith('http://') || item.fileData.startsWith('https://')) {
+          window.open(item.fileData, '_blank', 'noopener,noreferrer');
+        } else {
+          const link = document.createElement('a');
+          link.href = item.fileData;
+          link.download = item.file || `${item.slug || 'study_resource'}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          showToast(`Downloading "${item.file}"...`);
+        }
       } else {
-        const link = document.createElement('a');
-        link.href = item.fileData;
-        link.download = item.file || `${item.slug || 'study_resource'}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        showToast(`Downloading "${item.file}"...`);
-      }
-    } else {
-      // Fallback Blob download for standard NCERT text reference
-      const content = `Sunshine Classes Study Resource
+        // Fallback Blob download for reference
+        const content = `Sunshine Classes Study Resource
 Title: ${item.title}
 Class: ${item.class} | Subject: ${item.subject} | Chapter: ${item.chapter || 'N/A'}
 Faculty: ${item.createdBy || 'Priyanshu Gupta Sir'}
@@ -425,78 +463,34 @@ ${item.description || item.desc}
 Official Website: https://sunshineclasses.net
 Contact: +91 8707738284 | Pihani, Hardoi (U.P.)`;
 
-      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${item.slug || 'sunshine_resource'}.txt`;
-      a.click();
-      URL.revokeObjectURL(url);
-      showToast(`Downloaded NCERT Reference Guide for "${item.title}"`);
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${item.slug || 'sunshine_resource'}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast(`Downloaded NCERT Reference Guide for "${item.title}"`);
+      }
+    } finally {
+      setTimeout(() => setDownloadingId(null), 800);
     }
-  };
-
-  // Handle View Details
-  const handleViewDetails = async (item: StudyMaterial, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-
-    // Check Access Guard
-    if (!hasAccessToMaterial(item)) {
-      setRestrictedModalMaterial(item);
-      return;
-    }
-
-    setSelectedMaterial(item);
-    try {
-      await incrementViewCount(item.id);
-      setMaterials(prev => prev.map(m => m.id === item.id ? { ...m, viewCount: (m.viewCount || 0) + 1 } : m));
-    } catch (err) {
-      console.warn('Metrics recording failed:', err);
-    }
-  };
-
-  // Scroll to Catalogue
-  const scrollToCatalogue = () => {
-    if (catalogRef.current) {
-      catalogRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  // Helper function to render file icon based on materialType or file extension
-  const renderFileTypeIcon = (type?: string, file?: string) => {
-    const t = (type || '').toUpperCase();
-    const f = (file || '').toLowerCase();
-
-    if (t === 'VIDEO_LINK' || f.endsWith('.mp4') || f.includes('youtube')) {
-      return <Video className="text-rose-500" size={18} />;
-    }
-    if (f.endsWith('.docx') || f.endsWith('.doc')) {
-      return <FileText className="text-blue-500" size={18} />;
-    }
-    if (f.endsWith('.pptx') || f.endsWith('.ppt')) {
-      return <FileSpreadsheet className="text-amber-500" size={18} />;
-    }
-    if (f.endsWith('.zip') || f.endsWith('.rar')) {
-      return <FolderArchive className="text-purple-500" size={18} />;
-    }
-    if (f.endsWith('.png') || f.endsWith('.jpg') || f.endsWith('.jpeg')) {
-      return <ImageIcon className="text-emerald-500" size={18} />;
-    }
-    return <FileCheck className="text-amber-600" size={18} />;
   };
 
   return (
-    <div id="study-material-portal-page" className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans pb-20">
+    <div id="study-material-portal-page" className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans pb-24">
       <SEOHead title={routeMeta.seoTitle} description={routeMeta.seoDesc} />
       
-      {/* TOAST NOTIFICATION */}
+      {/* Toast Notification */}
       <AnimatePresence>
         {toastMessage && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="fixed bottom-6 right-6 z-50 bg-slate-900 dark:bg-amber-500 text-white dark:text-slate-950 px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-bold border border-slate-700 dark:border-amber-400"
+            className="fixed bottom-6 right-6 z-50 bg-slate-900 dark:bg-amber-500 text-white dark:text-slate-950 px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 text-xs font-semibold border border-slate-700 dark:border-amber-400"
           >
             <CheckCircle2 size={16} className="text-emerald-400 dark:text-slate-950" />
             <span>{toastMessage}</span>
@@ -504,26 +498,25 @@ Contact: +91 8707738284 | Pihani, Hardoi (U.P.)`;
         )}
       </AnimatePresence>
 
-      {/* TOP CONTROL HEADER & INSTANT SEARCH */}
-      <header className="bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white py-6 px-4 border-b border-amber-500/20">
-        <div className="max-w-5xl mx-auto space-y-4">
-          
-          {/* Navigation Bar */}
-          <div className="flex items-center justify-between gap-3 text-xs">
+      {/* Clean Educational Header */}
+      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+          {/* Top Bar Navigation */}
+          <div className="flex items-center justify-between gap-4 text-xs">
             <button
               id="btn-back-home"
               onClick={() => {
                 if (onNavigateSection) onNavigateSection('home');
                 else navigate('/');
               }}
-              className="hover:text-amber-400 flex items-center gap-1 text-slate-300 font-medium transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 font-medium transition-colors cursor-pointer"
             >
-              <ArrowLeft size={14} /> Home
+              <ArrowLeft size={15} /> Home
             </button>
-            <div className="flex items-center gap-2">
+            <div>
               {currentUser ? (
-                <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
-                  <Unlock size={12} /> Student Logged In
+                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <Unlock size={13} /> Student Logged In
                 </span>
               ) : (
                 <button
@@ -532,340 +525,490 @@ Contact: +91 8707738284 | Pihani, Hardoi (U.P.)`;
                     if (onOpenLoginModal) onOpenLoginModal();
                     else navigate('/student/login');
                   }}
-                  className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition-all shadow-xs flex items-center gap-1 cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
-                  <LogIn size={12} /> Student Login
+                  <LogIn size={13} /> Student Login
                 </button>
               )}
             </div>
           </div>
 
+          {/* Heading & Subtitle */}
           <div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-              Study Notes & Learning Resources
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+              Study Resources
             </h1>
-            <p className="text-xs text-slate-300 mt-1">
-              Direct, 1-click access to downloadable NCERT chapter guides, formula sheets, PYQs, and worksheets.
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+              Find notes, chapter PDFs, worksheets and previous-year papers.
             </p>
           </div>
 
-          {/* Search Field & Filter Controls */}
-          <div className="space-y-3 pt-1">
-            <div className="relative">
-              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                id="input-public-resource-search"
-                type="text"
-                placeholder="Filter by filename, subject, or chapter keyword..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-400 text-xs font-medium focus:outline-none focus:border-amber-400 transition-all"
-              />
-              {searchQuery && (
-                <button
-                  id="btn-clear-public-search"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-                >
-                  <X size={14} />
-                </button>
-              )}
+          {/* Prominent Search Bar */}
+          <div className="relative">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              id="input-public-resource-search"
+              type="text"
+              placeholder="Search by subject, chapter, filename or keyword..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 text-xs font-medium focus:outline-none focus:border-amber-500 transition-colors"
+            />
+            {searchQuery && (
+              <button
+                id="btn-clear-public-search"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+
+          {/* Three Compact Filters */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+            {/* Class Filter */}
+            <div>
+              <label htmlFor="select-filter-class" className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">
+                Class
+              </label>
+              <select
+                id="select-filter-class"
+                value={selectedClass}
+                onChange={(e) => setSelectedClass(e.target.value)}
+                className="w-full py-2 px-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 transition-colors cursor-pointer"
+              >
+                {availableClasses.map(cls => (
+                  <option key={cls} value={cls}>
+                    {cls === 'ALL' ? 'All Classes' : cls}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* Class & Subject Filter Pills */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
-              <span className="text-[10px] font-extrabold uppercase text-slate-400 shrink-0">Class:</span>
-              {CLASSES_LIST.map(cls => (
-                <button
-                  key={cls}
-                  id={`btn-filter-class-${cls.toLowerCase().replace(/\s+/g, '-')}`}
-                  onClick={() => setSelectedClass(cls)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
-                    selectedClass === cls
-                      ? 'bg-amber-500 text-white'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  {cls === 'ALL' ? 'All Classes' : cls}
-                </button>
-              ))}
+            {/* Subject Filter */}
+            <div>
+              <label htmlFor="select-filter-subject" className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">
+                Subject
+              </label>
+              <select
+                id="select-filter-subject"
+                value={selectedSubject}
+                onChange={(e) => setSelectedSubject(e.target.value)}
+                className="w-full py-2 px-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 transition-colors cursor-pointer"
+              >
+                <option value="ALL">All Subjects</option>
+                {availableSubjects.map(sub => (
+                  <option key={sub} value={sub}>
+                    {sub}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
-              <span className="text-[10px] font-extrabold uppercase text-slate-400 shrink-0">Subject:</span>
-              {SUBJECTS_LIST.map(s => (
-                <button
-                  key={s}
-                  id={`btn-filter-subject-${s.toLowerCase().replace(/\s+/g, '-')}`}
-                  onClick={() => setSelectedSubject(s)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
-                    selectedSubject === s
-                      ? 'bg-amber-500 text-white'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  {s === 'ALL' ? 'All Subjects' : s}
-                </button>
-              ))}
-            </div>
-
-            {/* Category Filter Pills (Question Bank, Syllabus, PDF Document, etc.) */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
-              <span className="text-[10px] font-extrabold uppercase text-slate-400 shrink-0">Category:</span>
-              {CATEGORIES_LIST.map(cat => (
-                <button
-                  key={cat.id}
-                  id={`btn-filter-category-${cat.id.toLowerCase().replace(/_/g, '-')}`}
-                  onClick={() => setSelectedCategory(cat.id)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
-                    selectedCategory === cat.id
-                      ? 'bg-amber-500 text-white shadow-xs'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  <span>{cat.icon}</span>
-                  <span>{cat.label}</span>
-                </button>
-              ))}
+            {/* Resource Type Filter */}
+            <div>
+              <label htmlFor="select-filter-category" className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">
+                Resource Type
+              </label>
+              <select
+                id="select-filter-category"
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full py-2 px-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 transition-colors cursor-pointer"
+              >
+                {RESOURCE_TYPES.map(rt => (
+                  <option key={rt.id} value={rt.id}>
+                    {rt.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
+          {/* Active Filter Indicator & Clear Action */}
+          {hasActiveFilters && (
+            <div className="flex items-center justify-between pt-2 text-xs border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-1.5 flex-wrap text-slate-600 dark:text-slate-400">
+                <span className="font-semibold text-slate-500 dark:text-slate-400">Active filters:</span>
+                {selectedClass !== 'ALL' && (
+                  <span className="px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 font-semibold border border-amber-200 dark:border-amber-900/40">
+                    {selectedClass}
+                  </span>
+                )}
+                {selectedSubject !== 'ALL' && (
+                  <span className="px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 font-semibold border border-amber-200 dark:border-amber-900/40">
+                    {selectedSubject}
+                  </span>
+                )}
+                {selectedCategory !== 'ALL' && (
+                  <span className="px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 font-semibold border border-amber-200 dark:border-amber-900/40">
+                    {RESOURCE_TYPES.find(r => r.id === selectedCategory)?.label || selectedCategory}
+                  </span>
+                )}
+                {searchQuery && (
+                  <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                    "{searchQuery}"
+                  </span>
+                )}
+              </div>
+              <button
+                id="btn-clear-all-filters"
+                onClick={handleClearFilters}
+                className="text-amber-600 dark:text-amber-400 hover:text-amber-700 font-semibold cursor-pointer shrink-0 ml-3"
+              >
+                Clear Filters
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
-      {/* MAIN HIGH-DENSITY RESOURCE LIST */}
-      <div className="max-w-5xl mx-auto px-4 mt-6">
-        {loading ? (
-          <div className="text-center py-16 space-y-2">
-            <div className="w-8 h-8 border-3 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-xs font-bold text-slate-500">Loading resources...</p>
-          </div>
-        ) : filteredMaterials.length === 0 ? (
-          <div className="p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-center space-y-3">
-            <BookOpen className="mx-auto text-slate-400" size={32} />
-            <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200">
-              No study materials matching your filter
-            </h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Try searching with another keyword or resetting class, subject, and category filters.
-            </p>
-            <button
-              id="btn-reset-public-filters"
-              onClick={() => {
-                setSearchQuery('');
-                setSelectedClass('ALL');
-                setSelectedSubject('ALL');
-                setSelectedCategory('ALL');
-                setSelectedAccess('ALL');
-              }}
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
-            >
-              Reset Filters
-            </button>
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
-            {filteredMaterials.map((item, idx) => {
-              const catBadge = getCategoryBadgeInfo(item.materialType || item.category);
-              return (
-                <div
-                  key={item.id || idx}
-                  className="p-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+      {/* Main Two-Column Layout */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          
+          {/* Left Sidebar — Browse Subjects (Desktop Only) */}
+          <aside className="hidden lg:block lg:col-span-3 space-y-4">
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 sticky top-6">
+              <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 px-3 mb-2">
+                Browse Subjects
+              </h2>
+              <nav className="space-y-1">
+                <button
+                  id="btn-sidebar-subject-all"
+                  onClick={() => setSelectedSubject('ALL')}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                    selectedSubject === 'ALL'
+                      ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-bold border-l-2 border-amber-500'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                  }`}
                 >
-                  <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                    <div className="pt-0.5 shrink-0">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60">
-                        {item.subject}
+                  <span>All Subjects</span>
+                  <span className="text-[11px] font-normal text-slate-400 dark:text-slate-500">
+                    {subjectCounts.ALL || 0}
+                  </span>
+                </button>
+
+                {availableSubjects.map((sub) => {
+                  const count = subjectCounts[sub] || 0;
+                  const isActive = selectedSubject === sub;
+                  return (
+                    <button
+                      key={sub}
+                      id={`btn-sidebar-subject-${sub.toLowerCase().replace(/\s+/g, '-')}`}
+                      onClick={() => setSelectedSubject(sub)}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                        isActive
+                          ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-bold border-l-2 border-amber-500'
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <span className="truncate">{sub}</span>
+                      <span className="text-[11px] font-normal text-slate-400 dark:text-slate-500">
+                        {count}
                       </span>
-                    </div>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          </aside>
 
-                    <div className="min-w-0 flex-1 space-y-0.5">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
-                          {item.title}
-                        </h3>
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${catBadge.color}`}>
-                          {catBadge.label}
-                        </span>
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                          {item.class}
-                        </span>
-                        {item.isPublic === false ? (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 flex items-center gap-0.5 shrink-0">
-                            <Lock size={9} /> Student Exclusive
-                          </span>
-                        ) : null}
-                      </div>
-                    {(item.description || item.desc) && (
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 leading-normal">
-                        {item.description || item.desc}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-2 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
-                  <button
-                    id={`btn-details-catalog-${item.id || idx}`}
-                    onClick={(e) => handleViewDetails(item, e)}
-                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs transition-all cursor-pointer"
-                  >
-                    Details
-                  </button>
-                  <button
-                    id={`btn-dl-catalog-${item.id || idx}`}
-                    onClick={(e) => handleDownload(item, e)}
-                    className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Download size={13} />
-                    <span>Download PDF</span>
-                  </button>
-                </div>
+          {/* Right Panel — Resource List */}
+          <main className="lg:col-span-9 space-y-4">
+            {/* Panel Heading & Result Count */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                  {selectedSubject === 'ALL' ? 'All Resources' : `${selectedSubject} Resources`}
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  {filteredMaterials.length} {filteredMaterials.length === 1 ? 'resource' : 'resources'} available
+                </p>
               </div>
-            );
-          })}
+            </div>
+
+            {/* Content States */}
+            {loading ? (
+              /* Loading Skeletons */
+              <div className="space-y-2">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div
+                    key={i}
+                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg sm:rounded-xl p-3 sm:px-4 sm:py-3 animate-pulse flex items-center justify-between gap-4"
+                  >
+                    <div className="space-y-2 flex-1">
+                      <div className="w-20 h-2.5 bg-slate-200 dark:bg-slate-800 rounded" />
+                      <div className="w-2/3 h-4 bg-slate-200 dark:bg-slate-800 rounded" />
+                      <div className="w-1/3 h-2.5 bg-slate-200 dark:bg-slate-800 rounded" />
+                    </div>
+                    <div className="hidden sm:flex items-center gap-2">
+                      <div className="w-20 h-7 bg-slate-200 dark:bg-slate-800 rounded-lg" />
+                      <div className="w-28 h-7 bg-slate-200 dark:bg-slate-800 rounded-lg" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : hasError ? (
+              /* Error State */
+              <div className="bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/50 rounded-xl p-10 text-center space-y-3">
+                <ShieldAlert className="mx-auto text-rose-500" size={36} />
+                <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+                  Unable to load resources
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                  Unable to load resources. Please try again.
+                </p>
+                <button
+                  id="btn-retry-load-resources"
+                  onClick={loadMaterials}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : filteredMaterials.length === 0 ? (
+              /* Empty State */
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-10 text-center space-y-3">
+                <BookOpen className="mx-auto text-slate-400" size={36} />
+                <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+                  No resources found
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                  No resources found. Try changing your search or filters.
+                </p>
+                <button
+                  id="btn-empty-reset-filters"
+                  onClick={handleClearFilters}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  Clear Filters
+                </button>
+              </div>
+            ) : (
+              /* Clean Compact Resource Rows */
+              <div className="space-y-2">
+                {filteredMaterials.map((item, idx) => {
+                  const chapterInfo = item.chapter || (item.title.match(/Chapter\s*\d+[^:—\-]*/i)?.[0]);
+                  const titleHasChapter = chapterInfo && item.title.toLowerCase().includes(chapterInfo.toLowerCase());
+                  const resourceTypeLabel = getResourceTypeLabel(item.materialType, item.category);
+                  const formattedDate = formatResourceDate(item.createdAt || item.date);
+
+                    return (
+                    <article
+                      key={item.id || idx}
+                      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg sm:rounded-xl p-3 sm:px-4 sm:py-3 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
+                    >
+                      <div className="flex items-start gap-3 min-w-0 flex-1">
+                        {/* Compact file icon on tablet/desktop */}
+                        <div className="hidden sm:flex mt-0.5 p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 shrink-0 border border-amber-200/50 dark:border-amber-900/40">
+                          <FileText size={16} />
+                        </div>
+
+                        <div className="min-w-0 flex-1 space-y-1">
+                          {/* Top row: Subject label & student badge */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                              {item.subject}
+                            </span>
+                            {item.isPublic === false && (
+                              <span className="text-[9px] font-bold text-rose-500 bg-rose-50 dark:bg-rose-950/40 px-1.5 py-0.2 rounded border border-rose-200/50 dark:border-rose-900/40 flex items-center gap-0.5">
+                                <Lock size={9} /> Student Only
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Title - concise, readable, semibold */}
+                          <h3 className="text-[13px] sm:text-sm font-semibold text-slate-900 dark:text-white leading-snug line-clamp-2 sm:line-clamp-1">
+                            {item.title}
+                          </h3>
+
+                          {/* Non-essential description: hidden on small mobile screens, visible on tablet/desktop */}
+                          {(item.description || item.desc) && (
+                            <p className="hidden sm:block text-xs text-slate-600 dark:text-slate-400 line-clamp-1 sm:line-clamp-2 leading-relaxed pt-0.5">
+                              {item.description || item.desc}
+                            </p>
+                          )}
+
+                          {/* Stacked metadata fields on mobile, inline on desktop */}
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-[11px] text-slate-500 dark:text-slate-400 pt-0.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {item.class && <span className="font-semibold text-slate-700 dark:text-slate-300">{item.class}</span>}
+                              {chapterInfo && !titleHasChapter && (
+                                <>
+                                  <span aria-hidden="true" className="text-slate-300 dark:text-slate-600">·</span>
+                                  <span>{chapterInfo}</span>
+                                </>
+                              )}
+                              <span aria-hidden="true" className="text-slate-300 dark:text-slate-600">·</span>
+                              <span className="font-medium text-slate-600 dark:text-slate-300">{resourceTypeLabel}</span>
+                            </div>
+                            {(item.size || formattedDate) && (
+                              <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500">
+                                {item.size && (
+                                  <>
+                                    <span className="hidden sm:inline" aria-hidden="true">·</span>
+                                    <span>{item.size}</span>
+                                  </>
+                                )}
+                                {formattedDate && (
+                                  <>
+                                    <span aria-hidden="true">·</span>
+                                    <span>Updated {formattedDate}</span>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action buttons: span full card width on mobile, inline auto on desktop */}
+                      <div className="shrink-0 sm:self-center flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-1.5 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800/80">
+                        <button
+                          id={`btn-preview-resource-${String(item.id || idx).toLowerCase().replace(/[^a-z0-9_-]/g, '-')}`}
+                          onClick={(e) => handlePreview(item, e)}
+                          className="w-full sm:w-auto px-3 py-2 sm:py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                        >
+                          <Eye size={13} className="shrink-0" />
+                          <span>Preview</span>
+                        </button>
+
+                        <button
+                          id={`btn-download-resource-${String(item.id || idx).toLowerCase().replace(/[^a-z0-9_-]/g, '-')}`}
+                          onClick={(e) => handleDownload(item, e)}
+                          disabled={downloadingId === item.id}
+                          className="w-full sm:w-auto px-3.5 py-2 sm:py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition-colors shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-70 shrink-0"
+                        >
+                          <Download size={13} className="shrink-0" />
+                          <span>{downloadingId === item.id ? 'Downloading...' : 'Download PDF ↓'}</span>
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </main>
         </div>
-        )}
       </div>
 
-      {/* 6. RESOURCE DETAILS MODAL */}
+      {/* Browser-based PDF Preview Modal */}
       <AnimatePresence>
-        {selectedMaterial && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
+        {previewMaterial && (
+          <div
+            id="modal-pdf-preview"
+            className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6 bg-slate-950/80 backdrop-blur-xs"
+            onClick={() => setPreviewMaterial(null)}
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]"
+              transition={{ duration: 0.15 }}
+              className="bg-white dark:bg-slate-900 w-full max-w-5xl h-[92vh] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
             >
-              {/* Header */}
-              <div className="p-5 bg-gradient-to-r from-slate-950 via-slate-900 to-amber-950 text-white flex items-center justify-between shrink-0 border-b border-amber-500/20">
-                <div className="flex items-center gap-2 min-w-0 pr-4">
-                  <BookOpen size={20} className="text-amber-400 shrink-0" />
-                  <h3 className="font-extrabold text-sm sm:text-base truncate">
-                    {selectedMaterial.title}
+              {/* Modal Header */}
+              <div className="px-4 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-3 shrink-0">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs font-semibold">
+                    <span className="text-amber-600 dark:text-amber-400 uppercase tracking-wider text-[11px] font-bold">
+                      {previewMaterial.subject}
+                    </span>
+                    {previewMaterial.class && (
+                      <>
+                        <span aria-hidden="true">·</span>
+                        <span>{previewMaterial.class}</span>
+                      </>
+                    )}
+                    {previewMaterial.chapter && (
+                      <>
+                        <span aria-hidden="true">·</span>
+                        <span>{previewMaterial.chapter}</span>
+                      </>
+                    )}
+                  </div>
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate">
+                    {previewMaterial.title}
                   </h3>
                 </div>
-                <button
-                  onClick={() => setSelectedMaterial(null)}
-                  className="p-1.5 rounded-xl hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
-                >
-                  <X size={18} />
-                </button>
-              </div>
 
-              {/* Modal Body */}
-              <div className="p-6 overflow-y-auto space-y-5">
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <span className="px-3 py-1 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-extrabold">
-                    {selectedMaterial.class}
-                  </span>
-                  <span className="px-3 py-1 rounded-lg bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 font-bold">
-                    {selectedMaterial.subject}
-                  </span>
-                  {selectedMaterial.chapter && (
-                    <span className="text-slate-500 font-semibold">| {selectedMaterial.chapter}</span>
-                  )}
-                  {selectedMaterial.isPublic === false ? (
-                    <span className="ml-auto px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 font-extrabold text-[10px] flex items-center gap-1">
-                      <Lock size={11} /> Enrolled Student Exclusive
-                    </span>
-                  ) : (
-                    <span className="ml-auto px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-extrabold text-[10px] flex items-center gap-1">
-                      <Unlock size={11} /> Free Public Download
-                    </span>
-                  )}
-                </div>
-
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Description & Overview</span>
-                  <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                    {selectedMaterial.description || selectedMaterial.desc}
-                  </p>
-                </div>
-
-                {/* Video Lecture Embed/Link */}
-                {selectedMaterial.youtubeUrl && (
-                  <div className="p-4 bg-rose-50 dark:bg-rose-950/30 rounded-2xl border border-rose-200 dark:border-rose-800 flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <span className="text-xs font-bold text-rose-800 dark:text-rose-300 flex items-center gap-1.5">
-                        <Youtube size={18} /> Video Lecture Available
-                      </span>
-                      <p className="text-[11px] text-rose-600 dark:text-rose-400">Watch Priyanshu Sir's concept breakdown</p>
-                    </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {getPreviewUrl(previewMaterial) && (
                     <a
-                      href={selectedMaterial.youtubeUrl}
+                      id="btn-preview-modal-open-tab"
+                      href={getPreviewUrl(previewMaterial)!}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+                      className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold transition-colors cursor-pointer"
                     >
-                      Watch Video
+                      <ExternalLink size={13} />
+                      <span>Open in New Tab</span>
                     </a>
-                  </div>
-                )}
+                  )}
 
-                {/* Metadata Card */}
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-                  <div>
-                    <span className="text-slate-400 text-[10px] block font-semibold uppercase">Faculty / Author</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200">{selectedMaterial.createdBy || 'Priyanshu Sir'}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 text-[10px] block font-semibold uppercase">File Format</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200">{selectedMaterial.materialType || 'PDF Document'}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 text-[10px] block font-semibold uppercase">File Size</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200">{selectedMaterial.size || '1.2 MB'}</span>
-                  </div>
+                  <button
+                    id="btn-preview-modal-download"
+                    onClick={(e) => handleDownload(previewMaterial, e)}
+                    disabled={downloadingId === previewMaterial.id}
+                    className="px-3 sm:px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-70"
+                  >
+                    <Download size={13} />
+                    <span className="hidden sm:inline">Download PDF</span>
+                    <span className="sm:hidden">Download</span>
+                  </button>
+
+                  <button
+                    id="btn-preview-modal-close"
+                    onClick={() => setPreviewMaterial(null)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    aria-label="Close Preview"
+                  >
+                    <X size={18} />
+                  </button>
                 </div>
-
-                {/* Related Resources */}
-                {relatedResources.length > 0 && (
-                  <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                      Related Resources in {selectedMaterial.class}
-                    </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {relatedResources.map(rel => (
-                        <div
-                          key={rel.id}
-                          onClick={() => handleViewDetails(rel)}
-                          className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-amber-400 bg-white dark:bg-slate-900 transition-all cursor-pointer flex items-center justify-between"
-                        >
-                          <div className="min-w-0 pr-2">
-                            <h4 className="font-bold text-xs text-slate-800 dark:text-slate-200 truncate">{rel.title}</h4>
-                            <span className="text-[10px] text-slate-400">{rel.subject}</span>
-                          </div>
-                          <ChevronRight size={14} className="text-slate-400 shrink-0" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
 
-              {/* Footer CTA */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0">
-                <button
-                  onClick={() => setSelectedMaterial(null)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
-                >
-                  Close Preview
-                </button>
-                <button
-                  onClick={(e) => handleDownload(selectedMaterial, e)}
-                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
-                >
-                  <Download size={15} /> Download Full PDF Document
-                </button>
+              {/* Modal Viewer Body */}
+              <div className="flex-1 w-full bg-slate-100 dark:bg-slate-950 overflow-hidden relative flex flex-col">
+                {getPreviewUrl(previewMaterial) ? (
+                  <iframe
+                    src={getPreviewUrl(previewMaterial)!}
+                    title={previewMaterial.title}
+                    className="w-full h-full border-0"
+                  />
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4">
+                    <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200/50">
+                      <FileText size={40} />
+                    </div>
+                    <div className="max-w-md space-y-1">
+                      <h4 className="text-base font-bold text-slate-900 dark:text-white">
+                        {previewMaterial.title}
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {previewMaterial.description || previewMaterial.desc || 'Direct PDF viewer is available via download.'}
+                      </p>
+                    </div>
+                    <button
+                      id="btn-preview-modal-download-fallback"
+                      onClick={(e) => handleDownload(previewMaterial, e)}
+                      className="px-5 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition-colors shadow-xs flex items-center gap-2 cursor-pointer"
+                    >
+                      <Download size={14} />
+                      <span>Download Resource</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* 7. RESTRICTED ACCESS MODAL */}
+      {/* Restricted Access Modal for Unauthenticated Visitors */}
       <AnimatePresence>
         {restrictedModalMaterial && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
@@ -873,17 +1016,17 @@ Contact: +91 8707738284 | Pihani, Hardoi (U.P.)`;
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-5 text-center relative overflow-hidden"
+              className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-5 text-center relative overflow-hidden"
             >
-              <div className="w-14 h-14 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center text-2xl mx-auto shadow-inner">
-                🔒
+              <div className="w-12 h-12 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xl mx-auto">
+                <Lock size={22} />
               </div>
 
               <div className="space-y-1.5">
-                <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 block">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 block">
                   Enrolled Student Exclusive
                 </span>
-                <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
                   Restricted Access Resource
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
@@ -891,37 +1034,31 @@ Contact: +91 8707738284 | Pihani, Hardoi (U.P.)`;
                 </p>
               </div>
 
-              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 text-left text-xs space-y-1">
-                <div className="font-bold text-slate-700 dark:text-slate-300">How to access?</div>
-                <p className="text-slate-500 text-[11px] leading-snug">
-                  Sign in with your student roll number and password. If you are not enrolled yet, submit an admission request to get your credentials.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-2 pt-1">
+              <div className="flex flex-col gap-2 pt-2">
                 <button
+                  id="btn-login-modal-restricted"
                   onClick={() => {
                     setRestrictedModalMaterial(null);
                     if (onOpenLoginModal) onOpenLoginModal();
                     else navigate('/student/login');
                   }}
-                  className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                 >
-                  <LogIn size={15} /> Log In with Student Account
+                  <LogIn size={14} /> Log In with Student Account
                 </button>
 
                 <button
+                  id="btn-close-restricted-modal"
                   onClick={() => setRestrictedModalMaterial(null)}
-                  className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                  className="w-full py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 >
-                  Back to Public Materials
+                  Back to Resources
                 </button>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
-
     </div>
   );
 };

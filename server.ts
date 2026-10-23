@@ -16,7 +16,13 @@ import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
 import fs from "fs";
 import crypto from "crypto";
-import sharp from "sharp";
+let sharp: any = null;
+try {
+  sharp = require("sharp");
+} catch {
+  // Graceful fallback if native sharp binary is not available in deployment container
+  console.warn("[Server] Optional image optimization library (sharp) not loaded; falling back to direct buffer uploads.");
+}
 import multer from "multer";
 
 const storageUpload = multer({
@@ -3734,7 +3740,7 @@ How can I help you towards your academic success today? Feel free to ask!`;
 
       // Auto-compress images (JPEG, PNG, WebP) to save bandwidth and storage for students
       const isImage = (contentType && contentType.startsWith("image/")) || /\.(jpe?g|png|webp|gif)$/i.test(fileName);
-      if (isImage && !fileName.toLowerCase().endsWith(".gif")) {
+      if (isImage && !fileName.toLowerCase().endsWith(".gif") && sharp) {
         try {
           buffer = await sharp(rawBuffer)
             .resize({ width: 1920, height: 1920, fit: 'inside', withoutEnlargement: true })

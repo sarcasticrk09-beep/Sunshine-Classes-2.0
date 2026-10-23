@@ -1,7 +1,50 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import fs from 'fs';
 import path from 'path';
-import {defineConfig} from 'vite';
+import { defineConfig, Plugin } from 'vite';
+
+// Plugin to ensure production dependencies and package manifest are retained in the output directory
+function productionDependenciesPlugin(): Plugin {
+  return {
+    name: 'production-dependencies-plugin',
+    closeBundle() {
+      try {
+        const rootPkgPath = path.resolve(__dirname, 'package.json');
+        if (fs.existsSync(rootPkgPath)) {
+          const rootPkg = JSON.parse(fs.readFileSync(rootPkgPath, 'utf-8'));
+          const prodPkg = {
+            name: rootPkg.name || 'sunshine-erp',
+            version: rootPkg.version || '1.0.0',
+            private: true,
+            type: rootPkg.type || 'module',
+            scripts: {
+              start: 'node server.cjs'
+            },
+            dependencies: rootPkg.dependencies || {},
+          };
+
+          const targetDirs = [
+            path.resolve(__dirname, 'dist'),
+            path.resolve(__dirname, 'build'),
+          ];
+
+          for (const targetDir of targetDirs) {
+            if (fs.existsSync(targetDir)) {
+              fs.writeFileSync(
+                path.join(targetDir, 'package.json'),
+                JSON.stringify(prodPkg, null, 2),
+                'utf-8'
+              );
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[productionDependenciesPlugin] Non-blocking notice syncing output package.json:', err);
+      }
+    }
+  };
+}
 
 export default defineConfig(() => {
   return {
@@ -12,16 +55,37 @@ export default defineConfig(() => {
       'import.meta.env.VITE_STAGING_SUPABASE_URL': JSON.stringify(process.env.STAGING_SUPABASE_URL || ''),
       'import.meta.env.VITE_STAGING_SUPABASE_ANON_KEY': JSON.stringify(process.env.STAGING_SUPABASE_ANON_KEY || ''),
     },
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), productionDependenciesPlugin()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    optimizeDeps: {
+      include: [
+        'react',
+        'react-dom',
+        'react-router-dom',
+        'lucide-react',
+        'motion',
+        '@supabase/supabase-js',
+      ],
+      // Exclude sharp from client dependency pre-bundling to prevent native module errors
+      exclude: ['sharp'],
+    },
+    ssr: {
+      // Externalize sharp in server-side/SSR contexts
+      external: ['sharp'],
+    },
     build: {
       outDir: 'dist',
-      chunkSizeWarningLimit: 1600,
+      emptyOutDir: true,
+      chunkSizeWarningLimit: 2500,
+      commonjsOptions: {
+        transformMixedEsModules: true,
+      },
       rollupOptions: {
+        external: ['sharp'],
         output: {
           manualChunks(id) {
             if (id.includes('node_modules')) {
