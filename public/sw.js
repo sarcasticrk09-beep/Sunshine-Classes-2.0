@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sunshine-erp-cache-v1';
+const CACHE_NAME = 'sunshine-erp-cache-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -19,7 +19,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate Event
+// Activate Event - purge any older caches immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -45,7 +45,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-first for HTML pages with offline fallback
+  // Network-first for HTML navigation requests
   if (req.mode === 'navigate' || req.headers.get('accept')?.includes('text/html')) {
     event.respondWith(
       fetch(req)
@@ -63,7 +63,27 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Stale-While-Revalidate for static assets
+  // Assets chunk requests: Network-first to ensure latest hashed chunks are fetched immediately
+  if (url.pathname.startsWith('/assets/')) {
+    event.respondWith(
+      fetch(req)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const contentType = networkResponse.headers.get('content-type') || '';
+            // Never cache HTML responses disguised as JS/CSS chunks
+            if (!contentType.includes('text/html')) {
+              const responseClone = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(req, responseClone));
+            }
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // Stale-While-Revalidate for other static assets (images, icons)
   event.respondWith(
     caches.match(req).then((cachedResponse) => {
       const fetchPromise = fetch(req)
@@ -81,9 +101,13 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Message listener for skip waiting
+// Message listener for skip waiting and manual cache purge
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+  if (event.data && event.data.type === 'CLEAR_CACHE') {
+    caches.keys().then((names) => Promise.all(names.map((name) => caches.delete(name))));
+  }
 });
+

@@ -28,6 +28,26 @@ export class GlobalErrorBoundary extends Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Sunshine ERP Uncaught Error caught by GlobalErrorBoundary:', error, errorInfo);
     this.setState({ errorInfo });
+
+    const errorMsg = String(error?.message || '');
+    const isChunkError =
+      error?.name === 'ChunkLoadError' ||
+      errorMsg.includes('Failed to fetch dynamically imported module') ||
+      errorMsg.includes('dynamically imported module') ||
+      errorMsg.includes('Loading chunk') ||
+      errorMsg.includes('Importing a module script failed') ||
+      errorMsg.includes('error loading dynamically imported module');
+
+    if (isChunkError && typeof window !== 'undefined') {
+      const reloadKey = 'sunshine_boundary_chunk_reload';
+      const lastReload = parseInt(sessionStorage.getItem(reloadKey) || '0', 10);
+      const now = Date.now();
+      if (now - lastReload > 12000) {
+        sessionStorage.setItem(reloadKey, String(now));
+        console.warn('[GlobalErrorBoundary] Dynamic chunk load failure caught. Auto-reloading to fetch current app build...');
+        window.location.reload();
+      }
+    }
   }
 
   private handleReset = () => {
@@ -41,6 +61,30 @@ export class GlobalErrorBoundary extends Component<Props, State> {
       const componentStack = this.state.errorInfo?.componentStack || '';
       const stack = this.state.error?.stack || '';
       const fullDetails = `${errorMsg}\n\nCall Stack:\n${stack}\n\nComponent Hierarchy:\n${componentStack}`;
+
+      const isChunkError =
+        this.state.error?.name === 'ChunkLoadError' ||
+        errorMsg.includes('Failed to fetch dynamically imported module') ||
+        errorMsg.includes('dynamically imported module') ||
+        errorMsg.includes('Loading chunk') ||
+        errorMsg.includes('Importing a module script failed') ||
+        errorMsg.includes('error loading dynamically imported module');
+
+      if (isChunkError) {
+        return (
+          <ErrorPage
+            defaultStatusCode="UPDATE_AVAILABLE"
+            defaultTitle="New Application Version Available"
+            defaultMessage="Sunshine Classes ERP has been updated with new features and improvements. Please refresh the page to load the latest version."
+            errorDetails={fullDetails}
+            onRetry={() => {
+              if (typeof window !== 'undefined') {
+                window.location.reload();
+              }
+            }}
+          />
+        );
+      }
 
       return (
         <ErrorPage

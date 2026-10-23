@@ -85,12 +85,13 @@ import {
 import { migrateExistingData, generateFeeRecords, getCurrentAndNextMonths } from './lib/feeUtils';
 import { safeSetItem, safeGetItem } from './utils/safeLocalStorage';
 import { generateReceiptPdf } from './lib/pdfGenerator';
+import { lazyWithRetry } from './utils/lazyWithRetry';
 
 import LandingPage from './components/LandingPage';
-const StudentDashboard = lazy(() => import('./components/StudentDashboard'));
-const TeacherDashboard = lazy(() => import('./components/TeacherDashboard'));
-const ReceptionDashboard = lazy(() => import('./components/ReceptionDashboard'));
-const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+const StudentDashboard = lazyWithRetry(() => import('./components/StudentDashboard'), 'StudentDashboard');
+const TeacherDashboard = lazyWithRetry(() => import('./components/TeacherDashboard'), 'TeacherDashboard');
+const ReceptionDashboard = lazyWithRetry(() => import('./components/ReceptionDashboard'), 'ReceptionDashboard');
+const AdminDashboard = lazyWithRetry(() => import('./components/AdminDashboard'), 'AdminDashboard');
 import { FloatingContactBar } from './components/FloatingContactBar';
 import SunshineLogo from './components/SunshineLogo';
 import { useAuth } from './auth/useAuth';
@@ -100,11 +101,11 @@ import { UserProfileSecurityModal } from './components/UserProfileSecurityModal'
 import { MailSimulatorWidget } from './components/MailSimulatorWidget';
 import { PaymentSuccessModal } from './components/common/PaymentSuccessModal';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-const FeesPage = lazy(() => import('./pages/FeesPage').then(m => ({ default: m.FeesPage })));
-const ReceiptVerificationPage = lazy(() => import('./pages/ReceiptVerificationPage').then(m => ({ default: m.ReceiptVerificationPage })));
-const PublicStudyMaterialPage = lazy(() => import('./pages/PublicStudyMaterialPage'));
-const PublicStorePage = lazy(() => import('./pages/PublicStorePage').then(m => ({ default: m.PublicStorePage })));
-const PublicProductDetailsPage = lazy(() => import('./pages/PublicProductDetailsPage').then(m => ({ default: m.PublicProductDetailsPage })));
+const FeesPage = lazyWithRetry(() => import('./pages/FeesPage').then(m => ({ default: m.FeesPage })), 'FeesPage');
+const ReceiptVerificationPage = lazyWithRetry(() => import('./pages/ReceiptVerificationPage').then(m => ({ default: m.ReceiptVerificationPage })), 'ReceiptVerificationPage');
+const PublicStudyMaterialPage = lazyWithRetry(() => import('./pages/PublicStudyMaterialPage'), 'PublicStudyMaterialPage');
+const PublicStorePage = lazyWithRetry(() => import('./pages/PublicStorePage').then(m => ({ default: m.PublicStorePage })), 'PublicStorePage');
+const PublicProductDetailsPage = lazyWithRetry(() => import('./pages/PublicProductDetailsPage').then(m => ({ default: m.PublicProductDetailsPage })), 'PublicProductDetailsPage');
 import { SEOHead, trackAdmissionSubmit } from './components/SEOHead';
 import { NotFoundPage } from './components/NotFoundPage';
 import { ErrorPage } from './pages/ErrorPage';

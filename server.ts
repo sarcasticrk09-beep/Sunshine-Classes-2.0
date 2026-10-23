@@ -4570,9 +4570,33 @@ Sunshine Classes — *Excellence in Education* ☀️`;
     const distPath = isBundled ? __dirname : path.join(process.cwd(), "dist");
     console.log(`[Server] Production Assets Path: "${distPath}"`);
     
-    app.use(express.static(distPath));
+    // Serve hashed assets with immutable 1-year caching
+    app.use("/assets", express.static(path.join(distPath, "assets"), {
+      immutable: true,
+      maxAge: "1y"
+    }));
+
+    // Missing asset requests must NEVER fall through to index.html (which causes MIME type parse errors for dynamic imports)
+    app.all(["/assets/*", "/*.js", "/*.css", "/*.map"], (req, res) => {
+      res.status(404).type("text/plain").send("Asset not found. The application bundle may have been updated.");
+    });
+
+    // General static files (favicon, manifest, logo, etc.)
+    app.use(express.static(distPath, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith("index.html") || filePath.endsWith("sw.js")) {
+          res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+          res.setHeader("Pragma", "no-cache");
+          res.setHeader("Expires", "0");
+        }
+      }
+    }));
+
     app.get("*", (req, res) => {
       const indexPath = path.join(distPath, "index.html");
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
       res.sendFile(indexPath, (err) => {
         if (err) {
           console.error(`[Server] Error sending index.html:`, err);
