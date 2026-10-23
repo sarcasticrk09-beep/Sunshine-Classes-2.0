@@ -25,6 +25,8 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { SEOHead } from '../components/SEOHead';
+import { FormulaSheetViewer } from '../components/FormulaSheetViewer';
+import { FormulaSheetsData } from '../data/formulaSheetsData';
 
 const getRouteMeta = (pathname: string) => {
   const p = pathname.toLowerCase();
@@ -451,28 +453,45 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
           showToast(`Downloading "${item.file}"...`);
         }
       } else {
-        // Fallback Blob download for reference
-        const content = `Sunshine Classes Study Resource
+        // Enhanced Formula Sheet & Study Material text exporter
+        const formulaData = FormulaSheetsData.getFormulaSheet(item.slug || item.id);
+        let content = `=====================================================
+SUNSHINE CLASSES PIHANI - OFFICIAL FORMULA CHEAT SHEET
 Title: ${item.title}
-Class: ${item.class} | Subject: ${item.subject} | Chapter: ${item.chapter || 'N/A'}
+Class: ${item.class} | Subject: ${item.subject} | Chapter: ${item.chapter || 'All Chapters'}
 Faculty: ${item.createdBy || 'Priyanshu Gupta Sir'}
+Website: https://sunshineclasses.net
+=====================================================\n\n`;
 
-Description:
-${item.description || item.desc}
+        if (formulaData && formulaData.sections) {
+          formulaData.sections.forEach((sec, sIdx) => {
+            content += `SECTION ${sIdx + 1}: ${sec.title.toUpperCase()}\n`;
+            content += `-----------------------------------------------------\n`;
+            sec.formulas.forEach((f, fIdx) => {
+              content += `${sIdx + 1}.${fIdx + 1} ${f.name}\n`;
+              content += `    Formula: ${f.formula}\n`;
+              if (f.variables) content += `    Variables: ${f.variables}\n`;
+              if (f.notes) content += `    Notes: ${f.notes}\n`;
+              content += `\n`;
+            });
+            content += `\n`;
+          });
+        } else {
+          content += `Description:\n${item.description || item.desc}\n\n`;
+        }
 
-Official Website: https://sunshineclasses.net
-Contact: +91 8707738284 | Pihani, Hardoi (U.P.)`;
+        content += `Official Sunshine Classes Revision Material\nContact: +91 8707738284 | Pihani, Hardoi (U.P.)`;
 
         const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${item.slug || 'sunshine_resource'}.txt`;
+        a.download = `${item.slug || 'sunshine_formula_sheet'}.txt`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        showToast(`Downloaded NCERT Reference Guide for "${item.title}"`);
+        showToast(`Downloaded Formula Cheat Sheet for "${item.title}"`);
       }
     } finally {
       setTimeout(() => setDownloadingId(null), 800);
@@ -973,7 +992,11 @@ Contact: +91 8707738284 | Pihani, Hardoi (U.P.)`;
 
               {/* Modal Viewer Body */}
               <div className="flex-1 w-full bg-slate-100 dark:bg-slate-950 overflow-hidden relative flex flex-col">
-                {getPreviewUrl(previewMaterial) ? (
+                {previewMaterial.materialType === 'FORMULA_SHEET' || 
+                 previewMaterial.category === 'FORMULA_SHEET' || 
+                 previewMaterial.tags?.some(t => t.toLowerCase().includes('formula')) ? (
+                  <FormulaSheetViewer material={previewMaterial} />
+                ) : getPreviewUrl(previewMaterial) ? (
                   <iframe
                     src={getPreviewUrl(previewMaterial)!}
                     title={previewMaterial.title}

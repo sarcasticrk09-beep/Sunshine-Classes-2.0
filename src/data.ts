@@ -691,6 +691,27 @@ export const SEED_STUDENTS: Student[] = [
     status: "ACTIVE"
   },
   {
+    id: "s-supriya",
+    userId: "u-supriya",
+    rollNo: "SC-1099",
+    name: "Supriya",
+    class: "Class 10",
+    fatherName: "Rajeev Kumar Verma",
+    motherName: "Smt. Verma",
+    dob: "2011-03-12",
+    gender: "Female",
+    address: "Pihani, Hardoi, UP",
+    mobile: "9999900088",
+    whatsapp: "9999900088",
+    parentMobile: "9999900088",
+    email: "kumarvermarajeev79@gmail.com",
+    preferredBatch: "Class 10 - Morning Excellence",
+    preferredTiming: "07:00 AM - 09:30 AM",
+    admissionDate: "2026-06-01",
+    attendancePercentage: 98,
+    status: "ACTIVE"
+  },
+  {
     id: "s1004",
     userId: "u-student-1004",
     rollNo: "SC-1004",
@@ -1482,6 +1503,7 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Sunshine123',
     status: 'ACTIVE',
     active: true,
+    emailVerified: true,
     mustChangePassword: false,
     forcePasswordChange: false
   },
@@ -1490,13 +1512,30 @@ export const SEED_USERS: User[] = [
     id: 'u-rajeev',
     username: 'rajeev',
     name: 'Rajeev Kumar Verma (Co-Founder)',
-    email: 'kumarvermarajeev79@gmail.com',
+    email: 'sarcasticrk09@gmail.com',
     role: 'SUPER_ADMIN',
     phone: '9999900001',
     password: 'Sunshine123',
     passwordHash: 'Sunshine123',
     status: 'ACTIVE',
     active: true,
+    emailVerified: true,
+    mustChangePassword: false,
+    forcePasswordChange: false
+  },
+  // Enrolled Student: Supriya
+  {
+    id: 'u-supriya',
+    username: 'supriya',
+    name: 'Supriya',
+    email: 'kumarvermarajeev79@gmail.com',
+    role: 'STUDENT',
+    phone: '9999900088',
+    password: 'Sunshine123',
+    passwordHash: 'Sunshine123',
+    status: 'ACTIVE',
+    active: true,
+    emailVerified: true,
     mustChangePassword: false,
     forcePasswordChange: false
   },
@@ -1512,6 +1551,7 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Sunshine123',
     status: 'ACTIVE',
     active: true,
+    emailVerified: true,
     mustChangePassword: false,
     forcePasswordChange: false
   },
@@ -1527,6 +1567,7 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Sunshine123',
     status: 'ACTIVE',
     active: true,
+    emailVerified: true,
     mustChangePassword: false,
     forcePasswordChange: false
   },
@@ -1541,6 +1582,7 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Sunshine123',
     status: 'ACTIVE',
     active: true,
+    emailVerified: true,
     mustChangePassword: false,
     forcePasswordChange: false
   },
@@ -1556,6 +1598,7 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Sunshine123',
     status: 'ACTIVE',
     active: true,
+    emailVerified: true,
     mustChangePassword: false,
     forcePasswordChange: false
   },
@@ -1571,6 +1614,7 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Sunshine123',
     status: 'ACTIVE',
     active: true,
+    emailVerified: true,
     mustChangePassword: false,
     forcePasswordChange: false
   },
@@ -1586,6 +1630,7 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Sunshine123',
     status: 'ACTIVE',
     active: true,
+    emailVerified: true,
     mustChangePassword: false,
     forcePasswordChange: false
   },
@@ -1600,6 +1645,7 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Sunshine123',
     status: 'ACTIVE',
     active: true,
+    emailVerified: true,
     mustChangePassword: false,
     forcePasswordChange: false
   },
@@ -1614,6 +1660,7 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Sunshine123',
     status: 'ACTIVE',
     active: true,
+    emailVerified: true,
     mustChangePassword: false,
     forcePasswordChange: false
   },
@@ -1629,6 +1676,7 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Sunshine123',
     status: 'ACTIVE',
     active: true,
+    emailVerified: true,
     mustChangePassword: false,
     forcePasswordChange: false
   },
@@ -1643,6 +1691,7 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Sunshine123',
     status: 'ACTIVE',
     active: true,
+    emailVerified: true,
     mustChangePassword: false,
     forcePasswordChange: false
   },
@@ -1657,6 +1706,7 @@ export const SEED_USERS: User[] = [
     passwordHash: 'Sunshine123',
     status: 'ACTIVE',
     active: true,
+    emailVerified: true,
     mustChangePassword: false,
     forcePasswordChange: false
   }

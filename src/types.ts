@@ -29,6 +29,7 @@ export interface User {
   parentName?: string;
   parentMobile?: string;
   active?: boolean;
+  emailVerified?: boolean;
   status?: UserAccountStatus;
   isLocked?: boolean;
   forcePasswordChange?: boolean;
