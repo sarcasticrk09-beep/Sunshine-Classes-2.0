@@ -58,6 +58,36 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
   const [passChanging, setPassChanging] = useState<boolean>(false);
   const [passError, setPassError] = useState<string | null>(null);
 
+  // Quick Supabase Configuration Modal State
+  const [showSupabaseModal, setShowSupabaseModal] = useState<boolean>(false);
+  const [quickSupabaseUrl, setQuickSupabaseUrl] = useState<string>(() => localStorage.getItem('sunshine_supabase_url') || sessionStorage.getItem('sunshine_supabase_url') || '');
+  const [quickSupabaseKey, setQuickSupabaseKey] = useState<string>(() => localStorage.getItem('sunshine_supabase_anon_key') || sessionStorage.getItem('sunshine_supabase_anon_key') || '');
+
+  const handleSaveQuickSupabaseConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanUrl = quickSupabaseUrl.trim();
+    const cleanKey = quickSupabaseKey.trim();
+
+    if (cleanUrl) {
+      localStorage.setItem('sunshine_supabase_url', cleanUrl);
+      sessionStorage.setItem('sunshine_supabase_url', cleanUrl);
+    } else {
+      localStorage.removeItem('sunshine_supabase_url');
+      sessionStorage.removeItem('sunshine_supabase_url');
+    }
+
+    if (cleanKey) {
+      localStorage.setItem('sunshine_supabase_anon_key', cleanKey);
+      sessionStorage.setItem('sunshine_supabase_anon_key', cleanKey);
+    } else {
+      localStorage.removeItem('sunshine_supabase_anon_key');
+      sessionStorage.removeItem('sunshine_supabase_anon_key');
+    }
+
+    setShowSupabaseModal(false);
+    window.location.reload();
+  };
+
   // Secure Role-Based Redirection Engine
   const redirectToRoleDashboard = (userRole: string) => {
     const role = (userRole || '').toUpperCase();
@@ -396,20 +426,34 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
         )}
 
         {error && (
-          <div id="login-error-alert" className="mb-5 p-3.5 rounded-2xl bg-rose-50 border border-rose-100 flex items-start justify-between gap-2.5 text-xs text-rose-600 font-semibold leading-relaxed animate-in fade-in slide-in-from-top-1 duration-200">
-            <div className="flex items-start gap-2.5">
-              <AlertCircle size={16} className="shrink-0 mt-0.5" />
-              <span>{error}</span>
+          <div id="login-error-alert" className="mb-5 p-3.5 rounded-2xl bg-rose-50 border border-rose-100 flex flex-col gap-2.5 text-xs text-rose-600 font-semibold leading-relaxed animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="flex items-start justify-between gap-2.5">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+              <button
+                id="btn-dismiss-login-error"
+                type="button"
+                onClick={() => setError(null)}
+                className="text-rose-400 hover:text-rose-600 p-0.5 rounded-lg transition-colors cursor-pointer shrink-0"
+                title="Dismiss message"
+              >
+                ×
+              </button>
             </div>
-            <button
-              id="btn-dismiss-login-error"
-              type="button"
-              onClick={() => setError(null)}
-              className="text-rose-400 hover:text-rose-600 p-0.5 rounded-lg transition-colors cursor-pointer"
-              title="Dismiss message"
-            >
-              ×
-            </button>
+
+            {error.includes('VITE_SUPABASE_URL') && (
+              <button
+                type="button"
+                id="btn-open-quick-supabase-config"
+                onClick={() => setShowSupabaseModal(true)}
+                className="w-full text-center px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Key size={14} />
+                <span>Configure Supabase Keys in Browser</span>
+              </button>
+            )}
           </div>
         )}
 
@@ -709,6 +753,87 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
       </>
     )}
       </div>
+
+      {/* QUICK SUPABASE CONFIGURATION MODAL */}
+      {showSupabaseModal && (
+        <div id="modal-quick-supabase-config" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 relative">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
+                  <Key size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Configure Supabase for Google Sign-In</h3>
+                  <p className="text-[11px] text-slate-500 font-medium">Save client keys directly in browser</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                id="btn-close-quick-supabase-modal"
+                onClick={() => setShowSupabaseModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveQuickSupabaseConfig} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Supabase Project URL
+                </label>
+                <input
+                  id="input-quick-supabase-url"
+                  type="url"
+                  required
+                  placeholder="https://nqxthuycvltpuptejjot.supabase.co"
+                  value={quickSupabaseUrl}
+                  onChange={(e) => setQuickSupabaseUrl(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-mono text-slate-800 outline-none focus:border-brand-blue focus:bg-white transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Supabase Anon Public Key
+                </label>
+                <textarea
+                  id="input-quick-supabase-anon-key"
+                  rows={3}
+                  required
+                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  value={quickSupabaseKey}
+                  onChange={(e) => setQuickSupabaseKey(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-mono text-slate-800 outline-none focus:border-brand-blue focus:bg-white transition-all resize-none"
+                />
+              </div>
+
+              <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200/60 text-[11px] text-amber-900 font-medium leading-relaxed">
+                <span className="font-bold">Permanent Railway Setup:</span> To configure this permanently across all users on <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">sunshineclasses.net</code>, set <code className="font-mono bg-amber-100 px-1 py-0.5 rounded">VITE_SUPABASE_URL</code> and <code className="font-mono bg-amber-100 px-1 py-0.5 rounded">VITE_SUPABASE_ANON_KEY</code> in Railway's <strong>Variables</strong> tab.
+              </div>
+
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="button"
+                  id="btn-cancel-quick-supabase-modal"
+                  onClick={() => setShowSupabaseModal(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  id="btn-save-quick-supabase-config"
+                  className="flex-1 py-2.5 rounded-xl bg-brand-blue hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                >
+                  Save & Enable Google Sign-In
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
