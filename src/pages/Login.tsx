@@ -25,8 +25,20 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
   const [rememberMe, setRememberMe] = useState<boolean>(true);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [activationSuccess, setActivationSuccess] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [googleLoginStep, setGoogleLoginStep] = useState<string>('');
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    if (searchParams.get('activated') === 'true') {
+      setActivationSuccess(true);
+      const emailParam = searchParams.get('email');
+      if (emailParam) {
+        setEmail(emailParam);
+      }
+    }
+  }, [location.search]);
 
   // Registration Form State (Phase 1)
   const [regName, setRegName] = useState('');
@@ -361,6 +373,24 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
               }`}
             >
               New Student Register
+            </button>
+          </div>
+        )}
+
+        {activationSuccess && (
+          <div id="login-activation-success-alert" className="mb-5 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-start justify-between gap-2.5 text-xs text-emerald-800 font-semibold leading-relaxed animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="flex items-start gap-2.5">
+              <UserCheck size={16} className="shrink-0 mt-0.5 text-emerald-600" />
+              <span>🎉 Account activated successfully! Your email verification is complete. You can now log in below.</span>
+            </div>
+            <button
+              id="btn-dismiss-activation-success"
+              type="button"
+              onClick={() => setActivationSuccess(false)}
+              className="text-emerald-500 hover:text-emerald-700 p-0.5 rounded-lg transition-colors cursor-pointer font-bold"
+              title="Dismiss message"
+            >
+              ×
             </button>
           </div>
         )}

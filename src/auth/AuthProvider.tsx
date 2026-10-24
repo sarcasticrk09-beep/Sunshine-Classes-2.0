@@ -616,7 +616,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setGoogleLoading(true);
     try {
       if (!isSupabaseConfigured) {
-        throw new Error("Supabase is not configured. Please check your environment variables.");
+        throw new Error("Google Sign-In requires Supabase environment variables (VITE_SUPABASE_URL & VITE_SUPABASE_ANON_KEY) in Railway. Please sign in below with your Roll No / Username and Password.");
       }
 
       const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/login` : undefined;

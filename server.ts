@@ -4722,6 +4722,147 @@ Sunshine Classes — *Excellence in Education* ☀️`;
     }
   };
 
+  // ============================================================================
+  // Email Activation & Verification Endpoints
+  // ============================================================================
+  const ACTIVATION_SECRET = process.env.ACTIVATION_JWT_SECRET || process.env.JWT_SECRET || "sunshine_activation_secret_key_2026";
+
+  // Helper to generate HMAC token
+  function createActivationToken(uid: string, email: string): string {
+    const exp = Math.floor(Date.now() / 1000) + (24 * 3600); // 24 hours
+    const payloadObj = { uid, email, exp };
+    const payloadB64 = Buffer.from(JSON.stringify(payloadObj)).toString('base64url');
+    const signature = crypto
+      .createHmac('sha256', ACTIVATION_SECRET)
+      .update(payloadB64)
+      .digest('base64url');
+    return `${payloadB64}.${signature}`;
+  }
+
+  // Helper to verify HMAC token
+  function verifyActivationToken(tokenStr: string): { uid: string; email: string } | null {
+    try {
+      const parts = tokenStr.split('.');
+      if (parts.length !== 2) return null;
+      const [payloadB64, signature] = parts;
+      const expectedSig = crypto
+        .createHmac('sha256', ACTIVATION_SECRET)
+        .update(payloadB64)
+        .digest('base64url');
+      if (signature !== expectedSig) return null;
+
+      const payloadObj = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
+      if (payloadObj.exp < Math.floor(Date.now() / 1000)) {
+        return null;
+      }
+      return { uid: payloadObj.uid, email: payloadObj.email };
+    } catch {
+      return null;
+    }
+  }
+
+  // Endpoint 1: Generate activation token and dispatch email
+  app.post("/api/generate-activation-link", async (req, res) => {
+    try {
+      const { uid, email, name } = req.body || {};
+      if (!uid || !email) {
+        return res.status(400).json({ error: "uid and email are required" });
+      }
+
+      const token = createActivationToken(uid, email);
+      const appDomain = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+      const activationUrl = `${appDomain}/api/activate-account?token=${encodeURIComponent(token)}`;
+
+      // Attempt to dispatch email if SMTP is configured
+      let emailSent = false;
+      if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+        try {
+          const transporter = nodemailer.createTransport({
+            host: process.env.SMTP_HOST || "smtp-relay.brevo.com",
+            port: Number(process.env.SMTP_PORT) || 587,
+            secure: false,
+            auth: {
+              user: process.env.SMTP_USER,
+              pass: process.env.SMTP_PASS
+            }
+          });
+
+          await transporter.sendMail({
+            from: process.env.SMTP_FROM || `"Sunshine Classes" <no-reply@sunshineclasses.net>`,
+            to: email,
+            subject: "☀️ Verify & Activate Your Sunshine Classes Account",
+            html: `<div style="font-family: sans-serif; max-width: 560px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
+              <h2 style="color: #1e3a8a; margin-top: 0;">Welcome to Sunshine Classes!</h2>
+              <p style="color: #475569; line-height: 1.5;">Hello ${name || 'Student'},</p>
+              <p style="color: #475569; line-height: 1.5;">Please click the button below to verify your email address and activate your account access terminal:</p>
+              <div style="text-align: center; margin: 24px 0;">
+                <a href="${activationUrl}" style="background-color: #f59e0b; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Activate Account Now</a>
+              </div>
+              <p style="color: #94a3b8; font-size: 12px; line-height: 1.4;">Or copy and paste this link in your browser:<br/><a href="${activationUrl}" style="color: #2563eb;">${activationUrl}</a></p>
+              <p style="color: #94a3b8; font-size: 11px; margin-top: 20px;">This link will expire in 24 hours.</p>
+            </div>`
+          });
+          emailSent = true;
+        } catch (mErr: any) {
+          console.warn("[Server] SMTP email dispatch notice:", mErr.message);
+        }
+      }
+
+      res.json({
+        success: true,
+        activationUrl,
+        token,
+        emailSent
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || "Failed to generate activation link" });
+    }
+  });
+
+  // Endpoint 2: Activation Verification Handler
+  app.get("/api/activate-account", async (req, res) => {
+    try {
+      const token = String(req.query.token || '');
+      if (!token) {
+        return res.status(400).send("<h1>Activation Failed</h1><p>Missing token in request.</p>");
+      }
+
+      const verified = verifyActivationToken(token);
+      if (!verified) {
+        return res.status(401).send("<h1>Activation Failed</h1><p>Activation link is invalid or expired. Please request a new verification email.</p>");
+      }
+
+      const { uid, email } = verified;
+
+      // 1. Confirm user in Supabase Auth if serverSupabase is available
+      try {
+        const authAdmin: any = await getAdminAuth();
+        if (authAdmin && typeof authAdmin.updateUser === 'function') {
+          await authAdmin.updateUser(uid, { emailVerified: true });
+        }
+      } catch (aErr: any) {
+        console.warn("[Server Activation] Auth update notice:", aErr.message);
+      }
+
+      // 2. Update Database Profile (users table / adminDb)
+      try {
+        await serverSupabase
+          .from("users")
+          .update({ is_active: true, email_verified: true, status: 'ACTIVE', active: true })
+          .eq("id", uid);
+      } catch (dbErr: any) {
+        console.warn("[Server Activation] DB update notice:", dbErr.message);
+      }
+
+      // 3. Redirect user to Login with activated alert banner
+      const appDomain = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+      return res.redirect(`${appDomain}/login?activated=true&email=${encodeURIComponent(email)}`);
+    } catch (err: any) {
+      console.error("[Server Activation Error]:", err);
+      res.status(500).send("<h1>Activation Error</h1><p>An unexpected error occurred during account activation.</p>");
+    }
+  });
+
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Sunshine Classes Full-Stack Server running on http://localhost:${PORT} in ${isProduction ? 'production' : 'development'} mode`);
   });
