@@ -720,7 +720,7 @@ export default function StudentDashboard({
   };
 
   return (
-    <div id="student-portal" className="mx-auto max-w-7xl px-4 py-8">
+    <div id="student-portal" className="mx-auto max-w-7xl px-4 py-8 pb-24 lg:pb-8">
       {/* Profile Welcome Header */}
       <div id="student-dashboard-header" className="mb-8 flex flex-col justify-between gap-4 rounded-3xl bg-gradient-to-r from-slate-900 via-[#0D47A1] to-[#1A237E] p-6 lg:p-8 text-white md:flex-row md:items-center border border-slate-800 shadow-xl relative overflow-hidden">
         {/* Decorative glowing overlay elements */}
@@ -4652,6 +4652,154 @@ export default function StudentDashboard({
                   className="w-full h-full rounded-lg border-0 bg-white shadow-inner"
                 />
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MOBILE FIXED BOTTOM NAVIGATION BAR (< lg viewports) */}
+      <nav id="nav-student-mobile-bottom-bar" className="fixed bottom-0 inset-x-0 z-40 bg-white/95 border-t border-slate-200 backdrop-blur-md flex items-center justify-around h-16 px-2 lg:hidden shadow-lg">
+        <button
+          id="btn-nav-mobile-home"
+          type="button"
+          onClick={() => { setActiveTab('overview'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          className={`flex-1 flex flex-col items-center justify-center h-full py-1 min-h-[44px] cursor-pointer transition-colors ${
+            activeTab === 'overview' ? 'text-brand-blue font-bold' : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <GraduationCap size={20} />
+          <span className="text-[10px] tracking-tight mt-0.5">Overview</span>
+        </button>
+
+        <button
+          id="btn-nav-mobile-fees"
+          type="button"
+          onClick={() => { setActiveTab('fees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          className={`flex-1 flex flex-col items-center justify-center h-full py-1 min-h-[44px] cursor-pointer transition-colors ${
+            activeTab === 'fees' ? 'text-brand-blue font-bold' : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <CreditCard size={20} />
+          <span className="text-[10px] tracking-tight mt-0.5">Fees</span>
+        </button>
+
+        <button
+          id="btn-nav-mobile-homework"
+          type="button"
+          onClick={() => { setActiveTab('homework'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          className={`flex-1 flex flex-col items-center justify-center h-full py-1 min-h-[44px] cursor-pointer transition-colors ${
+            activeTab === 'homework' ? 'text-brand-blue font-bold' : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <BookOpen size={20} />
+          <span className="text-[10px] tracking-tight mt-0.5">Homework</span>
+        </button>
+
+        <button
+          id="btn-nav-mobile-tests"
+          type="button"
+          onClick={() => { setActiveTab('performance'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          className={`flex-1 flex flex-col items-center justify-center h-full py-1 min-h-[44px] cursor-pointer transition-colors ${
+            activeTab === 'performance' ? 'text-brand-blue font-bold' : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <TrendingUp size={20} />
+          <span className="text-[10px] tracking-tight mt-0.5">Tests</span>
+        </button>
+
+        <button
+          id="btn-nav-mobile-more"
+          type="button"
+          onClick={() => setIsTabDropdownOpen(true)}
+          className={`flex-1 flex flex-col items-center justify-center h-full py-1 min-h-[44px] cursor-pointer transition-colors ${
+            !['overview', 'fees', 'homework', 'performance'].includes(activeTab) || isTabDropdownOpen
+              ? 'text-brand-blue font-bold'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <MessageSquare size={20} />
+          <span className="text-[10px] tracking-tight mt-0.5">More</span>
+        </button>
+      </nav>
+
+      {/* MOBILE SLIDE-OUT DRAWER SIDEBAR (< lg viewports) */}
+      {isTabDropdownOpen && (
+        <div id="drawer-student-mobile-sidebar" className="fixed inset-0 z-50 lg:hidden flex">
+          <div
+            id="backdrop-student-mobile-drawer"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200"
+            onClick={() => setIsTabDropdownOpen(false)}
+          />
+          <div className="relative w-80 max-w-[85vw] bg-white h-full shadow-2xl p-5 overflow-y-auto flex flex-col z-10 animate-in slide-in-from-left duration-250">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+              <div className="flex items-center gap-2.5">
+                <SunshineLogo className="h-8 w-8 shrink-0" />
+                <div>
+                  <h3 className="text-xs font-bold text-slate-900">Sunshine ERP Portal</h3>
+                  <p className="text-[10px] text-slate-500 font-semibold">{student.name} • {student.rollNo}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                id="btn-close-mobile-drawer"
+                onClick={() => setIsTabDropdownOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-1.5 flex-1">
+              {[
+                { id: 'overview', label: 'Dashboard Overview', icon: <GraduationCap size={18} /> },
+                { id: 'applications', label: 'Admission Applications', icon: <FileText size={18} /> },
+                { id: 'profile', label: 'My Student Profile', icon: <User size={18} /> },
+                { id: 'attendance', label: `Attendance Log (${calculatedAttendancePct}%)`, icon: <Calendar size={18} /> },
+                { id: 'fees', label: 'Tuition Fees & Receipts', icon: <CreditCard size={18} /> },
+                { id: 'performance', label: 'Tests & Report Card', icon: <TrendingUp size={18} /> },
+                { id: 'homework', label: 'Homework Assignments', icon: <BookOpen size={18} /> },
+                { id: 'study-material', label: 'Study Material Center', icon: <Download size={18} /> },
+                { id: 'bulletin', label: totalUnreadBulletinsCount > 0 ? `Batch Bulletin Board (${totalUnreadBulletinsCount} new)` : 'Batch Bulletin Board', icon: <MessageSquare size={18} /> },
+                { id: 'notifications', label: 'Notification Center', icon: <Bell size={18} /> }
+              ].map((tab) => {
+                const isSelected = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    id={`drawer-opt-${tab.id}`}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(tab.id as any);
+                      setIsTabDropdownOpen(false);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-xs font-bold transition-all cursor-pointer min-h-[44px] ${
+                      isSelected
+                        ? 'bg-brand-blue text-white shadow-sm'
+                        : 'text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className={isSelected ? 'text-amber-300' : 'text-slate-400'}>
+                      {tab.icon}
+                    </span>
+                    <span className="text-left flex-1 truncate">{tab.label}</span>
+                    {isSelected && <Check size={16} className="text-amber-300 shrink-0 font-bold" />}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 mt-4">
+              <button
+                id="btn-drawer-digital-id"
+                type="button"
+                onClick={() => {
+                  setIsTabDropdownOpen(false);
+                  setIdCardOpen(true);
+                }}
+                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-amber-400 hover:bg-amber-500 text-slate-950 py-3 text-xs font-black shadow-sm transition-colors cursor-pointer min-h-[44px]"
+              >
+                <QrCode size={16} /> Digital Student ID Card
+              </button>
             </div>
           </div>
         </div>

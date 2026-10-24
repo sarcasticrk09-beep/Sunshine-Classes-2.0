@@ -728,7 +728,7 @@ export default function ReceptionDashboard({
     .reduce((sum, f) => sum + f.pendingFee, 0);
 
   return (
-    <div id="reception-portal" className="mx-auto max-w-7xl px-4 py-8">
+    <div id="reception-portal" className="mx-auto max-w-7xl px-4 py-8 pb-24 lg:pb-8">
       {/* Welcome Header */}
       <div className="mb-8 flex flex-col justify-between gap-4 rounded-3xl bg-amber-600 p-6 text-white md:flex-row md:items-center shadow-md">
         <div className="flex items-center gap-4">
@@ -1878,6 +1878,135 @@ export default function ReceptionDashboard({
               >
                 <Printer size={13} /> Print Receipt
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MOBILE FIXED BOTTOM NAVIGATION BAR (< lg viewports) */}
+      <nav id="nav-reception-mobile-bottom-bar" className="fixed bottom-0 inset-x-0 z-40 bg-amber-950/95 border-t border-amber-800/60 backdrop-blur-md flex items-center justify-around h-16 px-2 lg:hidden shadow-2xl text-white">
+        <button
+          id="btn-reception-nav-mobile-admissions"
+          type="button"
+          onClick={() => { setActiveTab('admissions'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          className={`flex-1 flex flex-col items-center justify-center h-full py-1 min-h-[44px] cursor-pointer transition-colors ${
+            activeTab === 'admissions' ? 'text-amber-300 font-bold' : 'text-slate-300 hover:text-white'
+          }`}
+        >
+          <Users size={20} />
+          <span className="text-[10px] tracking-tight mt-0.5">Admissions</span>
+        </button>
+
+        <button
+          id="btn-reception-nav-mobile-fees"
+          type="button"
+          onClick={() => { setActiveTab('fees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          className={`flex-1 flex flex-col items-center justify-center h-full py-1 min-h-[44px] cursor-pointer transition-colors ${
+            activeTab === 'fees' ? 'text-amber-300 font-bold' : 'text-slate-300 hover:text-white'
+          }`}
+        >
+          <CreditCard size={20} />
+          <span className="text-[10px] tracking-tight mt-0.5">Fees</span>
+        </button>
+
+        <button
+          id="btn-reception-nav-mobile-inquiries"
+          type="button"
+          onClick={() => { setActiveTab('inquiries'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          className={`flex-1 flex flex-col items-center justify-center h-full py-1 min-h-[44px] cursor-pointer transition-colors ${
+            activeTab === 'inquiries' ? 'text-amber-300 font-bold' : 'text-slate-300 hover:text-white'
+          }`}
+        >
+          <Phone size={20} />
+          <span className="text-[10px] tracking-tight mt-0.5">Inquiries</span>
+        </button>
+
+        <button
+          id="btn-reception-nav-mobile-search"
+          type="button"
+          onClick={() => { setActiveTab('search'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          className={`flex-1 flex flex-col items-center justify-center h-full py-1 min-h-[44px] cursor-pointer transition-colors ${
+            activeTab === 'search' ? 'text-amber-300 font-bold' : 'text-slate-300 hover:text-white'
+          }`}
+        >
+          <Search size={20} />
+          <span className="text-[10px] tracking-tight mt-0.5">Search</span>
+        </button>
+
+        <button
+          id="btn-reception-nav-mobile-more"
+          type="button"
+          onClick={() => setIsTabDropdownOpen(true)}
+          className={`flex-1 flex flex-col items-center justify-center h-full py-1 min-h-[44px] cursor-pointer transition-colors ${
+            !['admissions', 'fees', 'inquiries', 'search'].includes(activeTab) || isTabDropdownOpen
+              ? 'text-amber-300 font-bold'
+              : 'text-slate-300 hover:text-white'
+          }`}
+        >
+          <MessageCircle size={20} />
+          <span className="text-[10px] tracking-tight mt-0.5">WhatsApp</span>
+        </button>
+      </nav>
+
+      {/* MOBILE SLIDE-OUT DRAWER SIDEBAR (< lg viewports) */}
+      {isTabDropdownOpen && (
+        <div id="drawer-reception-mobile-sidebar" className="fixed inset-0 z-50 lg:hidden flex">
+          <div
+            id="backdrop-reception-mobile-drawer"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200"
+            onClick={() => setIsTabDropdownOpen(false)}
+          />
+          <div className="relative w-80 max-w-[85vw] bg-white h-full shadow-2xl p-5 overflow-y-auto flex flex-col z-10 animate-in slide-in-from-left duration-250">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+              <div className="flex items-center gap-2.5">
+                <SunshineLogo className="h-8 w-8 shrink-0" />
+                <div>
+                  <h3 className="text-xs font-bold text-slate-900">Registrar Counter</h3>
+                  <p className="text-[10px] text-slate-500 font-semibold">Neha Sharma • Front Desk</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                id="btn-close-reception-drawer"
+                onClick={() => setIsTabDropdownOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-1.5 flex-1">
+              {[
+                { id: 'admissions', label: `Admission Requests (${pendingAdmissionsCount} Pending)`, icon: <Users size={18} /> },
+                { id: 'inquiries', label: 'Inquiry Register Desk', icon: <Phone size={18} /> },
+                { id: 'fees', label: 'Fee Collection Counter', icon: <CreditCard size={18} /> },
+                { id: 'search', label: 'Directory Student Search', icon: <Search size={18} /> },
+                { id: 'whatsapp', label: 'WhatsApp Messenger Desk', icon: <MessageCircle size={18} /> }
+              ].map((tab) => {
+                const isSelected = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    id={`reception-drawer-opt-${tab.id}`}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(tab.id as any);
+                      setIsTabDropdownOpen(false);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-xs font-bold transition-all cursor-pointer min-h-[44px] ${
+                      isSelected
+                        ? 'bg-amber-600 text-white shadow-sm'
+                        : 'text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className={isSelected ? 'text-amber-200' : 'text-slate-400'}>
+                      {tab.icon}
+                    </span>
+                    <span className="text-left flex-1 truncate">{tab.label}</span>
+                    {isSelected && <Check size={16} className="text-amber-200 shrink-0 font-bold" />}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

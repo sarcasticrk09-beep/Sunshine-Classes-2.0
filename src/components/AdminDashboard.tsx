@@ -5630,7 +5630,7 @@ ${data.log}`
   };
 
   return (
-    <div id="admin-portal" className="mx-auto max-w-7xl px-4 py-8">
+    <div id="admin-portal" className="mx-auto max-w-7xl px-4 py-8 pb-24 lg:pb-8">
       {/* Admin Head Badge */}
       <div className="mb-8 flex flex-col justify-between gap-4 rounded-3xl bg-indigo-950 p-6 text-white md:flex-row md:items-center shadow-lg">
         <div className="flex items-center gap-4">
@@ -20219,6 +20219,144 @@ ${data.log}`
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* MOBILE FIXED BOTTOM NAVIGATION BAR (< lg viewports) */}
+      <nav id="nav-admin-mobile-bottom-bar" className="fixed bottom-0 inset-x-0 z-40 bg-indigo-950/95 border-t border-indigo-800/60 backdrop-blur-md flex items-center justify-around h-16 px-2 lg:hidden shadow-2xl text-white">
+        <button
+          id="btn-admin-nav-mobile-home"
+          type="button"
+          onClick={() => { setActiveTab('overview'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          className={`flex-1 flex flex-col items-center justify-center h-full py-1 min-h-[44px] cursor-pointer transition-colors ${
+            activeTab === 'overview' ? 'text-amber-400 font-bold' : 'text-slate-300 hover:text-white'
+          }`}
+        >
+          <Activity size={20} />
+          <span className="text-[10px] tracking-tight mt-0.5">Overview</span>
+        </button>
+
+        <button
+          id="btn-admin-nav-mobile-students"
+          type="button"
+          onClick={() => { setActiveTab('students'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          className={`flex-1 flex flex-col items-center justify-center h-full py-1 min-h-[44px] cursor-pointer transition-colors ${
+            activeTab === 'students' ? 'text-amber-400 font-bold' : 'text-slate-300 hover:text-white'
+          }`}
+        >
+          <Users size={20} />
+          <span className="text-[10px] tracking-tight mt-0.5">Students</span>
+        </button>
+
+        <button
+          id="btn-admin-nav-mobile-fees"
+          type="button"
+          onClick={() => { setActiveTab('fees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          className={`flex-1 flex flex-col items-center justify-center h-full py-1 min-h-[44px] cursor-pointer transition-colors ${
+            activeTab === 'fees' ? 'text-amber-400 font-bold' : 'text-slate-300 hover:text-white'
+          }`}
+        >
+          <DollarSign size={20} />
+          <span className="text-[10px] tracking-tight mt-0.5">Fees</span>
+        </button>
+
+        <button
+          id="btn-admin-nav-mobile-admissions"
+          type="button"
+          onClick={() => { setActiveTab('admissions'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          className={`flex-1 flex flex-col items-center justify-center h-full py-1 min-h-[44px] cursor-pointer transition-colors ${
+            activeTab === 'admissions' ? 'text-amber-400 font-bold' : 'text-slate-300 hover:text-white'
+          }`}
+        >
+          <UserPlus size={20} />
+          <span className="text-[10px] tracking-tight mt-0.5">Admissions</span>
+        </button>
+
+        <button
+          id="btn-admin-nav-mobile-more"
+          type="button"
+          onClick={() => setIsTabDropdownOpen(true)}
+          className={`flex-1 flex flex-col items-center justify-center h-full py-1 min-h-[44px] cursor-pointer transition-colors ${
+            !['overview', 'students', 'fees', 'admissions'].includes(activeTab) || isTabDropdownOpen
+              ? 'text-amber-400 font-bold'
+              : 'text-slate-300 hover:text-white'
+          }`}
+        >
+          <Settings size={20} />
+          <span className="text-[10px] tracking-tight mt-0.5">More</span>
+        </button>
+      </nav>
+
+      {/* MOBILE SLIDE-OUT DRAWER SIDEBAR (< lg viewports) */}
+      {isTabDropdownOpen && (
+        <div id="drawer-admin-mobile-sidebar" className="fixed inset-0 z-50 lg:hidden flex">
+          <div
+            id="backdrop-admin-mobile-drawer"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200"
+            onClick={() => setIsTabDropdownOpen(false)}
+          />
+          <div className="relative w-80 max-w-[85vw] bg-white h-full shadow-2xl p-5 overflow-y-auto flex flex-col z-10 animate-in slide-in-from-left duration-250">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+              <div className="flex items-center gap-2.5">
+                <SunshineLogo className="h-8 w-8 shrink-0" />
+                <div>
+                  <h3 className="text-xs font-bold text-slate-900">Admin Control Terminal</h3>
+                  <p className="text-[10px] text-slate-500 font-semibold">{currentUser?.name || 'Administrator'}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                id="btn-close-admin-drawer"
+                onClick={() => setIsTabDropdownOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-1.5 flex-1">
+              {[
+                { id: 'overview', label: 'Dashboard Overview', icon: <Activity size={18} /> },
+                { id: 'content', label: 'Content Studio (CMS)', icon: <Sparkles size={18} /> },
+                { id: 'admissions', label: 'Admissions Applications', icon: <UserPlus size={18} /> },
+                { id: 'students', label: `Student Directory (${students.length})`, icon: <Users size={18} /> },
+                { id: 'orders', label: 'Orders & Payments', icon: <ShoppingBag size={18} /> },
+                { id: 'fees', label: 'Fee Management', icon: <DollarSign size={18} /> },
+                { id: 'teachers', label: 'Faculty Directory', icon: <BookOpen size={18} /> },
+                { id: 'batches', label: 'Classes & Timings', icon: <Calendar size={18} /> },
+                { id: 'study-materials', label: 'Study Materials Center', icon: <FileText size={18} /> },
+                { id: 'settings', label: 'System Settings', icon: <Settings size={18} /> },
+                { id: 'media', label: 'Media Library', icon: <UploadCloud size={18} /> },
+                { id: 'founder-office', label: "Founder's Executive Office", icon: <Crown size={18} /> },
+                { id: 'cofounder-office', label: "Co-Founder's Workspace", icon: <Award size={18} /> }
+              ].map((tab) => {
+                const isSelected = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    id={`admin-drawer-opt-${tab.id}`}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(tab.id as any);
+                      setIsTabDropdownOpen(false);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-xs font-bold transition-all cursor-pointer min-h-[44px] ${
+                      isSelected
+                        ? 'bg-indigo-950 text-white shadow-sm'
+                        : 'text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className={isSelected ? 'text-amber-400' : 'text-slate-400'}>
+                      {tab.icon}
+                    </span>
+                    <span className="text-left flex-1 truncate">{tab.label}</span>
+                    {isSelected && <Check size={16} className="text-amber-400 shrink-0 font-bold" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
