@@ -1,24 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth/useAuth';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Shield, RefreshCw, AlertCircle, Key, UserCheck, Lock, X } from 'lucide-react';
+import { Eye, EyeOff, Shield, RefreshCw, AlertCircle, Key, UserCheck, Lock, X, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import SunshineLogo from '../components/SunshineLogo';
-import { SyncStatusBadge } from '../components/SyncStatusBadge';
 
 interface LoginProps {
   onBackToWebsite?: () => void;
 }
 
 export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
-  const { login, registerStudentUser, googleLogin, googleLoading, currentUser, changePassword } = useAuth();
+  const {
+    login,
+    registerStudentUser,
+    googleLogin,
+    googleLoading,
+    currentUser,
+    changePassword,
+    requestPasswordReset,
+    resetPasswordWithCode
+  } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
   const isStudentPortal = location.pathname.includes('/student');
   const isAdminPortal = location.pathname.includes('/admin');
 
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot-password'>('login');
 
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -57,35 +65,92 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
   const [passChanging, setPassChanging] = useState<boolean>(false);
   const [passError, setPassError] = useState<string | null>(null);
+  const [skippedForcePass, setSkippedForcePass] = useState<boolean>(false);
+  const [forcePassSuccess, setForcePassSuccess] = useState<string | null>(null);
 
-  // Quick Supabase Configuration Modal State
-  const [showSupabaseModal, setShowSupabaseModal] = useState<boolean>(false);
-  const [quickSupabaseUrl, setQuickSupabaseUrl] = useState<string>(() => localStorage.getItem('sunshine_supabase_url') || sessionStorage.getItem('sunshine_supabase_url') || '');
-  const [quickSupabaseKey, setQuickSupabaseKey] = useState<string>(() => localStorage.getItem('sunshine_supabase_anon_key') || sessionStorage.getItem('sunshine_supabase_anon_key') || '');
+  // Forgot Password Workflow States
+  const [forgotStep, setForgotStep] = useState<1 | 2>(1);
+  const [forgotIdentifier, setForgotIdentifier] = useState<string>('');
+  const [forgotCode, setForgotCode] = useState<string>('');
+  const [forgotNewPassword, setForgotNewPassword] = useState<string>('');
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState<string>('');
+  const [showForgotNewPassword, setShowForgotNewPassword] = useState<boolean>(false);
+  const [showForgotConfirmPassword, setShowForgotConfirmPassword] = useState<boolean>(false);
+  const [forgotLoading, setForgotLoading] = useState<boolean>(false);
+  const [forgotError, setForgotError] = useState<string | null>(null);
+  const [forgotSuccess, setForgotSuccess] = useState<string | null>(null);
+  const [issuedDemoCode, setIssuedDemoCode] = useState<string | null>(null);
 
-  const handleSaveQuickSupabaseConfig = (e: React.FormEvent) => {
+  const handleForgotSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanUrl = quickSupabaseUrl.trim();
-    const cleanKey = quickSupabaseKey.trim();
+    if (forgotLoading) return;
+    setForgotError(null);
+    setForgotSuccess(null);
+    const cleanId = forgotIdentifier.trim();
+    if (!cleanId) {
+      setForgotError('Please enter your Roll Number, Mobile, or Email.');
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      if (requestPasswordReset) {
+        const res = await requestPasswordReset(cleanId);
+        setForgotStep(2);
+        if (res.code) {
+          setIssuedDemoCode(res.code);
+          setForgotCode(res.code);
+        }
+        setForgotSuccess(res.message || 'Verification code issued successfully.');
+      }
+    } catch (err: any) {
+      setForgotError(err.message || 'Failed to send verification code.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
-    if (cleanUrl) {
-      localStorage.setItem('sunshine_supabase_url', cleanUrl);
-      sessionStorage.setItem('sunshine_supabase_url', cleanUrl);
-    } else {
-      localStorage.removeItem('sunshine_supabase_url');
-      sessionStorage.removeItem('sunshine_supabase_url');
+  const handleForgotResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (forgotLoading) return;
+    setForgotError(null);
+    setForgotSuccess(null);
+
+    if (forgotNewPassword.length < 6) {
+      setForgotError('Password must be at least 6 characters long.');
+      return;
+    }
+    const hasLetters = /[a-zA-Z]/.test(forgotNewPassword);
+    const hasNumbers = /[0-9]/.test(forgotNewPassword);
+    if (!hasLetters || !hasNumbers) {
+      setForgotError('Password must contain both letters and numbers.');
+      return;
+    }
+    if (forgotNewPassword !== forgotConfirmPassword) {
+      setForgotError('Passwords do not match.');
+      return;
     }
 
-    if (cleanKey) {
-      localStorage.setItem('sunshine_supabase_anon_key', cleanKey);
-      sessionStorage.setItem('sunshine_supabase_anon_key', cleanKey);
-    } else {
-      localStorage.removeItem('sunshine_supabase_anon_key');
-      sessionStorage.removeItem('sunshine_supabase_anon_key');
+    setForgotLoading(true);
+    try {
+      if (resetPasswordWithCode) {
+        const res = await resetPasswordWithCode(forgotIdentifier, forgotCode, forgotNewPassword);
+        setForgotSuccess(res.message || 'Password reset successfully! Returning to sign in...');
+        setPassword(forgotNewPassword);
+        setEmail(forgotIdentifier);
+        setTimeout(() => {
+          setAuthMode('login');
+          setForgotStep(1);
+          setForgotCode('');
+          setForgotNewPassword('');
+          setForgotConfirmPassword('');
+          setForgotSuccess(null);
+        }, 1200);
+      }
+    } catch (err: any) {
+      setForgotError(err.message || 'Failed to reset password.');
+    } finally {
+      setForgotLoading(false);
     }
-
-    setShowSupabaseModal(false);
-    window.location.reload();
   };
 
   // Secure Role-Based Redirection Engine
@@ -104,10 +169,17 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
   };
 
   useEffect(() => {
-    if (currentUser && !(currentUser as any).firstLogin) {
-      redirectToRoleDashboard(currentUser.role);
+    if (currentUser) {
+      const needsPasswordPrompt = !skippedForcePass && (
+        (currentUser as any).firstLogin === true ||
+        currentUser.forcePasswordChange === true ||
+        currentUser.mustChangePassword === true
+      );
+      if (!needsPasswordPrompt) {
+        redirectToRoleDashboard(currentUser.role);
+      }
     }
-  }, [currentUser, navigate]);
+  }, [currentUser, skippedForcePass, navigate]);
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,14 +277,26 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
       setPassError('Password must be at least 6 characters long.');
       return;
     }
+    const hasLetters = /[a-zA-Z]/.test(newPassword);
+    const hasNumbers = /[0-9]/.test(newPassword);
+    if (!hasLetters || !hasNumbers) {
+      setPassError('Password must contain both letters and numbers.');
+      return;
+    }
     if (newPassword !== confirmPassword) {
       setPassError('New passwords do not match.');
       return;
     }
     setPassChanging(true);
     try {
-      await changePassword(password, newPassword);
-      alert("Password hardened successfully! Welcome to Sunshine Classes.");
+      await changePassword(password || 'sunshine123', newPassword);
+      setForcePassSuccess('Password updated successfully! Redirecting...');
+      setTimeout(() => {
+        setSkippedForcePass(true);
+        if (currentUser) {
+          redirectToRoleDashboard(currentUser.role);
+        }
+      }, 700);
     } catch (err: any) {
       setPassError(err.message || 'Failed to update passcode.');
     } finally {
@@ -220,8 +304,16 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
     }
   };
 
-  // If user is authenticated BUT has firstLogin flag set to true, force password change!
-  if (currentUser && (currentUser as any).firstLogin === true) {
+  // If user is authenticated with initial password, prompt to update password (with skip option)
+  const isPromptPasswordChange = !!(
+    currentUser &&
+    !skippedForcePass &&
+    ((currentUser as any).firstLogin === true ||
+      currentUser.forcePasswordChange === true ||
+      currentUser.mustChangePassword === true)
+  );
+
+  if (isPromptPasswordChange) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 font-sans selection:bg-amber-100">
         <div className="w-full max-w-md bg-white rounded-3xl border border-slate-100 shadow-xl p-8 relative overflow-hidden">
@@ -251,9 +343,16 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
             </div>
             <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight">Configure Secure Passcode</h2>
             <p className="text-xs text-slate-500 font-semibold mt-1.5 leading-relaxed">
-              This is your first login. To protect academic records, you must configure a secure personal passcode.
+              To protect academic records and your personal account, please configure a secure personal passcode.
             </p>
           </div>
+
+          {forcePassSuccess && (
+            <div className="mb-5 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-start gap-2.5 text-xs text-emerald-700 font-semibold leading-relaxed">
+              <CheckCircle2 size={16} className="shrink-0 mt-0.5 text-emerald-600" />
+              <span>{forcePassSuccess}</span>
+            </div>
+          )}
 
           {passError && (
             <div className="mb-5 p-3.5 rounded-2xl bg-rose-50 border border-rose-100 flex items-start gap-2.5 text-xs text-rose-600 font-semibold leading-relaxed">
@@ -270,7 +369,7 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
                   id="force-new-password"
                   type={showNewPassword ? "text" : "password"}
                   required
-                  placeholder="Enter new strong password"
+                  placeholder="At least 6 chars with letters and numbers"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-3.5 pr-10 py-2.5 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white transition-all font-semibold"
@@ -323,8 +422,23 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
                   <span>Updating Passcode...</span>
                 </>
               ) : (
-                <span>Activate Account</span>
+                <span>Update Password & Continue</span>
               )}
+            </button>
+
+            <button
+              id="btn-skip-force-password"
+              type="button"
+              disabled={passChanging}
+              onClick={() => {
+                setSkippedForcePass(true);
+                if (currentUser) {
+                  redirectToRoleDashboard(currentUser.role);
+                }
+              }}
+              className="w-full rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 py-2.5 text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 border border-slate-200/80"
+            >
+              Skip for Now & Continue to Portal
             </button>
           </form>
         </div>
@@ -359,7 +473,9 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
         <div className="flex flex-col items-center text-center mb-6">
           <SunshineLogo size={42} showText={false} />
           <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight mt-3">
-            {authMode === 'register' 
+            {authMode === 'forgot-password'
+              ? 'Password Recovery'
+              : authMode === 'register' 
               ? 'Create Student Account' 
               : isStudentPortal 
               ? 'Student Portal' 
@@ -368,7 +484,9 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
               : 'Sunshine ERP Portal'}
           </h2>
           <p className="text-xs text-slate-400 font-extrabold uppercase tracking-widest mt-0.5">
-            {authMode === 'register' 
+            {authMode === 'forgot-password'
+              ? 'Self-Service Credential Reset'
+              : authMode === 'register' 
               ? 'Register in under 1 minute' 
               : isStudentPortal 
               ? 'Student & Parent Access Terminal' 
@@ -376,13 +494,10 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
               ? 'Internal Staff Access Terminal' 
               : 'Secure ERP Access'}
           </p>
-          <div className="mt-2.5 flex justify-center">
-            <SyncStatusBadge />
-          </div>
         </div>
 
         {/* Mode Switcher Tabs */}
-        {!isAdminPortal && (
+        {!isAdminPortal && authMode !== 'forgot-password' && (
           <div className="flex p-1 bg-slate-100 rounded-2xl mb-6">
             <button
               id="tab-mode-login"
@@ -403,6 +518,20 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
               }`}
             >
               New Student Register
+            </button>
+          </div>
+        )}
+
+        {authMode === 'forgot-password' && (
+          <div className="flex items-center justify-between p-2 bg-slate-50 border border-slate-100 rounded-2xl mb-6">
+            <span className="text-xs font-bold text-slate-700 pl-2">Need to sign in instead?</span>
+            <button
+              id="tab-return-login"
+              type="button"
+              onClick={() => { setAuthMode('login'); setError(null); setForgotError(null); }}
+              className="py-1 px-3 text-xs font-bold rounded-xl bg-white text-brand-blue border border-slate-200 hover:bg-slate-50 shadow-2xs transition-all cursor-pointer"
+            >
+              ← Back to Sign In
             </button>
           </div>
         )}
@@ -442,18 +571,6 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
                 ×
               </button>
             </div>
-
-            {error.includes('VITE_SUPABASE_URL') && (
-              <button
-                type="button"
-                id="btn-open-quick-supabase-config"
-                onClick={() => setShowSupabaseModal(true)}
-                className="w-full text-center px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                <Key size={14} />
-                <span>Configure Supabase Keys in Browser</span>
-              </button>
-            )}
           </div>
         )}
 
@@ -572,6 +689,194 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
               )}
             </button>
           </form>
+        ) : authMode === 'forgot-password' ? (
+          /* FORGOT PASSWORD WORKFLOW */
+          <div className="space-y-4">
+            <div className="text-center mb-1">
+              <h3 className="text-base font-extrabold text-slate-800 tracking-tight">
+                {forgotStep === 1 ? 'Find Your Account' : 'Set New Password'}
+              </h3>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                {forgotStep === 1 
+                  ? 'Enter your registered Roll Number, Mobile, or Email to receive a 6-digit recovery code.' 
+                  : `Enter the 6-digit verification code sent for ${forgotIdentifier}`}
+              </p>
+            </div>
+
+            {forgotSuccess && (
+              <div id="forgot-success-alert" className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-start gap-2.5 text-xs text-emerald-800 font-semibold leading-relaxed animate-in fade-in duration-200">
+                <CheckCircle2 size={16} className="shrink-0 mt-0.5 text-emerald-600" />
+                <span>{forgotSuccess}</span>
+              </div>
+            )}
+
+            {forgotError && (
+              <div id="forgot-error-alert" className="p-3.5 rounded-2xl bg-rose-50 border border-rose-100 flex items-start gap-2.5 text-xs text-rose-600 font-semibold leading-relaxed animate-in fade-in duration-200">
+                <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                <span>{forgotError}</span>
+              </div>
+            )}
+
+            {forgotStep === 1 ? (
+              <form onSubmit={handleForgotSendCode} className="space-y-3.5">
+                <div>
+                  <label className="mb-1 block text-xs font-bold text-slate-700">Roll No, Mobile, or Email</label>
+                  <input
+                    id="forgot-identifier-input"
+                    type="text"
+                    required
+                    disabled={forgotLoading}
+                    placeholder="e.g. SC-101, 9876543210, or student@example.com"
+                    value={forgotIdentifier}
+                    onChange={(e) => setForgotIdentifier(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-blue/10 transition-all font-semibold"
+                  />
+                </div>
+
+                <div className="flex gap-2.5 pt-1">
+                  <button
+                    id="btn-back-to-login"
+                    type="button"
+                    disabled={forgotLoading}
+                    onClick={() => {
+                      setAuthMode('login');
+                      setForgotError(null);
+                      setForgotSuccess(null);
+                    }}
+                    className="flex-1 rounded-xl border border-slate-200 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    id="btn-send-reset-code"
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="flex-1 rounded-xl bg-brand-blue hover:bg-brand-blue-hover text-white py-2.5 text-xs font-bold shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    {forgotLoading ? (
+                      <>
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                        <span>Sending Code...</span>
+                      </>
+                    ) : (
+                      <span>Send Recovery Code</span>
+                    )}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleForgotResetPassword} className="space-y-3.5">
+                {issuedDemoCode && (
+                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200/60 text-[11px] text-amber-900 font-medium flex items-center justify-between">
+                    <span>Active Code: <strong className="font-mono text-xs font-bold tracking-wider">{issuedDemoCode}</strong></span>
+                    <button
+                      type="button"
+                      id="btn-copy-reset-code"
+                      onClick={() => setForgotCode(issuedDemoCode)}
+                      className="text-[10px] text-amber-800 hover:text-amber-950 underline font-bold cursor-pointer"
+                    >
+                      Fill Code
+                    </button>
+                  </div>
+                )}
+
+                <div>
+                  <label className="mb-1 block text-xs font-bold text-slate-700">6-Digit Verification Code</label>
+                  <input
+                    id="forgot-code-input"
+                    type="text"
+                    required
+                    maxLength={6}
+                    disabled={forgotLoading}
+                    placeholder="Enter 6-digit code"
+                    value={forgotCode}
+                    onChange={(e) => setForgotCode(e.target.value.replace(/\D/g, ''))}
+                    className="w-full text-center tracking-widest font-mono text-base rounded-xl border border-slate-200 bg-slate-50 py-2 text-slate-800 outline-none focus:border-brand-blue focus:bg-white transition-all font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-bold text-slate-700">New Password</label>
+                  <div className="relative">
+                    <input
+                      id="forgot-new-password"
+                      type={showForgotNewPassword ? "text" : "password"}
+                      required
+                      minLength={6}
+                      disabled={forgotLoading}
+                      placeholder="Min 6 chars with letters & numbers"
+                      value={forgotNewPassword}
+                      onChange={(e) => setForgotNewPassword(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-3.5 pr-10 py-2.5 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white transition-all font-semibold"
+                    />
+                    <button
+                      type="button"
+                      id="btn-toggle-forgot-new-pass"
+                      onClick={() => setShowForgotNewPassword(!showForgotNewPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                    >
+                      {showForgotNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-bold text-slate-700">Confirm New Password</label>
+                  <div className="relative">
+                    <input
+                      id="forgot-confirm-password"
+                      type={showForgotConfirmPassword ? "text" : "password"}
+                      required
+                      minLength={6}
+                      disabled={forgotLoading}
+                      placeholder="Re-enter new password"
+                      value={forgotConfirmPassword}
+                      onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-3.5 pr-10 py-2.5 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white transition-all font-semibold"
+                    />
+                    <button
+                      type="button"
+                      id="btn-toggle-forgot-confirm-pass"
+                      onClick={() => setShowForgotConfirmPassword(!showForgotConfirmPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                    >
+                      {showForgotConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-2.5 pt-1">
+                  <button
+                    id="btn-forgot-back-step1"
+                    type="button"
+                    disabled={forgotLoading}
+                    onClick={() => {
+                      setForgotStep(1);
+                      setForgotError(null);
+                    }}
+                    className="flex-1 rounded-xl border border-slate-200 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
+                  >
+                    Back
+                  </button>
+                  <button
+                    id="btn-submit-reset-password"
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="flex-1 rounded-xl bg-brand-blue hover:bg-brand-blue-hover text-white py-2.5 text-xs font-bold shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    {forgotLoading ? (
+                      <>
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                        <span>Updating...</span>
+                      </>
+                    ) : (
+                      <span>Reset & Log In</span>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
         ) : (
           /* LOGIN FORM */
           <>
@@ -596,7 +901,20 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-bold text-slate-700">Account Password</label>
-              <span className="text-[10px] text-amber-600 font-medium">Default: Sunshine123</span>
+              <button
+                type="button"
+                id="btn-forgot-password"
+                onClick={() => {
+                  setAuthMode('forgot-password');
+                  setForgotIdentifier(email);
+                  setForgotError(null);
+                  setForgotSuccess(null);
+                  setForgotStep(1);
+                }}
+                className="text-[11px] font-bold text-brand-blue hover:text-brand-blue-hover hover:underline transition-colors cursor-pointer"
+              >
+                Forgot Password?
+              </button>
             </div>
             <div className="relative">
               <input
@@ -604,7 +922,7 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
                 type={showPassword ? "text" : "password"}
                 required
                 disabled={loading}
-                placeholder="Enter password (default: Sunshine123)"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-3.5 pr-10 py-2.5 text-xs text-slate-800 outline-none focus:border-brand-blue focus:bg-white focus:ring-2 focus:ring-brand-blue/10 transition-all font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
@@ -614,15 +932,12 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
                 id="btn-toggle-login-pass"
                 disabled={loading}
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1 disabled:opacity-50"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1 disabled:opacity-50 cursor-pointer"
                 title={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">
-              For new admissions, sign in with your Roll No and password <code className="px-1 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-[10px]">sunshine123</code>
-            </p>
           </div>
 
           {/* Remember Me Checkbox */}
@@ -640,12 +955,6 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
             >
               Remember Me on this device
             </label>
-          </div>
-
-          {/* Compliance Badge */}
-          <div className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] text-slate-500 font-semibold">
-            <Shield size={12} className="text-emerald-600 shrink-0" />
-            <span>Encrypted cloud authentication active.</span>
           </div>
 
           {/* Action buttons */}
@@ -753,87 +1062,6 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
       </>
     )}
       </div>
-
-      {/* QUICK SUPABASE CONFIGURATION MODAL */}
-      {showSupabaseModal && (
-        <div id="modal-quick-supabase-config" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 relative">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
-                  <Key size={18} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">Configure Supabase for Google Sign-In</h3>
-                  <p className="text-[11px] text-slate-500 font-medium">Save client keys directly in browser</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                id="btn-close-quick-supabase-modal"
-                onClick={() => setShowSupabaseModal(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg transition-colors cursor-pointer"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveQuickSupabaseConfig} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Supabase Project URL
-                </label>
-                <input
-                  id="input-quick-supabase-url"
-                  type="url"
-                  required
-                  placeholder="https://nqxthuycvltpuptejjot.supabase.co"
-                  value={quickSupabaseUrl}
-                  onChange={(e) => setQuickSupabaseUrl(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-mono text-slate-800 outline-none focus:border-brand-blue focus:bg-white transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Supabase Anon Public Key
-                </label>
-                <textarea
-                  id="input-quick-supabase-anon-key"
-                  rows={3}
-                  required
-                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  value={quickSupabaseKey}
-                  onChange={(e) => setQuickSupabaseKey(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-mono text-slate-800 outline-none focus:border-brand-blue focus:bg-white transition-all resize-none"
-                />
-              </div>
-
-              <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200/60 text-[11px] text-amber-900 font-medium leading-relaxed">
-                <span className="font-bold">Permanent Railway Setup:</span> To configure this permanently across all users on <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">sunshineclasses.net</code>, set <code className="font-mono bg-amber-100 px-1 py-0.5 rounded">VITE_SUPABASE_URL</code> and <code className="font-mono bg-amber-100 px-1 py-0.5 rounded">VITE_SUPABASE_ANON_KEY</code> in Railway's <strong>Variables</strong> tab.
-              </div>
-
-              <div className="flex gap-2.5 pt-2">
-                <button
-                  type="button"
-                  id="btn-cancel-quick-supabase-modal"
-                  onClick={() => setShowSupabaseModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  id="btn-save-quick-supabase-config"
-                  className="flex-1 py-2.5 rounded-xl bg-brand-blue hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
-                >
-                  Save & Enable Google Sign-In
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

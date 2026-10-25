@@ -2591,6 +2591,16 @@ async function startServer() {
     return AuthController.changePassword(req, res);
   });
 
+  // 5b. Request password reset code (Public self-service)
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    return AuthController.requestPasswordReset(req, res);
+  });
+
+  // 5c. Verify reset code & update password (Public self-service)
+  app.post("/api/auth/reset-password-with-code", async (req, res) => {
+    return AuthController.resetPasswordWithCode(req, res);
+  });
+
   // 6. Reset password endpoint (Hierarchy enforced in AuthController)
   app.post("/api/auth/reset-password", authMiddleware, async (req: AuthenticatedRequest, res) => {
     return AuthController.resetPassword(req, res);

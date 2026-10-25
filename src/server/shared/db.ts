@@ -40,7 +40,7 @@ if (isStaging && supabaseUrl.includes(PROD_PROJECT_REF)) {
 export const serverSupabase = createClient(supabaseUrl, supabaseKey);
 
 // In-memory backing cache for fast access & offline resilience, pre-seeded with institute data
-const memoryStore: Record<string, Record<string, any>> = {
+export const memoryStore: Record<string, Record<string, any>> = {
   users: Object.fromEntries(SEED_USERS.map(u => [u.id, u])),
   students: Object.fromEntries(SEED_STUDENTS.map(s => [s.id, s])),
   teachers: Object.fromEntries(SEED_TEACHERS.map(t => [t.id, t])),

@@ -1,23 +1,28 @@
-# Sunshine Classes ERP - Mobile Portal Optimization Plan
+# Self-Service Password Recovery & Streamlined Login Portal Plan
 
-A comprehensive mobile-first optimization plan to deliver an intuitive, responsive, and touch-friendly experience across the Student, Admin, Teacher, and Receptionist portals of Sunshine Classes ERP on smartphones and tablets.
+Establish a secure self-service password recovery flow for students and faculty while decluttering the Sunshine Classes ERP login terminal to create a clean, distraction-free authentication experience.
+
+---
 
 ## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> The following design decisions were confirmed during Phase 1 clarification:
+> The following product specifications were confirmed during the clarification step:
 
-* **Navigation & Mobile Layout**: Mobile viewports ($\le 768\text{px}$) will feature a fixed, ergonomic **Bottom Navigation Bar** for high-frequency actions combined with a touch-friendly **Slide-out Drawer Sidebar** for full navigation access.
-* **Scope & Priority**: Initial focus is placed on the **Student Portal** (Dashboard, Fee Receipts, Homework/Assignments, and Online Tests), followed immediately by responsive mobile updates across Admin, Teacher, and Receptionist portals.
-* **Data Presentation**: Complex wide tables (e.g. fee receipts, attendance logs, student marks) will automatically transform into **stacked, touch-optimized cards** on mobile screens with expand/collapse details and touch targets $\ge 44\text{px}$.
+* **Password Recovery Flow**: Students and staff will request a **secure 6-digit verification code sent to their registered contact/email or roll number**, verify the code, and immediately set a compliant new password (minimum 6 characters with letters and numbers).
+* **Login Portal Streamlining & De-Cluttering**:
+  1. **Remove default password hints**: Eliminate all hardcoded `Default: Sunshine123` labels and new admission password notes to avoid confusing existing users and disclosing credentials in plain sight.
+  2. **Remove telemetry & sync status badges**: Remove `<SyncStatusBadge />` and bottom encrypted-session status bars from the login screen in compliance with clean UI standards.
+  3. **Remove browser Supabase keys modal & dev notes**: Strip out runtime browser API key configuration forms and Railway dev instructions so regular parents and students see a pure, professional portal.
+  4. **Preserve Google Sign-In**: Maintain Google OAuth for registered institutional accounts.
 
 ---
 
 ## 1. Overview & Core Concept
 
-* **Goal**: Transform Sunshine Classes ERP into a seamless mobile-first experience without modifying desktop layout, branding, or feature structures.
-* **Target Users**: Students, parents, teachers, and admins accessing the ERP on mobile devices and smartphones ($375\text{px}$–$430\text{px}$).
-* **Key Capabilities**: Touch-optimized touch hitboxes ($\ge 44\text{px}$), bottom navigation bar, mobile action sheets, responsive receipt cards with print capability, and scroll-isolated mobile drawers.
+* **What It Does**: Provides an intuitive multi-step password recovery workflow on the login page (`authMode = 'forgot-password'`) allowing students, parents, and faculty who forgot their password to self-recover without manual administrative intervention, while streamlining the login surface into a focused, modern interface.
+* **Target Audience**: Students, parents, teachers, and administrators accessing Sunshine Classes ERP across mobile and desktop devices.
+* **Key Value**: Drastically reduces support requests for forgotten credentials while eliminating dev/telemetry artifacts from public login screens.
 
 ---
 
@@ -25,72 +30,101 @@ A comprehensive mobile-first optimization plan to deliver an intuitive, responsi
 
 ### Key User Flows
 
-1. **Student Mobile Experience**:
-   * **Header & Quick Status**: Compact $52\text{px}$ top bar with Sunshine logo, current active student switcher, and sync badge.
-   * **Dashboard Feed**: Touch-friendly summary grid for fee status, today's schedule, quick homework tasks, and test scores.
-   * **Fee Receipts & Payment**: Stacked receipt cards replacing wide tables. Tap "Print Receipt" or "Download PDF" opens mobile print dialog.
-   * **Homework & Tests**: Mobile-optimized test interface with clear touch selection radio buttons and sticky "Submit Test" bottom bar.
+```
+[Login Screen] ──▶ Click "Forgot Password?" ──▶ [Step 1: Contact Identifier]
+                                                         │
+                                                  (Enter Roll No/Email)
+                                                         ▼
+[Login Screen] ◀── Password Updated ◀── [Step 2: Enter 6-Digit Code & New Pass]
+```
 
-2. **Admin & Staff Mobile Navigation**:
-   * **Slide-out Drawer**: Hamburger icon opens full drawer sidebar with smooth backdrop blur overlay.
-   * **Stacked Directory Cards**: Student, teacher, and admission lists rendered as mobile action cards with quick call/WhatsApp and status toggles.
+1. **Clean Login View**:
+   - The user sees clean fields for Roll No / Email / Mobile and Password, with a subtle "Forgot Password?" button positioned right above or beside the password input (`id="btn-forgot-password"`).
+   - Removed: all `Default: Sunshine123` hints, sync badges, compliance banners, and developer key inputs.
+   - Clean placeholder: `Enter your password` instead of mentioning default test credentials.
 
-### Visual Identity & Theme
+2. **Step 1: Password Recovery Request**:
+   - Title: "Reset Your Password" with an explanatory subtitle: "Enter your registered Roll Number, Email, or Mobile to receive a verification code."
+   - Input: Identifier field (`id="forgot-identifier-input"`).
+   - Action: "Send Verification Code" (`id="btn-send-reset-code"`), with a smooth loading spinner state.
+   - Secondary: "Back to Sign In" (`id="btn-back-to-login"`).
 
-* **Aesthetic Direction**: Clean, tactile, domain-authentic mobile ERP interface.
-* **Color System**: Crisp white canvas (`#FFFFFF` / `bg-slate-50`), brand dark blue headers (`bg-brand-blue`), amber accents (`#F59E0B`), and emerald sync status indicators.
-* **Typography**: Proportional type scale with `Plus Jakarta Sans` / `DM Sans` for prose and tabular numerals (`font-mono tabular-nums`) for fee amounts, roll numbers, and dates.
-* **Touch Target Ergonomics**: Minimum $44 \times 44\text{px}$ touch target on all interactive controls, buttons, checkboxes, and list items.
+3. **Step 2: Code Verification & Password Reset**:
+   - Input: 6-digit verification code input with letter-spaced typography (`id="forgot-code-input"`).
+   - Input: New password with show/hide toggle (`id="forgot-new-password"`).
+   - Input: Confirm password (`id="forgot-confirm-password"`).
+   - Real-time client-side validation for minimum 6 characters with letters and numbers.
+   - Action: "Reset Password & Log In" (`id="btn-submit-reset-password"`).
+   - Success transition: Displays green confirmation banner and automatically returns the user to login or logs them directly into their portal.
+
+### Visual Styling & Accessibility
+* **Theme & Colors**: Retains Sunshine ERP's brand colors (Amber-500 `#f59e0b` / Brand Blue `#1e40af` and crisp neutral slate canvas).
+* **Anti-Slop Discipline**: No decorative pulsing dots, no code-comment titles, no nested card shadows, and no telemetry tickers.
+* **Interactive Element ID Compliance**: All newly introduced inputs, buttons, and error/success alerts will possess explicit, lowercase unique IDs (`id="btn-forgot-password"`, `id="btn-send-reset-code"`, `id="btn-submit-reset-password"`, `id="forgot-code-input"`).
 
 ---
 
 ## 3. Key Product Decisions & Trade-Offs
 
-* **Decision 1: Bottom Navigation Bar + Slide-Out Drawer**:
-  * *Chosen Approach*: Render a fixed bottom navigation bar for top 4 student destinations (Home, Fees, Homework, Tests) plus a "More" trigger that slides out the full drawer sidebar.
-  * *Why*: Keeps high-frequency tasks within natural thumb reach while preserving full navigation capability.
-
-* **Decision 2: Stacked Mobile Cards for Tables**:
-  * *Chosen Approach*: Replace multi-column HTML tables on screens $\le 768\text{px}$ with stacked cards featuring hairline dividers and key-value pairs.
-  * *Why*: Eliminates awkward horizontal scrolling and pinch-zooming on smartphones.
+* **Decision 1: Verification Code Architecture**:
+  - *Chosen Approach*: Server generates a cryptographically secure 6-digit numeric OTP with a 15-minute TTL, stored in the server session/verification store and synchronized across memory/Supabase. In development preview environments, the generated code is also returned in the response payload and logged, ensuring zero testing blockers if external SMTP gateways are unconfigured.
+  - *Why*: Provides robust verification without external provider dependency failures.
+* **Decision 2: Seamless Tab Integration**:
+  - *Chosen Approach*: Embed the forgot password workflow as a mode state (`authMode = 'login' | 'register' | 'forgot-password'`) inside `Login.tsx` rather than forcing a heavy full-page routing transition.
+  - *Why*: Smooth, single-page transition with instant return to Sign In, fully preserving mobile drawer layouts and desktop frame bounds.
+* **Decision 3: Complete Removal of Developer Modals from Login**:
+  - *Chosen Approach*: Remove the inline Supabase configuration modal and Railway variables card from the client login page.
+  - *Why*: Exposing raw API keys, textareas, and hosting configuration in a client login interface breaches UI hygiene and presents a confusing experience to students and parents.
 
 ---
 
 ## 4. Technical Architecture & Data Strategy
 
+### System Architecture Diagram
+
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                   Sunshine Classes ERP - Mobile Layout                 │
-├────────────────────────────────────────────────────────────────────────┤
-│ Top App Bar (52px sticky)                                             │
-│ [☰ Drawer]           Sunshine Logo           [Sync Status Badge]      │
-├────────────────────────────────────────────────────────────────────────┤
-│ Mobile Viewport Content Area (Scrollable 85% Viewport)                 │
-│ ┌────────────────────────────────────────────────────────────────────┐ │
-│ │ Student Quick Overview Card (Fee Status, Attendance, Next Batch)   │ │
-│ ├────────────────────────────────────────────────────────────────────┤ │
-│ │ Today's Schedule & Homework Cards (Stacked Touch List Rows)        │ │
-│ ├────────────────────────────────────────────────────────────────────┤ │
-│ │ Fee Receipts Stacked Cards (with Printable Receipt Action)        │ │
-│ └────────────────────────────────────────────────────────────────────┘ │
-├────────────────────────────────────────────────────────────────────────┤
-│ Fixed Bottom Navigation Bar (64px, Natural Thumb Reach Zone)           │
-│  [Home]       [Fees]       [Homework]      [Tests]      [More...]      │
-└────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                      Client Browser                         │
+│                                                             │
+│   ┌───────────────┐     ┌───────────────────────────────┐   │
+│   │  Login Form   │ ──▶ │ Forgot Password Flow (Mode)   │   │
+│   └───────────────┘     │ - Step 1: Identifier Input    │   │
+│                         │ - Step 2: OTP + New Password  │   │
+│                         └───────────────┬───────────────┘   │
+└─────────────────────────────────────────┼───────────────────┘
+                                          │
+                  POST /api/auth/forgot-password (Identifier)
+                  POST /api/auth/reset-password-with-code
+                                          │
+                                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      Express Backend                        │
+│                                                             │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │ AuthController                                      │   │
+│   │ - requestPasswordReset(identifier)                  │   │
+│   │   * Resolve user/student record                     │   │
+│   │   * Generate 6-digit code with 15-min expiration    │   │
+│   │   * Store in memoryStore.resetCodes                 │   │
+│   │ - verifyAndResetPassword(identifier, code, newPass) │   │
+│   │   * Validate 6+ chars & letters+numbers             │   │
+│   │   * Hash via bcrypt (PasswordService)               │   │
+│   │   * Update Supabase users, SEED_USERS, local store  │   │
+│   └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Component & Mobile Responsive Strategy
-
-* **Global Mobile Shell**: Responsive layout wrapper in `App.tsx` and main layout components adjusting container paddings and bottom padding to clear the 64px bottom nav.
-* **Student Dashboard (`/src/components/StudentDashboard.tsx`)**: Responsive mobile card grids and tab controls.
-* **Admin Dashboard (`/src/components/AdminDashboard.tsx`)**: Mobile drawer sidebar and stacked student/fee table views.
-* **Payment Success Modal (`/src/components/common/PaymentSuccessModal.tsx`)**: Touch-friendly modal with mobile-optimized receipt preview and print button.
-
----
-
-## Implementation Phases
-
-1. **Phase 1: Shared Mobile Shell & Navigation**: Create mobile bottom nav and touch-friendly slide-out drawer sidebar.
-2. **Phase 2: Student Portal Mobile Overhaul**: Optimize student dashboard metrics, schedule cards, fee receipts, homework, and test interfaces.
-3. **Phase 3: Admin & Staff Mobile Optimization**: Transform admin student tables, attendance, and fee status views into responsive card layouts.
-4. **Phase 4: Verification & Testing**: Run `compile_applet` and `lint_applet` to confirm strict TypeScript build and zero UI regressions.
+### Components to Update
+1. **`src/server/auth/AuthController.ts`**:
+   - Add `requestPasswordReset(req, res)`: Public endpoint accepting `{ identifier }`. Resolves student/user record, generates 6-digit code with timestamp, stores in `memoryStore.resetCodes`.
+   - Add `resetPasswordWithCode(req, res)`: Public endpoint accepting `{ identifier, code, newPassword }`. Validates complexity, verifies OTP validity, hashes password, and updates user records.
+2. **`src/server/index.ts` / `server.ts`**:
+   - Register public routes:
+     - `POST /api/auth/forgot-password`
+     - `POST /api/auth/reset-password-with-code`
+3. **`src/auth/AuthProvider.tsx`**:
+   - Add helper methods `requestPasswordReset(identifier)` and `resetPasswordWithCode(identifier, code, newPassword)` to context.
+4. **`src/pages/Login.tsx`**:
+   - Add `"Forgot Password?"` trigger button next to the password label.
+   - Implement the two-step interactive reset card.
+   - Clean up login interface: remove `<SyncStatusBadge />`, remove compliance badges, remove all default password hints, and remove Supabase configuration dev modal and buttons.

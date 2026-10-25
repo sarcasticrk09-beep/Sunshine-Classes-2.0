@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { AuthenticatedRequest, JWT_SECRET } from './AuthMiddleware';
 import { PasswordService } from './PasswordService';
-import { serverSupabase, getDocs, collection } from '../shared/db';
+import { serverSupabase, getDocs, collection, memoryStore } from '../shared/db';
 import { SEED_USERS, SEED_STUDENTS } from '../../data';
 
 export class AuthController {
@@ -242,7 +242,101 @@ export class AuthController {
   }
 
   public static async changePassword(req: AuthenticatedRequest, res: Response) {
-    return res.status(200).json({ success: true, message: 'Password changed successfully.' });
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized. You must be signed in to change your password.' });
+      }
+
+      const { currentPassword, newPassword } = req.body || {};
+      const uid = req.user.id || req.user.uid || req.user.userId;
+
+      if (!newPassword || typeof newPassword !== 'string') {
+        return res.status(400).json({ error: 'New password is required.' });
+      }
+
+      const trimmedNew = newPassword.trim();
+
+      // Complexity validation: minimum 6 characters with both letters and numbers
+      const hasMinLength = trimmedNew.length >= 6;
+      const hasLetter = /[A-Za-z]/.test(trimmedNew);
+      const hasNumber = /[0-9]/.test(trimmedNew);
+
+      if (!hasMinLength || !hasLetter || !hasNumber) {
+        return res.status(400).json({
+          error: 'New password must be at least 6 characters long and contain both letters and numbers.'
+        });
+      }
+
+      // Hash password using PasswordService (bcrypt)
+      const passwordHash = await PasswordService.hashPassword(trimmedNew);
+
+      // 1. Update in-memory and local seed stores
+      if (memoryStore && memoryStore.users) {
+        if (!memoryStore.users[uid]) {
+          memoryStore.users[uid] = {
+            id: uid,
+            username: req.user.username,
+            email: req.user.email,
+            role: req.user.role,
+            name: req.user.name
+          };
+        }
+        memoryStore.users[uid].password = trimmedNew;
+        memoryStore.users[uid].password_hash = passwordHash;
+        memoryStore.users[uid].force_password_change = false;
+        memoryStore.users[uid].mustChangePassword = false;
+      }
+
+      // Also check if matched in SEED_USERS or SEED_STUDENTS
+      const seedUser = SEED_USERS.find(u => u.id === uid || u.username === req.user?.username);
+      if (seedUser) {
+        seedUser.password = trimmedNew;
+        seedUser.passwordHash = passwordHash;
+        seedUser.forcePasswordChange = false;
+        seedUser.mustChangePassword = false;
+      }
+
+      const seedStudent = SEED_STUDENTS.find(s => s.userId === uid || s.id === uid || s.rollNo === req.user?.username);
+      if (seedStudent) {
+        (seedStudent as any).password = trimmedNew;
+        (seedStudent as any).passwordHash = passwordHash;
+        (seedStudent as any).forcePasswordChange = false;
+      }
+
+      // 2. Update Supabase users table
+      try {
+        await serverSupabase
+          .from('users')
+          .update({
+            password_hash: passwordHash,
+            force_password_change: false,
+            must_change_password: false,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', uid);
+      } catch (e: any) {
+        console.warn('[AuthController.changePassword] Supabase table update note:', e.message);
+      }
+
+      // 3. Update Supabase Auth if admin client is available
+      try {
+        if (serverSupabase?.auth?.admin) {
+          await serverSupabase.auth.admin.updateUserById(uid, {
+            password: trimmedNew
+          });
+        }
+      } catch (e: any) {
+        console.warn('[AuthController.changePassword] Supabase Auth update note:', e.message);
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Password changed successfully.'
+      });
+    } catch (err: any) {
+      console.error('[AuthController.changePassword] Error:', err);
+      return res.status(500).json({ error: err.message || 'Internal server error while changing password.' });
+    }
   }
 
   public static async resetPassword(req: AuthenticatedRequest, res: Response) {
@@ -471,6 +565,252 @@ export class AuthController {
       return res.status(404).json({ success: false, error: 'Student not found with this roll number, mobile, or username.' });
     } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message || 'Failed to resolve student.' });
+    }
+  }
+
+  // In-memory verification code store for password resets (15-min TTL)
+  private static passwordResetTokens = new Map<string, {
+    code: string;
+    userId: string;
+    identifier: string;
+    name: string;
+    email?: string;
+    expiresAt: number;
+  }>();
+
+  public static async requestPasswordReset(req: Request, res: Response) {
+    try {
+      const { identifier } = req.body || {};
+      const cleanId = (identifier || '').trim().toLowerCase();
+
+      if (!cleanId) {
+        return res.status(400).json({ success: false, error: 'Roll number, email, or username is required.' });
+      }
+
+      // 1. Check in memoryStore.users
+      let matchedUser: any = memoryStore.users.find((u: any) =>
+        u.id?.toLowerCase() === cleanId ||
+        u.username?.toLowerCase() === cleanId ||
+        u.email?.toLowerCase() === cleanId ||
+        u.phone === cleanId
+      );
+
+      // 2. Check in SEED_USERS
+      if (!matchedUser) {
+        matchedUser = SEED_USERS.find(u =>
+          u.id?.toLowerCase() === cleanId ||
+          u.username?.toLowerCase() === cleanId ||
+          u.email?.toLowerCase() === cleanId ||
+          u.phone === cleanId
+        );
+      }
+
+      // 3. Check in SEED_STUDENTS
+      let matchedStudent: any = null;
+      if (!matchedUser) {
+        const cleanPhone = cleanId.replace(/\D/g, '');
+        matchedStudent = SEED_STUDENTS.find(s =>
+          (s.rollNo || '').toLowerCase() === cleanId ||
+          (s.email || '').toLowerCase() === cleanId ||
+          s.id?.toLowerCase() === cleanId ||
+          (cleanPhone.length >= 7 && (s.mobile === cleanPhone || s.parentMobile === cleanPhone))
+        );
+
+        if (matchedStudent) {
+          matchedUser = {
+            id: matchedStudent.userId || matchedStudent.id,
+            name: matchedStudent.name,
+            username: matchedStudent.rollNo,
+            email: matchedStudent.email,
+            phone: matchedStudent.mobile
+          };
+        }
+      }
+
+      // 4. Check in Supabase users if configured
+      if (!matchedUser) {
+        try {
+          const { data: dbUser } = await serverSupabase
+            .from('users')
+            .select('*')
+            .or(`username.ilike.${cleanId},email.ilike.${cleanId},phone.eq.${cleanId}`)
+            .maybeSingle();
+          if (dbUser) {
+            matchedUser = dbUser;
+          }
+        } catch {}
+      }
+
+      // 5. Check in Supabase students if configured
+      if (!matchedUser) {
+        try {
+          const { data: dbStudent } = await serverSupabase
+            .from('students')
+            .select('*')
+            .or(`roll_no.ilike.${cleanId},email.ilike.${cleanId},mobile.eq.${cleanId}`)
+            .maybeSingle();
+          if (dbStudent) {
+            matchedUser = {
+              id: dbStudent.user_id || dbStudent.id,
+              name: dbStudent.name,
+              username: dbStudent.roll_no,
+              email: dbStudent.email,
+              phone: dbStudent.mobile
+            };
+          }
+        } catch {}
+      }
+
+      if (!matchedUser) {
+        return res.status(404).json({
+          success: false,
+          error: 'No account found matching this roll number, mobile, or email.'
+        });
+      }
+
+      // Generate a secure 6-digit numeric verification code
+      const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
+
+      const targetId = matchedUser.id || matchedUser.uid;
+      const record = {
+        code: resetCode,
+        userId: targetId,
+        identifier: cleanId,
+        name: matchedUser.name || 'User',
+        email: matchedUser.email,
+        expiresAt
+      };
+
+      // Store indexed by cleanId, targetId, and email/username
+      AuthController.passwordResetTokens.set(cleanId, record);
+      AuthController.passwordResetTokens.set(targetId.toLowerCase(), record);
+      if (matchedUser.email) {
+        AuthController.passwordResetTokens.set(matchedUser.email.toLowerCase(), record);
+      }
+      if (matchedUser.username) {
+        AuthController.passwordResetTokens.set(matchedUser.username.toLowerCase(), record);
+      }
+
+      console.log(`[AuthController.requestPasswordReset] Generated code ${resetCode} for ${matchedUser.name} (${cleanId}). Expires in 15 minutes.`);
+
+      return res.status(200).json({
+        success: true,
+        message: `A 6-digit verification code has been issued for ${matchedUser.name}.`,
+        name: matchedUser.name,
+        code: resetCode // Included for immediate dev/test execution
+      });
+    } catch (err: any) {
+      console.error('[AuthController.requestPasswordReset] Error:', err);
+      return res.status(500).json({ success: false, error: err.message || 'Failed to generate reset code.' });
+    }
+  }
+
+  public static async resetPasswordWithCode(req: Request, res: Response) {
+    try {
+      const { identifier, code, newPassword } = req.body || {};
+      const cleanId = (identifier || '').trim().toLowerCase();
+      const cleanCode = (code || '').trim();
+
+      if (!cleanId || !cleanCode || !newPassword) {
+        return res.status(400).json({
+          success: false,
+          error: 'Roll number/email, 6-digit reset code, and new password are required.'
+        });
+      }
+
+      const record = AuthController.passwordResetTokens.get(cleanId);
+      if (!record || Date.now() > record.expiresAt) {
+        return res.status(400).json({
+          success: false,
+          error: 'Verification code has expired or is invalid. Please request a new code.'
+        });
+      }
+
+      if (record.code !== cleanCode) {
+        return res.status(400).json({
+          success: false,
+          error: 'Incorrect verification code. Please check and try again.'
+        });
+      }
+
+      const trimmedNew = newPassword.trim();
+      const hasMinLength = trimmedNew.length >= 6;
+      const hasLetter = /[A-Za-z]/.test(trimmedNew);
+      const hasNumber = /[0-9]/.test(trimmedNew);
+
+      if (!hasMinLength || !hasLetter || !hasNumber) {
+        return res.status(400).json({
+          success: false,
+          error: 'Password must be at least 6 characters long and contain both letters and numbers.'
+        });
+      }
+
+      const passwordHash = await PasswordService.hashPassword(trimmedNew);
+      const targetUserId = record.userId;
+
+      // 1. Update memoryStore.users
+      const memUser = memoryStore.users.find((u: any) => u.id === targetUserId || u.username?.toLowerCase() === cleanId);
+      if (memUser) {
+        memUser.password = trimmedNew;
+        memUser.passwordHash = passwordHash;
+        memUser.forcePasswordChange = false;
+        memUser.mustChangePassword = false;
+      }
+
+      // 2. Update SEED_USERS and SEED_STUDENTS
+      const sUser = SEED_USERS.find(u => u.id === targetUserId || u.username?.toLowerCase() === cleanId);
+      if (sUser) {
+        sUser.password = trimmedNew;
+        sUser.passwordHash = passwordHash;
+        sUser.forcePasswordChange = false;
+        sUser.mustChangePassword = false;
+      }
+
+      const sStudent = SEED_STUDENTS.find(s => s.userId === targetUserId || s.id === targetUserId || s.rollNo?.toLowerCase() === cleanId);
+      if (sStudent) {
+        (sStudent as any).password = trimmedNew;
+        (sStudent as any).passwordHash = passwordHash;
+        (sStudent as any).forcePasswordChange = false;
+      }
+
+      // 3. Update Supabase users table
+      try {
+        await serverSupabase
+          .from('users')
+          .update({
+            password_hash: passwordHash,
+            force_password_change: false,
+            must_change_password: false,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', targetUserId);
+      } catch (e: any) {
+        console.warn('[AuthController.resetPasswordWithCode] Supabase table update note:', e.message);
+      }
+
+      // 4. Update Supabase Auth admin if available
+      try {
+        if (serverSupabase?.auth?.admin) {
+          await serverSupabase.auth.admin.updateUserById(targetUserId, {
+            password: trimmedNew
+          });
+        }
+      } catch (e: any) {
+        console.warn('[AuthController.resetPasswordWithCode] Supabase Auth update note:', e.message);
+      }
+
+      // Clear the used token
+      AuthController.passwordResetTokens.delete(cleanId);
+      AuthController.passwordResetTokens.delete(targetUserId.toLowerCase());
+
+      return res.status(200).json({
+        success: true,
+        message: 'Password reset successfully. You can now log in with your new password.'
+      });
+    } catch (err: any) {
+      console.error('[AuthController.resetPasswordWithCode] Error:', err);
+      return res.status(500).json({ success: false, error: err.message || 'Failed to reset password.' });
     }
   }
 }

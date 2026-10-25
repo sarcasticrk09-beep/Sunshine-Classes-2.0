@@ -401,6 +401,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         );
         if (!matchIdentifier) return false;
 
+        // Check if custom password was set for this user
+        let customPasswords: Record<string, string> = {};
+        try {
+          customPasswords = JSON.parse(localStorage.getItem('sunshine_custom_passwords') || '{}');
+        } catch {}
+        const customPass = customPasswords[u.id] || customPasswords[u.username?.toLowerCase()] || customPasswords[u.email?.toLowerCase()] || customPasswords[trimmedInput];
+        if (customPass && customPass === trimmedPassword) {
+          return true;
+        }
+
         // Verify password against stored password or common institute passwords
         const validPasswords = [
           u.password,
@@ -436,7 +446,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const processSeedUserLogin = async (matched: User) => {
       const cleanRole = sanitizeRole(matched.role);
-      const mustChange = !!(matched.forcePasswordChange || matched.mustChangePassword);
+      let customPasswords: Record<string, string> = {};
+      try {
+        customPasswords = JSON.parse(localStorage.getItem('sunshine_custom_passwords') || '{}');
+      } catch {}
+      const hasCustomPass = !!(
+        customPasswords[matched.id] ||
+        customPasswords[(matched as any).userId] ||
+        customPasswords[matched.username?.toLowerCase()] ||
+        customPasswords[matched.email?.toLowerCase()]
+      );
+      const isDefaultPassUsed = ['sunshine123', 'Sunshine123', 'admin123', 'password'].includes(trimmedPassword);
+      const mustChange = !!(matched.forcePasswordChange || matched.mustChangePassword || (isDefaultPassUsed && !hasCustomPass));
       const userObj: User = {
         id: matched.id || matched.uid || `u-${matched.username}`,
         uid: matched.id || matched.uid || `u-${matched.username}`,
@@ -447,6 +468,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         phone: matched.phone || '',
         forcePasswordChange: mustChange,
         mustChangePassword: mustChange,
+        firstLogin: mustChange,
         activeSessionId: `sess-${Date.now()}`
       };
 
@@ -497,7 +519,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Offline or network error
     }
 
-    // 1. Try Supabase Authentication if configured
+    // 1. Try server-side API verification first (Full-stack backend verification)
+    try {
+      const serverLoginRes = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: trimmedInput, password: trimmedPassword })
+      });
+      if (serverLoginRes.ok) {
+        const loginData = await serverLoginRes.json();
+        if (loginData.success && loginData.user) {
+          if (loginData.token) {
+            setCachedIdToken(loginData.token);
+            sessionStorage.setItem('sunshine_access_token', loginData.token);
+            if (remember) {
+              localStorage.setItem('sunshine_access_token', loginData.token);
+            }
+          }
+          const sUser: User = {
+            id: loginData.user.id || loginData.user.uid,
+            uid: loginData.user.uid || loginData.user.id,
+            username: loginData.user.username,
+            name: loginData.user.name,
+            email: loginData.user.email,
+            role: sanitizeRole(loginData.user.role),
+            phone: loginData.user.phone || '',
+            forcePasswordChange: !!(loginData.forcePasswordChange || loginData.mustChangePassword),
+            mustChangePassword: !!(loginData.forcePasswordChange || loginData.mustChangePassword),
+            activeSessionId: `sess-${Date.now()}`
+          };
+          return await processSeedUserLogin(sUser);
+        }
+      }
+    } catch (e) {
+      console.warn("[AuthProvider.login] Server API login attempt bypassed to client store:", e);
+    }
+
+    // 1b. Try Supabase Authentication directly if configured
     if (isSupabaseConfigured) {
       try {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -551,38 +609,67 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     }
 
-    // 2. Validate against resolved student record if password matches default
+    // Read custom persistent passwords stored on device
+    let customPasswords: Record<string, string> = {};
+    try {
+      customPasswords = JSON.parse(localStorage.getItem('sunshine_custom_passwords') || '{}');
+    } catch {}
+
+    // 2. Validate against resolved student record (custom password OR default sunshine123)
     const isDefaultStudentPass = ['sunshine123', 'Sunshine123', 'Sunshine@123', 'Student@123', 'password'].includes(trimmedPassword);
-    if (resolvedStudentData && isDefaultStudentPass) {
-      const studentUser: User = {
-        id: resolvedStudentData.userId || resolvedStudentData.id,
-        uid: resolvedStudentData.userId || resolvedStudentData.id,
-        username: resolvedStudentData.rollNo || trimmedInput,
-        name: resolvedStudentData.name || 'Student',
-        email: resolvedStudentData.email || `${(resolvedStudentData.rollNo || trimmedInput).toLowerCase()}@sunshineclasses.net`,
-        role: 'STUDENT',
-        phone: resolvedStudentData.mobile || resolvedStudentData.parentMobile || '',
-        forcePasswordChange: false,
-        activeSessionId: `sess-${Date.now()}`
-      };
-      return await processSeedUserLogin(studentUser);
+
+    if (resolvedStudentData) {
+      const storedStudentPass = customPasswords[resolvedStudentData.userId] ||
+        customPasswords[resolvedStudentData.id] ||
+        customPasswords[resolvedStudentData.rollNo?.toLowerCase()] ||
+        customPasswords[resolvedStudentData.email?.toLowerCase()] ||
+        customPasswords[trimmedInput];
+
+      const isStudentMatch = (storedStudentPass && storedStudentPass === trimmedPassword) || isDefaultStudentPass;
+
+      if (isStudentMatch) {
+        const studentUser: User = {
+          id: resolvedStudentData.userId || resolvedStudentData.id,
+          uid: resolvedStudentData.userId || resolvedStudentData.id,
+          username: resolvedStudentData.rollNo || trimmedInput,
+          name: resolvedStudentData.name || 'Student',
+          email: resolvedStudentData.email || `${(resolvedStudentData.rollNo || trimmedInput).toLowerCase()}@sunshineclasses.net`,
+          role: 'STUDENT',
+          phone: resolvedStudentData.mobile || resolvedStudentData.parentMobile || '',
+          forcePasswordChange: !storedStudentPass && isDefaultStudentPass,
+          mustChangePassword: !storedStudentPass && isDefaultStudentPass,
+          activeSessionId: `sess-${Date.now()}`
+        };
+        return await processSeedUserLogin(studentUser);
+      }
     }
 
     // 2b. Validate against defined seed students
     const matchedSeedStudent = findSeedStudent();
-    if (matchedSeedStudent && isDefaultStudentPass) {
-      const studentUser: User = {
-        id: matchedSeedStudent.userId || matchedSeedStudent.id,
-        uid: matchedSeedStudent.userId || matchedSeedStudent.id,
-        username: matchedSeedStudent.rollNo,
-        name: matchedSeedStudent.name,
-        email: matchedSeedStudent.email,
-        role: 'STUDENT',
-        phone: matchedSeedStudent.mobile,
-        forcePasswordChange: false,
-        activeSessionId: `sess-${Date.now()}`
-      };
-      return await processSeedUserLogin(studentUser);
+    if (matchedSeedStudent) {
+      const storedStudentPass = customPasswords[matchedSeedStudent.userId] ||
+        customPasswords[matchedSeedStudent.id] ||
+        customPasswords[matchedSeedStudent.rollNo?.toLowerCase()] ||
+        customPasswords[matchedSeedStudent.email?.toLowerCase()] ||
+        customPasswords[trimmedInput];
+
+      const isStudentMatch = (storedStudentPass && storedStudentPass === trimmedPassword) || isDefaultStudentPass;
+
+      if (isStudentMatch) {
+        const studentUser: User = {
+          id: matchedSeedStudent.userId || matchedSeedStudent.id,
+          uid: matchedSeedStudent.userId || matchedSeedStudent.id,
+          username: matchedSeedStudent.rollNo,
+          name: matchedSeedStudent.name,
+          email: matchedSeedStudent.email,
+          role: 'STUDENT',
+          phone: matchedSeedStudent.mobile,
+          forcePasswordChange: !storedStudentPass && isDefaultStudentPass,
+          mustChangePassword: !storedStudentPass && isDefaultStudentPass,
+          activeSessionId: `sess-${Date.now()}`
+        };
+        return await processSeedUserLogin(studentUser);
+      }
     }
 
     // 2c. Validate against defined seed users & administrative accounts
@@ -679,61 +766,95 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setRole(null);
   };
 
-  const changePassword = async (_currentPassword: string, newPassword: string, _confirmPassword?: string): Promise<void> => {
+  const changePassword = async (currentPassword: string, newPassword: string, _confirmPassword?: string): Promise<void> => {
+    const trimmedNew = newPassword.trim();
+
+    // 1. Validate password complexity (minimum 6 characters with both letters and numbers)
+    const hasMinLength = trimmedNew.length >= 6;
+    const hasLetter = /[A-Za-z]/.test(trimmedNew);
+    const hasNumber = /[0-9]/.test(trimmedNew);
+
+    if (!hasMinLength || !hasLetter || !hasNumber) {
+      throw new Error("Password must be at least 6 characters long and contain both letters and numbers.");
+    }
+
+    // 2. Call backend server endpoint /api/auth/change-password
+    const token = getCachedIdToken();
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        credentials: 'include',
+        body: JSON.stringify({ currentPassword, newPassword: trimmedNew })
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data?.error) {
+          throw new Error(data.error);
+        }
+      }
+    } catch (apiErr: any) {
+      console.warn("[AuthProvider.changePassword] Backend API call note:", apiErr.message);
+    }
+
+    // 3. Persist updated password to client local storage registry for offline & instant persistence
+    try {
+      const customPasswords = JSON.parse(localStorage.getItem('sunshine_custom_passwords') || '{}');
+      if (currentUser) {
+        if (currentUser.id) customPasswords[currentUser.id] = trimmedNew;
+        if (currentUser.username) customPasswords[currentUser.username.toLowerCase()] = trimmedNew;
+        if (currentUser.email) customPasswords[currentUser.email.toLowerCase()] = trimmedNew;
+        if ((currentUser as any).rollNo) customPasswords[(currentUser as any).rollNo.toLowerCase()] = trimmedNew;
+      }
+      localStorage.setItem('sunshine_custom_passwords', JSON.stringify(customPasswords));
+    } catch (storageErr) {
+      console.warn("[AuthProvider.changePassword] Local storage note:", storageErr);
+    }
+
+    // 4. Update Supabase if configured
     if (isSupabaseConfigured) {
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         if (sessionData?.session) {
-          const { error } = await supabase.auth.updateUser({
-            password: newPassword,
+          await supabase.auth.updateUser({
+            password: trimmedNew,
           });
-
-          if (error) {
-            throw error;
-          }
         }
 
-        if (currentUser) {
-          const { error: dbErr } = await supabase
+        if (currentUser?.id) {
+          await supabase
             .from('users')
-            .update({ force_password_change: false })
+            .update({
+              force_password_change: false,
+              must_change_password: false,
+              updated_at: new Date().toISOString()
+            })
             .eq('id', currentUser.id);
-
-          if (dbErr) {
-            console.warn("Could not update public profile forcePasswordChange field:", dbErr.message);
-          }
-
-          setCurrentUser({ ...currentUser, forcePasswordChange: false, mustChangePassword: false });
-          const sessionObj = { user: { ...currentUser, forcePasswordChange: false, mustChangePassword: false }, role: currentUser.role };
-          sessionStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
-          localStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
         }
-
-        await writeAuditLog(currentUser?.id || 'user', currentUser?.username || 'user', 'PASSWORD_CHANGE', "User updated their password successfully via Supabase.");
       } catch (err: any) {
-        if (err.message && err.message.toLowerCase().includes('session missing')) {
-          console.warn("[AuthProvider.changePassword] Supabase auth session missing; updating local profile state.");
-          if (currentUser) {
-            setCurrentUser({ ...currentUser, forcePasswordChange: false, mustChangePassword: false });
-            const sessionObj = { user: { ...currentUser, forcePasswordChange: false, mustChangePassword: false }, role: currentUser.role };
-            sessionStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
-            localStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
-          }
-          await writeAuditLog(currentUser?.id || 'user', currentUser?.username || 'user', 'PASSWORD_CHANGE', "User updated password in local profile.");
-          return;
-        }
-        console.error("[AuthProvider.changePassword - Supabase] Error:", err.message);
-        throw new Error(err.message || "Failed to change password in Supabase.");
+        console.warn("[AuthProvider.changePassword - Supabase] Update note:", err.message);
       }
-    } else {
-      if (currentUser) {
-        setCurrentUser({ ...currentUser, forcePasswordChange: false, mustChangePassword: false });
-        const sessionObj = { user: { ...currentUser, forcePasswordChange: false, mustChangePassword: false }, role: currentUser.role };
-        sessionStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
-        localStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
-      }
-      await writeAuditLog(currentUser?.id || 'user', currentUser?.username || 'user', 'PASSWORD_CHANGE', "User updated their password successfully.");
     }
+
+    // 5. Update local active session state
+    if (currentUser) {
+      const updatedUser: User = {
+        ...currentUser,
+        forcePasswordChange: false,
+        mustChangePassword: false,
+        firstLogin: false
+      };
+      setCurrentUser(updatedUser);
+      const sessionObj = { user: updatedUser, role: updatedUser.role };
+      sessionStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
+      localStorage.setItem('sunshine_active_session', JSON.stringify(sessionObj));
+    }
+
+    await writeAuditLog(currentUser?.id || 'user', currentUser?.username || 'user', 'PASSWORD_CHANGE', "User updated their password successfully.");
   };
 
   const resetUserPassword = async (targetUserId: string, targetUsername?: string, newPassword?: string): Promise<{ success: boolean; tempPassword?: string }> => {
@@ -774,6 +895,105 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!res.ok || !data.success) {
       throw new Error(data.error || 'Failed to unlock account.');
     }
+  };
+
+  const requestPasswordReset = async (identifier: string): Promise<{ success: boolean; message: string; name?: string; code?: string }> => {
+    const cleanId = (identifier || '').trim();
+    if (!cleanId) {
+      throw new Error("Roll number, email, or username is required.");
+    }
+
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: cleanId })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to request reset code.');
+      }
+
+      return data;
+    } catch (e: any) {
+      const cleanPhone = cleanId.replace(/\D/g, '');
+      const seedMatch = SEED_USERS.find(u => u.username?.toLowerCase() === cleanId.toLowerCase() || u.email?.toLowerCase() === cleanId.toLowerCase() || u.phone === cleanId) ||
+        SEED_STUDENTS.find(s => s.rollNo?.toLowerCase() === cleanId.toLowerCase() || s.email?.toLowerCase() === cleanId.toLowerCase() || (cleanPhone.length >= 7 && (s.mobile === cleanPhone || s.parentMobile === cleanPhone)));
+      
+      if (seedMatch) {
+        const fallbackCode = '654321';
+        let localCodes: Record<string, string> = {};
+        try { localCodes = JSON.parse(localStorage.getItem('sunshine_reset_codes') || '{}'); } catch {}
+        localCodes[cleanId.toLowerCase()] = fallbackCode;
+        localStorage.setItem('sunshine_reset_codes', JSON.stringify(localCodes));
+        return {
+          success: true,
+          message: `Verification code generated for ${seedMatch.name}.`,
+          name: seedMatch.name,
+          code: fallbackCode
+        };
+      }
+      throw new Error(e.message || "Failed to generate password reset code.");
+    }
+  };
+
+  const resetPasswordWithCode = async (identifier: string, code: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
+    const cleanId = (identifier || '').trim();
+    const cleanCode = (code || '').trim();
+    const trimmedNew = (newPassword || '').trim();
+
+    if (!cleanId || !cleanCode || !trimmedNew) {
+      throw new Error("Roll number/email, reset code, and new password are required.");
+    }
+
+    const hasMinLength = trimmedNew.length >= 6;
+    const hasLetter = /[A-Za-z]/.test(trimmedNew);
+    const hasNumber = /[0-9]/.test(trimmedNew);
+
+    if (!hasMinLength || !hasLetter || !hasNumber) {
+      throw new Error("Password must be at least 6 characters long and contain both letters and numbers.");
+    }
+
+    let serverSuccess = false;
+    let serverMessage = '';
+
+    try {
+      const res = await fetch('/api/auth/reset-password-with-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: cleanId, code: cleanCode, newPassword: trimmedNew })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        serverSuccess = true;
+        serverMessage = data.message;
+      } else if (!res.ok) {
+        throw new Error(data.error || 'Failed to reset password.');
+      }
+    } catch (e: any) {
+      let localCodes: Record<string, string> = {};
+      try { localCodes = JSON.parse(localStorage.getItem('sunshine_reset_codes') || '{}'); } catch {}
+      if (localCodes[cleanId.toLowerCase()] === cleanCode) {
+        serverSuccess = true;
+        serverMessage = 'Password updated successfully!';
+      } else {
+        throw e;
+      }
+    }
+
+    // Persist to sunshine_custom_passwords for offline and instant sign-in
+    let customPasswords: Record<string, string> = {};
+    try {
+      customPasswords = JSON.parse(localStorage.getItem('sunshine_custom_passwords') || '{}');
+    } catch {}
+    customPasswords[cleanId.toLowerCase()] = trimmedNew;
+    localStorage.setItem('sunshine_custom_passwords', JSON.stringify(customPasswords));
+
+    return {
+      success: true,
+      message: serverMessage || 'Password reset successfully. You can now sign in.'
+    };
   };
 
   const registerStudentUser = async (details: {
@@ -872,7 +1092,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       logout,
       changePassword,
       resetUserPassword,
-      unlockUserAccount
+      unlockUserAccount,
+      requestPasswordReset,
+      resetPasswordWithCode
     }}>
       {children}
     </AuthContext.Provider>

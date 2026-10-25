@@ -33,6 +33,7 @@ export interface User {
   status?: UserAccountStatus;
   isLocked?: boolean;
   forcePasswordChange?: boolean;
+  firstLogin?: boolean;
   failedLoginAttempts?: number;
   activeSessionId?: string;
   passwordHistory?: PasswordHistoryEntry[];

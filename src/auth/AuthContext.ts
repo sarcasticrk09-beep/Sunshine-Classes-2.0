@@ -20,6 +20,8 @@ export interface AuthContextType {
   changePassword: (currentPassword: string, newPassword: string, confirmPassword?: string) => Promise<void>;
   resetUserPassword?: (targetUserId: string, targetUsername?: string, newPassword?: string) => Promise<{ success: boolean; tempPassword?: string }>;
   unlockUserAccount?: (targetUserId: string, targetUsername?: string) => Promise<void>;
+  requestPasswordReset?: (identifier: string) => Promise<{ success: boolean; message: string; name?: string; code?: string }>;
+  resetPasswordWithCode?: (identifier: string, code: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
   token?: string | null;
 }
 
