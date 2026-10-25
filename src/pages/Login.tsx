@@ -471,7 +471,7 @@ export const Login: React.FC<LoginProps> = ({ onBackToWebsite }) => {
 
         {/* Header */}
         <div className="flex flex-col items-center text-center mb-6">
-          <SunshineLogo size={42} showText={false} />
+          <SunshineLogo size={42} showText={true} />
           <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight mt-3">
             {authMode === 'forgot-password'
               ? 'Password Recovery'

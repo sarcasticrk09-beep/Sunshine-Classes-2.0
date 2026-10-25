@@ -143,10 +143,10 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button
           id="nav-logo-btn"
           onClick={() => handleNavClick('home')}
-          className="flex items-center gap-1.5 sm:gap-2 cursor-pointer text-left focus:outline-none shrink min-w-0 max-w-[150px] xs:max-w-none overflow-hidden"
+          className="flex items-center gap-1.5 sm:gap-2 cursor-pointer text-left focus:outline-none shrink min-w-0 max-w-[180px] xs:max-w-none overflow-hidden"
           title="Sunshine Classes Home"
         >
-          <SunshineLogo size="sm" showText={true} textSubTitle="Pihani, Hardoi" />
+          <SunshineLogo size="sm" showText={true} textColor={theme === 'dark' ? 'light' : 'dark'} textSubTitle="Pihani, Hardoi" />
         </button>
 
         {/* Desktop Grouped Navigation Menu */}
