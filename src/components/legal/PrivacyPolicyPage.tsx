@@ -42,7 +42,7 @@ export const PrivacyPolicyPage: React.FC = () => {
             onClick={() => navigate('/')}
             className="cursor-pointer focus:outline-none flex items-center gap-2"
           >
-            <SunshineLogo size="sm" showText={true} textSubTitle="Pihani, Hardoi" />
+            <SunshineLogo size="sm" showText={true} />
           </button>
         </div>
 

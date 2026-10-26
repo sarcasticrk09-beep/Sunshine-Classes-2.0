@@ -114,7 +114,7 @@ export const Footer: React.FC<FooterProps> = ({ setActiveSection }) => {
               className="flex items-center gap-2 cursor-pointer text-left focus:outline-none"
               title="Sunshine Classes Home"
             >
-              <SunshineLogo size="md" showText={true} textColor="light" textSubTitle="Pihani, Hardoi" />
+              <SunshineLogo size="md" showText={true} textColor="light" />
             </button>
             <p className="text-slate-400 text-xs leading-relaxed font-normal">
               Sunshine Classes is the premier academic institute serving students across Hardoi district and Pihani with structured coaching for Classes 1 to 10. We focus on conceptual clarity, board exam strategies, and individual merit development.

@@ -93,7 +93,7 @@ export const ErrorPage: React.FC<ErrorPageProps> = ({
           className="flex items-center gap-2.5 focus:outline-none"
           title="Back to Sunshine Classes Home"
         >
-          <SunshineLogo size="sm" showText={true} textSubTitle="Pihani, Hardoi" />
+          <SunshineLogo size="sm" showText={true} />
         </Link>
 
         <div className="flex items-center gap-2 sm:gap-3">

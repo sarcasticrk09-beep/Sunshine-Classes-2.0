@@ -29,6 +29,8 @@ export default function SunshineLogo({
 }: SunshineLogoProps) {
   const [imgError, setImgError] = useState(false);
 
+  const [retryCount, setRetryCount] = useState(0);
+
   // Compute pixel sizes
   const getIconSize = () => {
     if (typeof size === 'number') return size;
@@ -55,6 +57,25 @@ export default function SunshineLogo({
   };
 
   const isLightText = textColor === 'light';
+
+  // Resilient source resolution
+  const getLogoSrc = (isEmblem = false) => {
+    if (isEmblem) {
+      if (retryCount === 0) return isLightText ? EMBLEM_LOGO_LIGHT_SRC : EMBLEM_LOGO_SRC;
+      return isLightText ? '/logo_emblem_light_transparent.png' : '/logo_emblem_transparent.png';
+    }
+    if (retryCount === 0) return isLightText ? FULL_LOGO_LIGHT_SRC : FULL_LOGO_SRC;
+    if (retryCount === 1) return isLightText ? '/logo_with_side_name_light_transparent.png' : '/logo_with_side_name_transparent.png';
+    return '/logo_transparent.png';
+  };
+
+  const handleImageError = () => {
+    if (retryCount < 2) {
+      setRetryCount((prev) => prev + 1);
+    } else {
+      setImgError(true);
+    }
+  };
 
   // Fallback vector SVG if image cannot be loaded
   const renderFallbackSvg = () => (
@@ -99,10 +120,10 @@ export default function SunshineLogo({
   // If error occurred loading image, render the vector fallback
   if (imgError) {
     return (
-      <div id="sunshine-logo-fallback" className={`flex items-center gap-2.5 select-none bg-transparent ${className}`}>
+      <div id="sunshine-logo-fallback" className={`flex items-center gap-2.5 select-none bg-transparent shrink-0 ${className}`}>
         {renderFallbackSvg()}
         {showText && (
-          <div className="flex flex-col">
+          <div className="flex flex-col shrink-0">
             <span className={`font-serif-brand font-black tracking-wider leading-none uppercase ${isLightText ? 'text-white' : 'text-[#0B2545]'}`}>
               SUNSHINE
             </span>
@@ -127,11 +148,11 @@ export default function SunshineLogo({
         className={`inline-flex items-center justify-center shrink-0 select-none bg-transparent ${className}`}
       >
         <img
-          src={isLightText ? EMBLEM_LOGO_LIGHT_SRC : EMBLEM_LOGO_SRC}
+          src={getLogoSrc(true)}
           alt="Sunshine Classes Emblem"
           style={inlineStyle}
-          className="object-contain filter drop-shadow-2xs transition-transform duration-200 hover:scale-105"
-          onError={() => setImgError(true)}
+          className="object-contain shrink-0 filter drop-shadow-2xs transition-transform duration-200 hover:scale-105"
+          onError={handleImageError}
           loading="eager"
         />
       </div>
@@ -143,23 +164,28 @@ export default function SunshineLogo({
     ? { height: `${size}px`, maxHeight: `${size}px`, width: 'auto' }
     : undefined;
 
+  // Filter out any "pihani" or "hardoi" location mentions from textSubTitle
+  const cleanSubtitle = textSubTitle && !textSubTitle.toLowerCase().includes('hardoi') && !textSubTitle.toLowerCase().includes('pihani')
+    ? textSubTitle
+    : null;
+
   const content = (
-    <div className="flex flex-col items-start bg-transparent">
+    <div className="flex flex-col items-start bg-transparent shrink-0">
       <img
-        src={isLightText ? FULL_LOGO_LIGHT_SRC : FULL_LOGO_SRC}
+        src={getLogoSrc(false)}
         alt="Sunshine Classes - Excellence in Education"
         style={imgInlineStyle}
-        className={`${getHeightClass()} w-auto object-contain filter drop-shadow-2xs transition-transform duration-200 hover:opacity-95`}
-        onError={() => setImgError(true)}
+        className={`${getHeightClass()} w-auto shrink-0 object-contain filter drop-shadow-2xs transition-transform duration-200 hover:opacity-95`}
+        onError={handleImageError}
         loading="eager"
       />
-      {textSubTitle && textSubTitle.toLowerCase().includes('hardoi') && (
+      {cleanSubtitle && (
         <span
           className={`text-[9.5px] font-bold tracking-[0.16em] uppercase -mt-0.5 pl-0.5 ${
             isLightText ? 'text-amber-300' : 'text-slate-500'
           }`}
         >
-          {textSubTitle}
+          {cleanSubtitle}
         </span>
       )}
     </div>
@@ -168,7 +194,7 @@ export default function SunshineLogo({
   return (
     <div
       id="sunshine-logo-container"
-      className={`inline-flex items-center select-none bg-transparent ${className}`}
+      className={`inline-flex items-center shrink-0 select-none bg-transparent ${className}`}
     >
       {content}
     </div>

@@ -41,7 +41,7 @@ export const NotFoundPage: React.FC<NotFoundPageProps> = ({ onNavigateToHome }) 
           className="flex items-center gap-2.5 cursor-pointer focus:outline-none"
           title="Back to Sunshine Classes Home"
         >
-          <SunshineLogo size="sm" showText={true} textSubTitle="Pihani, Hardoi" />
+          <SunshineLogo size="sm" showText={true} />
         </button>
 
         <div className="flex items-center gap-2 sm:gap-3">

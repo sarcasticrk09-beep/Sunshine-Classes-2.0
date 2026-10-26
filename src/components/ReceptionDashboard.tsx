@@ -1804,7 +1804,7 @@ export default function ReceptionDashboard({
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl relative text-slate-800">
             {/* Logo */}
             <div className="flex flex-col items-center justify-center border-b border-slate-100 pb-4 mb-4">
-              <SunshineLogo size={48} showText={true} textSubTitle="Excellence in Education • Pihani, Hardoi" />
+              <SunshineLogo size={48} showText={true} textSubTitle="Excellence in Education" />
               <span className="text-[10px] text-slate-400 mt-1">GSTIN / Registration No: 09BCXPS8401H1ZD</span>
             </div>
 
