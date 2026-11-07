@@ -42,6 +42,21 @@ function generateSvgFavicon(theme: 'universal' | 'dark' | 'light'): string {
       <stop offset="0%" stop-color="#0F284E" />
       <stop offset="100%" stop-color="#07172E" />
     </linearGradient>
+
+    <style>
+      @media (prefers-color-scheme: dark) {
+        .sunshine-badge-border {
+          stroke: rgba(255, 255, 255, 0.75) !important;
+          stroke-width: 4px !important;
+        }
+      }
+      @media (prefers-color-scheme: light) {
+        .sunshine-badge-border {
+          stroke: rgba(15, 23, 42, 0.28) !important;
+          stroke-width: 3.5px !important;
+        }
+      }
+    </style>
   </defs>
 
   <!-- Base Squircle Badge (YouTube-style curved tile with 22% radius) -->
@@ -54,6 +69,7 @@ function generateSvgFavicon(theme: 'universal' | 'dark' | 'light'): string {
     fill="url(#badgeGrad)"
     stroke="${strokeColor}"
     stroke-width="${strokeWidth}"
+    class="sunshine-badge-border"
   />
 
   <!-- High-contrast Emblem Group -->

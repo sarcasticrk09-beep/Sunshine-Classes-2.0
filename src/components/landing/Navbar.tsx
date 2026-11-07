@@ -137,7 +137,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className={`sticky top-0 z-40 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md transition-all duration-300 ${isScrolled ? 'shadow-md h-16' : 'h-16 sm:h-20'}`}>
-      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 h-full flex items-center justify-between gap-2 sm:gap-3">
+      <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-6 2xl:px-8 h-full flex items-center justify-between gap-1.5 sm:gap-2 lg:gap-3">
         
         {/* Brand Logo & Name */}
         <button
@@ -150,13 +150,13 @@ export const Navbar: React.FC<NavbarProps> = ({
         </button>
 
         {/* Desktop Grouped Navigation Menu */}
-        <nav className="hidden xl:flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-200 shrink min-w-0">
+        <nav className="hidden xl:flex items-center gap-0.5 2xl:gap-1 text-xs font-bold text-slate-700 dark:text-slate-200 shrink-0">
           
           {/* Home */}
           <button
             id="btn-nav-home"
             onClick={() => handleNavClick('home')}
-            className={`px-3 py-2 rounded-xl transition-all cursor-pointer ${
+            className={`px-2.5 2xl:px-3 py-1.5 2xl:py-2 rounded-xl transition-all cursor-pointer whitespace-nowrap ${
               activeSection === 'home'
                 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-black'
                 : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
@@ -174,7 +174,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="btn-nav-courses"
               onClick={() => handleNavClick('courses')}
-              className={`px-3 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1 ${
+              className={`px-2.5 2xl:px-3 py-1.5 2xl:py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
                 activeSection === 'courses'
                   ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-black'
                   : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
@@ -217,7 +217,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="btn-nav-admissions"
               onClick={() => handleNavClick('admissions')}
-              className={`px-3 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1 ${
+              className={`px-2.5 2xl:px-3 py-1.5 2xl:py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
                 activeSection === 'admissions'
                   ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-black'
                   : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
@@ -260,7 +260,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="btn-nav-resources"
               onClick={() => handleRouteClick('/resources')}
-              className="px-3 py-2 rounded-xl transition-all cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1"
+              className="px-2.5 2xl:px-3 py-1.5 2xl:py-2 rounded-xl transition-all cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1 whitespace-nowrap"
             >
               <span>Resources</span>
               <ChevronDown size={13} className={`transition-transform duration-200 ${activeDropdown === 'resources' ? 'rotate-180' : ''}`} />
@@ -299,10 +299,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="btn-nav-store"
               onClick={() => handleRouteClick('/books')}
-              className="px-3 py-2 rounded-xl transition-all cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1 font-bold text-amber-600 dark:text-amber-400"
+              className="px-2.5 2xl:px-3 py-1.5 2xl:py-2 rounded-xl transition-all cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1 font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap"
             >
-              <ShoppingBag size={14} className="text-amber-500" />
-              <span>Sunshine Store</span>
+              <ShoppingBag size={14} className="text-amber-500 shrink-0" />
+              <span className="hidden 2xl:inline">Sunshine </span><span>Store</span>
               <ChevronDown size={13} className={`transition-transform duration-200 ${activeDropdown === 'store' ? 'rotate-180' : ''}`} />
             </button>
 
@@ -334,7 +334,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             id="btn-nav-results"
             onClick={() => handleNavClick('results')}
-            className={`px-3 py-2 rounded-xl transition-all cursor-pointer ${
+            className={`px-2.5 2xl:px-3 py-1.5 2xl:py-2 rounded-xl transition-all cursor-pointer whitespace-nowrap ${
               activeSection === 'results'
                 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-black'
                 : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
@@ -352,7 +352,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="btn-nav-about"
               onClick={() => handleNavClick('about')}
-              className={`px-3 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1 ${
+              className={`px-2.5 2xl:px-3 py-1.5 2xl:py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
                 activeSection === 'about'
                   ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-black'
                   : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
@@ -390,7 +390,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             id="btn-nav-contact"
             onClick={() => handleNavClick('contact')}
-            className={`px-3 py-2 rounded-xl transition-all cursor-pointer ${
+            className={`px-2.5 2xl:px-3 py-1.5 2xl:py-2 rounded-xl transition-all cursor-pointer whitespace-nowrap ${
               activeSection === 'contact'
                 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-black'
                 : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
@@ -408,12 +408,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           <a
             id="btn-nav-call-desk"
             href="tel:+918707738284"
-            className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 text-xs font-black transition-all cursor-pointer min-h-[44px]"
+            className="hidden md:flex items-center gap-1.5 px-2.5 2xl:px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 text-xs font-black transition-all cursor-pointer min-h-[38px] sm:min-h-[42px] shrink-0"
             title="Call Admission Helpdesk directly at 8707738284"
             aria-label="Call Admission Helpdesk directly at 8707738284"
           >
             <Phone size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
-            <span>8707738284</span>
+            <span className="hidden 2xl:inline">8707738284</span>
           </a>
 
           {/* Direct WhatsApp (Desktop/Tablet) */}
@@ -422,12 +422,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             href="https://wa.me/919161586254?text=Hello!%20I%20want%20to%20inquire%20about%20Sunshine%20Classes."
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 text-xs font-black transition-all cursor-pointer min-h-[44px]"
+            className="hidden md:flex items-center gap-1.5 px-2.5 2xl:px-3 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 text-xs font-black transition-all cursor-pointer min-h-[38px] sm:min-h-[42px] shrink-0"
             title="Chat on WhatsApp (9161586254)"
             aria-label="Chat on WhatsApp at 9161586254"
           >
             <MessageCircle size={14} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span>WhatsApp</span>
+            <span className="hidden 2xl:inline">WhatsApp</span>
           </a>
 
           {/* Theme Switcher */}
@@ -447,11 +447,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               id="btn-nav-share-portal"
               type="button"
               onClick={() => setShowNavShare(!showNavShare)}
-              className="p-2.5 sm:px-3 sm:py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer min-h-[44px] flex items-center gap-1.5 text-xs font-bold"
+              className="p-2 2xl:px-3 2xl:py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer min-h-[38px] sm:min-h-[42px] flex items-center gap-1.5 text-xs font-bold shrink-0"
               title="Share Sunshine Classes Portal"
             >
-              <Share2 size={16} className="text-brand-blue" />
-              <span className="hidden md:inline">Share</span>
+              <Share2 size={15} className="text-brand-blue shrink-0" />
+              <span className="hidden 2xl:inline">Share</span>
             </button>
 
             <AnimatePresence>
@@ -515,9 +515,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="btn-nav-login"
               onClick={() => handleRouteClick('/login')}
-              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-extrabold text-xs transition-all cursor-pointer min-h-[44px]"
+              className="flex items-center gap-1.5 px-2.5 2xl:px-3.5 py-2 2xl:py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-extrabold text-xs transition-all cursor-pointer min-h-[38px] sm:min-h-[42px] shrink-0"
             >
-              <LogIn size={15} className="text-blue-600 dark:text-blue-400" />
+              <LogIn size={15} className="text-blue-600 dark:text-blue-400 shrink-0" />
               <span>Login</span>
               <ChevronDown size={12} className={`transition-transform duration-200 ${activeDropdown === 'login' ? 'rotate-180' : ''}`} />
             </button>
