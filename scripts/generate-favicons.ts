@@ -2,175 +2,206 @@ import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
 
-// High-visibility, universal-contrast SVG favicon for Sunshine Classes
-// Inspired by YouTube's high-contrast, instantly recognizable squircle badge
-function generateSvgFavicon(theme: 'universal' | 'dark' | 'light'): string {
+/**
+ * Extracts the clean transparent emblem from logo.svg if emblem_clean_transparent.png does not exist.
+ */
+async function getOrExtractEmblem(): Promise<Buffer> {
+  const emblemPath = path.resolve('emblem_clean_transparent.png');
+  if (fs.existsSync(emblemPath)) {
+    return fs.readFileSync(emblemPath);
+  }
+
+  const logoSvgPath = path.resolve('logo.svg');
+  if (!fs.existsSync(logoSvgPath)) {
+    throw new Error('logo.svg not found');
+  }
+
+  const svgContent = fs.readFileSync(logoSvgPath, 'utf8');
+  const m = svgContent.match(/<image[^>]+width="1110"[^>]+xlink:href="data:image\/png;base64,([^"]+)"/);
+  if (!m) {
+    throw new Error('Could not find embedded logo image in logo.svg');
+  }
+
+  const rawBuf = Buffer.from(m[1], 'base64');
+  const { data, info } = await sharp(rawBuf)
+    .extract({ left: 11, top: 18, width: 1077, height: 760 })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const { width, height, channels } = info;
+  const out = Buffer.alloc(width * height * 4);
+  const visited = new Uint8Array(width * height);
+  const queue: number[] = [];
+
+  function isWhite(x: number, y: number): boolean {
+    const idx = (y * width + x) * channels;
+    return data[idx] > 240 && data[idx + 1] > 240 && data[idx + 2] > 240;
+  }
+
+  for (let x = 0; x < width; x++) {
+    if (isWhite(x, 0)) { visited[0 * width + x] = 1; queue.push(x, 0); }
+    if (isWhite(x, height - 1)) { visited[(height - 1) * width + x] = 1; queue.push(x, height - 1); }
+  }
+  for (let y = 0; y < height; y++) {
+    if (isWhite(0, y)) { visited[y * width + 0] = 1; queue.push(0, y); }
+    if (isWhite(width - 1, y)) { visited[y * width + (width - 1)] = 1; queue.push(width - 1, y); }
+  }
+
+  let head = 0;
+  while (head < queue.length) {
+    const cx = queue[head++];
+    const cy = queue[head++];
+
+    const neighbors = [
+      [cx + 1, cy], [cx - 1, cy],
+      [cx, cy + 1], [cx, cy - 1]
+    ];
+
+    for (const [nx, ny] of neighbors) {
+      if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+        const nidx = ny * width + nx;
+        if (!visited[nidx] && isWhite(nx, ny)) {
+          visited[nidx] = 1;
+          queue.push(nx, ny);
+        }
+      }
+    }
+  }
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x;
+      const inIdx = idx * channels;
+      const outIdx = idx * 4;
+
+      const r = data[inIdx];
+      const g = data[inIdx + 1];
+      const b = data[inIdx + 2];
+
+      if (visited[idx]) {
+        out[outIdx] = 0;
+        out[outIdx + 1] = 0;
+        out[outIdx + 2] = 0;
+        out[outIdx + 3] = 0;
+      } else {
+        out[outIdx] = r;
+        out[outIdx + 1] = g;
+        out[outIdx + 2] = b;
+        out[outIdx + 3] = 255;
+      }
+    }
+  }
+
+  const cleanBuf = await sharp(out, { raw: { width, height, channels: 4 } })
+    .png()
+    .toBuffer();
+
+  fs.writeFileSync(emblemPath, cleanBuf);
+  return cleanBuf;
+}
+
+/**
+ * Builds high-contrast SVG favicon using the authentic emblem on a crisp squircle badge.
+ */
+function generateSvgFavicon(theme: 'universal' | 'dark' | 'light', emblemBase64: string): string {
   const isDark = theme === 'dark';
   const isLight = theme === 'light';
 
-  // For dark mode tabs: luminous golden amber badge with bright white glowing border
-  // For light mode tabs: deep saturated amber-orange badge with crisp dark-accented boundary
-  const stop1 = isDark ? '#FBBF24' : isLight ? '#F59E0B' : '#F59E0B';
-  const stop2 = isDark ? '#F59E0B' : isLight ? '#EA580C' : '#EA580C';
-  const stop3 = isDark ? '#EA580C' : isLight ? '#9A3412' : '#C2410C';
-
   const strokeColor = isDark
-    ? 'rgba(255, 255, 255, 0.75)'
+    ? 'url(#goldBorder)'
     : isLight
-    ? 'rgba(15, 23, 42, 0.28)'
-    : 'rgba(255, 255, 255, 0.4)';
+    ? '#EA580C'
+    : 'url(#goldBorder)';
 
-  const strokeWidth = isDark ? '4' : isLight ? '3.5' : '3';
+  const strokeWidth = isDark ? '14' : isLight ? '10' : '12';
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="100%" height="100%">
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <!-- Radiant Sunshine Amber-to-Orange Badge Gradient -->
-    <linearGradient id="badgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="${stop1}" />
-      <stop offset="50%" stop-color="${stop2}" />
-      <stop offset="100%" stop-color="${stop3}" />
-    </linearGradient>
-
-    <!-- Sun Rays & Glow Gradient -->
-    <linearGradient id="sunGlow" x1="0%" y1="100%" x2="0%" y2="0%">
-      <stop offset="0%" stop-color="#FEF3C7" />
-      <stop offset="100%" stop-color="#FFFFFF" />
-    </linearGradient>
-
-    <!-- Deep Academic Navy for Open Book -->
-    <linearGradient id="bookCoverGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#0F284E" />
-      <stop offset="100%" stop-color="#07172E" />
+    <!-- Radiant Sunshine Amber-to-Orange Badge Gradient Border -->
+    <linearGradient id="goldBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="100%" stop-color="#EA580C" />
     </linearGradient>
 
     <style>
       @media (prefers-color-scheme: dark) {
         .sunshine-badge-border {
-          stroke: rgba(255, 255, 255, 0.75) !important;
-          stroke-width: 4px !important;
+          stroke: url(#goldBorder) !important;
+          stroke-width: 14px !important;
         }
       }
       @media (prefers-color-scheme: light) {
         .sunshine-badge-border {
-          stroke: rgba(15, 23, 42, 0.28) !important;
-          stroke-width: 3.5px !important;
+          stroke: #EA580C !important;
+          stroke-width: 10px !important;
         }
       }
     </style>
   </defs>
 
-  <!-- Base Squircle Badge (YouTube-style curved tile with 22% radius) -->
+  <!-- Base Squircle Badge with White Core for 100% Contrast & Clarity -->
   <rect
-    x="6"
-    y="6"
-    width="180"
-    height="180"
-    rx="42"
-    fill="url(#badgeGrad)"
+    x="16"
+    y="16"
+    width="480"
+    height="480"
+    rx="112"
+    fill="#FFFFFF"
     stroke="${strokeColor}"
     stroke-width="${strokeWidth}"
     class="sunshine-badge-border"
   />
 
-  <!-- High-contrast Emblem Group -->
-  <g id="sunshine-emblem" transform="translate(6, 6) scale(0.9)">
-    <!-- ==================== RISING SUN & RAYS ==================== -->
-    <g id="rays" fill="url(#sunGlow)">
-      <!-- Top Center Ray -->
-      <path d="M100 48 C100 24 95 14 100 8 C105 14 100 24 100 48 Z" />
-      <!-- Ray Right 1 -->
-      <path d="M112 50 C122 28 126 18 133 15 C132 21 123 30 112 50 Z" />
-      <!-- Ray Right 2 -->
-      <path d="M125 56 C145 38 152 32 161 34 C156 40 143 46 125 56 Z" />
-      <!-- Ray Right 3 -->
-      <path d="M135 70 C165 60 174 60 183 64 C177 67 161 67 135 70 Z" />
-      <!-- Ray Right 4 -->
-      <path d="M138 86 C173 89 183 93 190 101 C182 100 168 95 138 86 Z" />
-
-      <!-- Ray Left 1 -->
-      <path d="M88 50 C78 28 74 18 67 15 C68 21 77 30 88 50 Z" />
-      <!-- Ray Left 2 -->
-      <path d="M75 56 C55 38 48 32 39 34 C44 40 57 46 75 56 Z" />
-      <!-- Ray Left 3 -->
-      <path d="M65 70 C35 60 26 60 17 64 C23 67 39 67 65 70 Z" />
-      <!-- Ray Left 4 -->
-      <path d="M62 86 C27 89 17 93 10 101 C18 100 32 95 62 86 Z" />
-    </g>
-
-    <!-- Sun Ring Arch -->
-    <path
-      d="M58 92 A 44 44 0 0 1 142 92"
-      stroke="#FFFFFF"
-      stroke-width="10"
-      stroke-linecap="round"
-      fill="none"
-    />
-
-    <!-- Glowing Sun Disc Base -->
-    <ellipse cx="100" cy="94" rx="34" ry="16" fill="#FDE68A" opacity="0.9" />
-
-    <!-- ==================== OPEN BOOK OF KNOWLEDGE ==================== -->
-    <!-- Under-glow for book pages -->
-    <path d="M100 120 C60 100 28 110 14 126 C28 110 60 100 100 120 Z" fill="#FFFFFF" opacity="0.9" />
-    <path d="M100 120 C140 100 172 110 186 126 C172 110 140 100 100 120 Z" fill="#FFFFFF" opacity="0.9" />
-
-    <!-- Left Book Wing (Deep Navy for punchy contrast) -->
-    <path
-      d="M100 126 C65 106 28 116 14 132 L14 106 C28 90 65 80 100 106 Z"
-      fill="url(#bookCoverGrad)"
-    />
-
-    <!-- Right Book Wing -->
-    <path
-      d="M100 126 C135 106 172 116 186 132 L186 106 C172 90 135 80 100 106 Z"
-      fill="url(#bookCoverGrad)"
-    />
-
-    <!-- Crisp White Page Trim Accents -->
-    <path d="M26 112 C44 102 68 96 90 110" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.95" />
-    <path d="M28 118 C46 108 70 102 90 116" stroke="#FDE68A" stroke-width="2" stroke-linecap="round" opacity="0.9" />
-
-    <path d="M174 112 C156 102 132 96 110 110" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.95" />
-    <path d="M172 118 C154 108 130 102 110 116" stroke="#FDE68A" stroke-width="2" stroke-linecap="round" opacity="0.9" />
-
-    <!-- Bottom Golden-White Page Spine -->
-    <path
-      d="M14 132 C50 117 80 117 100 134 C120 117 150 117 186 132 C150 114 120 114 100 131 C80 114 50 114 14 132 Z"
-      fill="#FFFFFF"
-    />
-
-    <!-- ==================== CENTRAL SCHOLAR / STUDENT SILHOUETTE ==================== -->
-    <g id="scholar-silhouette">
-      <!-- Head: Brilliant Pure White for 100% legibility -->
-      <circle cx="100" cy="78" r="8" fill="#FFFFFF" />
-      <!-- Raised-arms Body (Y-shape Victor) -->
-      <path
-        d="M100 120
-           C98 110 93 96 76 86
-           C88 90 95 98 100 110
-           C105 98 112 90 124 86
-           C107 96 102 110 100 120 Z"
-        fill="#FFFFFF"
-      />
-    </g>
-  </g>
+  <!-- Authentic Sunshine Classes Emblem -->
+  <image
+    x="26"
+    y="90"
+    width="460"
+    height="332"
+    href="${emblemBase64}"
+    xlink:href="${emblemBase64}"
+  />
 </svg>`;
 }
 
 async function main() {
   const publicDir = path.resolve('public');
+  const aistudioAssetsDir = path.resolve('public/assets/aistudio');
+
+  if (!fs.existsSync(aistudioAssetsDir)) {
+    fs.mkdirSync(aistudioAssetsDir, { recursive: true });
+  }
+
+  console.log('🔄 Extracting/loading clean transparent emblem from logo...');
+  const emblemBuffer = await getOrExtractEmblem();
+  const emblemBase64 = 'data:image/png;base64,' + emblemBuffer.toString('base64');
+
+  // Save clean emblem into assets
+  fs.writeFileSync(path.join(publicDir, 'logo_emblem_transparent.png'), emblemBuffer);
+  fs.writeFileSync(path.join(aistudioAssetsDir, 'logo_emblem_transparent.png'), emblemBuffer);
+  fs.writeFileSync(path.join(publicDir, 'logo_emblem_light_transparent.png'), emblemBuffer);
+  fs.writeFileSync(path.join(aistudioAssetsDir, 'logo_emblem_light_transparent.png'), emblemBuffer);
+  console.log('✅ Updated public/logo_emblem_transparent.png and assets with clean emblem');
+
+  // Copy logo.svg into public if available
+  const rootLogoSvg = path.resolve('logo.svg');
+  if (fs.existsSync(rootLogoSvg)) {
+    fs.copyFileSync(rootLogoSvg, path.join(publicDir, 'logo.svg'));
+    fs.copyFileSync(rootLogoSvg, path.join(aistudioAssetsDir, 'logo.svg'));
+    console.log('✅ Synced logo.svg to public/logo.svg and public/assets/aistudio/logo.svg');
+  }
 
   // 1. Generate SVGs: Universal, Dark Mode, and Light Mode
-  const universalSvg = generateSvgFavicon('universal');
-  const darkSvg = generateSvgFavicon('dark');
-  const lightSvg = generateSvgFavicon('light');
+  const universalSvg = generateSvgFavicon('universal', emblemBase64);
+  const darkSvg = generateSvgFavicon('dark', emblemBase64);
+  const lightSvg = generateSvgFavicon('light', emblemBase64);
 
   fs.writeFileSync(path.join(publicDir, 'favicon.svg'), universalSvg, 'utf8');
   fs.writeFileSync(path.join(publicDir, 'favicon-dark.svg'), darkSvg, 'utf8');
   fs.writeFileSync(path.join(publicDir, 'favicon-light.svg'), lightSvg, 'utf8');
   console.log('✅ Generated public/favicon.svg, favicon-dark.svg, favicon-light.svg');
 
-  // 2. Render crisp multi-resolution PNGs from Universal SVG
+  // 2. Render crisp multi-resolution PNGs
   const universalBuffer = Buffer.from(universalSvg);
   const darkBuffer = Buffer.from(darkSvg);
   const lightBuffer = Buffer.from(lightSvg);
@@ -243,7 +274,7 @@ async function main() {
     .png({ quality: 100 })
     .toFile(path.join(publicDir, 'favicon.ico'));
 
-  console.log('✅ Generated all universal, dark-mode, and light-mode favicon assets');
+  console.log('✅ Generated all universal, dark-mode, and light-mode favicon assets from official logo emblem');
 }
 
 main().catch(err => {
