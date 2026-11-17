@@ -83,6 +83,7 @@ import {
 } from './data';
 
 import { migrateExistingData, generateFeeRecords, getCurrentAndNextMonths } from './lib/feeUtils';
+import { isNcertTextbookChapter, normalizeStudyMaterial } from './services/studyMaterialService';
 import { safeSetItem, safeGetItem } from './utils/safeLocalStorage';
 import { generateReceiptPdf } from './lib/pdfGenerator';
 import { lazyWithRetry } from './utils/lazyWithRetry';
@@ -443,7 +444,9 @@ export default function App() {
     }
     return raw;
   });
-  const [studyMaterials, setStudyMaterials] = useState<StudyMaterial[]>(() => getOrSeedLocal('study_materials', SEED_STUDY_MATERIALS));
+  const [studyMaterials, setStudyMaterials] = useState<StudyMaterial[]>(() =>
+    getOrSeedLocal('study_materials', SEED_STUDY_MATERIALS).map(normalizeStudyMaterial)
+  );
   const [founders, setFounders] = useState<FounderMember[]>(() => {
     const raw = getOrSeedLocal('founders', SEED_FOUNDERS);
     let changed = false;
@@ -1251,12 +1254,17 @@ export default function App() {
       syncState('toppers', SEED_TOPPERS);
     }
 
+    const hadStaleNcertNotes = Array.isArray(loadedStudyMaterials) && loadedStudyMaterials.some(
+      (m) => m.materialType === 'NOTES' && isNcertTextbookChapter(m)
+    );
     const finalStudyMaterials = (!loadedStudyMaterials || loadedStudyMaterials.length === 0 || loadedStudyMaterials.some(m => m.fileUrl?.includes('dummy.pdf'))) 
       ? SEED_STUDY_MATERIALS 
-      : loadedStudyMaterials;
+      : hadStaleNcertNotes
+        ? loadedStudyMaterials.map(normalizeStudyMaterial)
+        : loadedStudyMaterials;
 
     if (finalStudyMaterials !== loadedStudyMaterials) {
-      syncState('study_materials', SEED_STUDY_MATERIALS);
+      syncState('study_materials', finalStudyMaterials);
     }
 
     setStudents(migratedStudents);
@@ -1426,15 +1434,30 @@ export default function App() {
   useEffect(() => {
     document.title = "SUNSHINE CLASSES";
     
-    // Ensure the link tag for the favicon exists and points to /logo.png
-    let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
-    if (!link) {
-      link = document.createElement('link');
-      link.rel = 'icon';
-      document.getElementsByTagName('head')[0].appendChild(link);
-    }
-    link.type = 'image/png';
-    link.href = '/logo.png';
+    // Ensure all tab favicon links point to the authentic Sunshine Classes emblem
+    const v = '20261108_v5';
+    const targetHref = `/logo-favicon-32x32.png?v=${v}`;
+    const targetSvgHref = `/logo-favicon.svg?v=${v}`;
+
+    let svgLink = document.getElementById('favicon-svg') as HTMLLinkElement | null;
+    if (svgLink) svgLink.href = targetSvgHref;
+
+    let png32Link = document.getElementById('favicon-32') as HTMLLinkElement | null;
+    if (png32Link) png32Link.href = targetHref;
+
+    let iconLinks = document.querySelectorAll("link[rel~='icon']");
+    iconLinks.forEach((el) => {
+      const linkEl = el as HTMLLinkElement;
+      if (linkEl.id === 'favicon-svg') {
+        linkEl.href = targetSvgHref;
+      } else {
+        linkEl.href = targetHref;
+        linkEl.type = 'image/png';
+      }
+    });
+
+    let icoLink = document.getElementById('favicon-ico') as HTMLLinkElement | null;
+    if (icoLink) icoLink.href = `/logo-favicon.ico?v=${v}`;
   }, []);
 
   // State update handlers
@@ -3879,7 +3902,7 @@ Sunshine Classes`;
 
       <div
         id="main-app-container"
-        className="min-h-screen bg-slate-50 dark:bg-slate-950 relative flex flex-col justify-between max-w-full overflow-x-hidden transition-colors duration-300"
+        className="min-h-screen bg-slate-50 dark:bg-slate-950 relative flex flex-col justify-between max-w-full overflow-x-clip transition-colors duration-300"
       >
       {/* Primary ERP / Website Display Controller */}
       <div className="flex-1">
@@ -3919,10 +3942,46 @@ Sunshine Classes`;
           <Route path="/verify/receipt/:receiptNumber" element={<ReceiptVerificationPage />} />
 
           {/* Public Resources & Study Material CMS Portal */}
-          <Route path="/resources" element={<PublicStudyMaterialPage />} />
-          <Route path="/resources/*" element={<PublicStudyMaterialPage />} />
-          <Route path="/study-material" element={<PublicStudyMaterialPage />} />
-          <Route path="/study-material/*" element={<PublicStudyMaterialPage />} />
+          <Route
+            path="/resources"
+            element={
+              <PublicStudyMaterialPage
+                currentUser={currentUser}
+                cmsMaterials={studyMaterials}
+                onOpenLoginModal={() => navigate('/login/student')}
+              />
+            }
+          />
+          <Route
+            path="/resources/*"
+            element={
+              <PublicStudyMaterialPage
+                currentUser={currentUser}
+                cmsMaterials={studyMaterials}
+                onOpenLoginModal={() => navigate('/login/student')}
+              />
+            }
+          />
+          <Route
+            path="/study-material"
+            element={
+              <PublicStudyMaterialPage
+                currentUser={currentUser}
+                cmsMaterials={studyMaterials}
+                onOpenLoginModal={() => navigate('/login/student')}
+              />
+            }
+          />
+          <Route
+            path="/study-material/*"
+            element={
+              <PublicStudyMaterialPage
+                currentUser={currentUser}
+                cmsMaterials={studyMaterials}
+                onOpenLoginModal={() => navigate('/login/student')}
+              />
+            }
+          />
 
           {/* Sunshine Store Public Routes */}
           <Route path="/store" element={<PublicStorePage />} />

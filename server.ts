@@ -3210,8 +3210,22 @@ async function startServer() {
 
   // --- End of Secure Pure Express + JWT Authentication Routes ---
 
-  // Serve static assets from public folder
-  app.use(express.static(path.join(process.cwd(), "public")));
+  // Serve static assets from public folder with fresh cache headers for branding assets
+  app.use(express.static(path.join(process.cwd(), "public"), {
+    setHeaders: (res, filePath) => {
+      if (
+        filePath.endsWith("index.html") || 
+        filePath.endsWith("sw.js") || 
+        filePath.includes("favicon") || 
+        filePath.includes("apple-touch-icon") ||
+        filePath.includes("logo")
+      ) {
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
+      }
+    }
+  }));
 
   // 1. AI Chatbot API Route
   app.post("/api/chat", async (req, res) => {
@@ -4594,7 +4608,13 @@ Sunshine Classes — *Excellence in Education* ☀️`;
     // General static files (favicon, manifest, logo, etc.)
     app.use(express.static(distPath, {
       setHeaders: (res, filePath) => {
-        if (filePath.endsWith("index.html") || filePath.endsWith("sw.js")) {
+        if (
+          filePath.endsWith("index.html") || 
+          filePath.endsWith("sw.js") ||
+          filePath.includes("favicon") || 
+          filePath.includes("apple-touch-icon") ||
+          filePath.includes("logo")
+        ) {
           res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
           res.setHeader("Pragma", "no-cache");
           res.setHeader("Expires", "0");

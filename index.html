@@ -10,17 +10,18 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="manifest" href="/manifest.json" />
     <!-- Universal High-Contrast Favicons (Visible on Dark & Light backgrounds) -->
-    <link id="favicon-svg" rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link id="favicon-16" rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-    <link id="favicon-32" rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="180x180" href="/favicon-180x180.png" />
-    <link rel="icon" type="image/png" sizes="512x512" href="/favicon-512x512.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <link id="favicon-ico" rel="shortcut icon" href="/favicon.ico" />
+    <link id="favicon-32" rel="icon" type="image/png" sizes="32x32" href="/logo-favicon-32x32.png?v=20261108_v5" />
+    <link id="favicon-16" rel="icon" type="image/png" sizes="16x16" href="/logo-favicon-16x16.png?v=20261108_v5" />
+    <link id="favicon-svg" rel="icon" type="image/svg+xml" href="/logo-favicon.svg?v=20261108_v5" />
+    <link rel="icon" type="image/png" sizes="180x180" href="/logo-favicon-180x180.png?v=20261108_v5" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon-512x512.png?v=20261108_v5" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/logo-favicon-180x180.png?v=20261108_v5" />
+    <link id="favicon-ico" rel="shortcut icon" href="/logo-favicon.ico?v=20261108_v5" />
 
-    <!-- Dynamic Favicon Switcher based on prefers-color-scheme -->
+    <!-- Dynamic Favicon Switcher based on prefers-color-scheme with aggressive cache busting -->
     <script id="favicon-theme-switcher">
       (function() {
+        const v = '20261108_v5';
         const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
         function updateFavicons(isDark) {
@@ -28,16 +29,25 @@
             const svgLink = document.getElementById('favicon-svg');
             const png16Link = document.getElementById('favicon-16');
             const png32Link = document.getElementById('favicon-32');
+            const icoLink = document.getElementById('favicon-ico');
 
-            if (isDark) {
-              if (svgLink) svgLink.href = '/favicon-dark.svg';
-              if (png16Link) png16Link.href = '/favicon-dark-16x16.png';
-              if (png32Link) png32Link.href = '/favicon-dark-32x32.png';
-            } else {
-              if (svgLink) svgLink.href = '/favicon-light.svg';
-              if (png16Link) png16Link.href = '/favicon-light-16x16.png';
-              if (png32Link) png32Link.href = '/favicon-light-32x32.png';
-            }
+            const svgHref = isDark ? `/favicon-dark.svg?v=${v}` : `/logo-favicon.svg?v=${v}`;
+            const png16Href = isDark ? `/favicon-dark-16x16.png?v=${v}` : `/logo-favicon-16x16.png?v=${v}`;
+            const png32Href = isDark ? `/favicon-dark-32x32.png?v=${v}` : `/logo-favicon-32x32.png?v=${v}`;
+            const icoHref = `/logo-favicon.ico?v=${v}`;
+
+            if (svgLink) svgLink.href = svgHref;
+            if (png16Link) png16Link.href = png16Href;
+            if (png32Link) png32Link.href = png32Href;
+            if (icoLink) icoLink.href = icoHref;
+
+            // Force browser to bust tab cache by replacing element
+            [svgLink, png32Link, png16Link, icoLink].forEach(el => {
+              if (el && el.parentNode) {
+                const clone = el.cloneNode(true);
+                el.parentNode.replaceChild(clone, el);
+              }
+            });
           } catch (e) {
             // Gracefully keep fallback defaults
           }
@@ -46,7 +56,7 @@
         // Apply immediately for optimal initial tab render
         updateFavicons(darkModeQuery.matches);
 
-        // Listen for live system theme changes (e.g. automatic sunset or manual toggle)
+        // Listen for live system theme changes
         if (typeof darkModeQuery.addEventListener === 'function') {
           darkModeQuery.addEventListener('change', function(e) {
             updateFavicons(e.matches);

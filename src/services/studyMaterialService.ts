@@ -14,6 +14,36 @@ export function generateSlug(title: string): string {
 }
 
 /**
+ * Identify official NCERT textbook chapter PDFs that were previously misclassified as NOTES
+ */
+export function isNcertTextbookChapter(item: Partial<StudyMaterial>): boolean {
+  const title = (item.title || '').trim();
+  const desc = (item.description || item.desc || '').toLowerCase();
+  const url = (item.fileUrl || '').toLowerCase();
+  const tags = (item.tags || []).map((t) => t.toLowerCase());
+  const isNcertChapterTitle = /^ncert\s+class\s+\d+/i.test(title);
+  const isTextbookMeta =
+    desc.includes('official ncert textbook chapter') ||
+    tags.includes('textbook') ||
+    url.includes('ncert.nic.in/textbook/pdf/');
+  return isNcertChapterTitle && isTextbookMeta;
+}
+
+/**
+ * Normalize legacy NCERT textbook chapter entries from NOTES -> PDF / BOOK
+ */
+export function normalizeStudyMaterial(item: StudyMaterial): StudyMaterial {
+  if (isNcertTextbookChapter(item) && item.materialType === 'NOTES') {
+    return {
+      ...item,
+      materialType: 'PDF',
+      category: item.category === 'NOTES' || !item.category ? 'BOOK' : item.category
+    };
+  }
+  return item;
+}
+
+/**
  * Fetch all study materials
  */
 export async function getStudyMaterials(): Promise<StudyMaterial[]> {
@@ -22,15 +52,15 @@ export async function getStudyMaterials(): Promise<StudyMaterial[]> {
     if (Array.isArray(list) && list.length > 0) {
       const hasDummy = list.some(m => m.fileUrl?.includes('dummy.pdf'));
       if (hasDummy) {
-        return SEED_STUDY_MATERIALS;
+        return SEED_STUDY_MATERIALS.map(normalizeStudyMaterial);
       }
-      return list.map((data) => ({
+      return list.map((data) => normalizeStudyMaterial({
         ...data,
         id: data.id,
         materialId: data.materialId || data.id,
         desc: data.description || data.desc || '',
         file: data.file || data.fileUrl || '',
-        category: data.category || (data.materialType === 'NOTES' ? 'NOTES' : 'QUESTION_PAPER')
+        category: data.category || (data.materialType === 'NOTES' ? 'NOTES' : data.materialType === 'PDF' ? 'BOOK' : 'QUESTION_PAPER')
       }));
     }
   } catch (err) {
@@ -38,9 +68,9 @@ export async function getStudyMaterials(): Promise<StudyMaterial[]> {
   }
   
   if (typeof window !== 'undefined' && localStorage.getItem('sunshine_study_materials_initialized') === 'true') {
-    return SEED_STUDY_MATERIALS;
+    return SEED_STUDY_MATERIALS.map(normalizeStudyMaterial);
   }
-  return SEED_STUDY_MATERIALS;
+  return SEED_STUDY_MATERIALS.map(normalizeStudyMaterial);
 }
 
 /**
@@ -52,17 +82,19 @@ export async function getPublicStudyMaterials(): Promise<StudyMaterial[]> {
     if (Array.isArray(list) && list.length > 0) {
       const hasDummy = list.some(m => m.fileUrl?.includes('dummy.pdf'));
       if (hasDummy) {
-        return SEED_STUDY_MATERIALS.filter((m) => m.isPublic && m.status === 'PUBLISHED');
+        return SEED_STUDY_MATERIALS.map(normalizeStudyMaterial).filter((m) => m.isPublic && m.status === 'PUBLISHED');
       }
-      return list.filter((m) => (m.isPublic === undefined || m.isPublic) && (m.status === undefined || m.status === 'PUBLISHED'));
+      return list
+        .map(normalizeStudyMaterial)
+        .filter((m) => (m.isPublic === undefined || m.isPublic) && (m.status === undefined || m.status === 'PUBLISHED'));
     }
   } catch (err) {
     console.warn('Error fetching public study materials:', err);
   }
   if (typeof window !== 'undefined' && localStorage.getItem('sunshine_study_materials_initialized') === 'true') {
-    return SEED_STUDY_MATERIALS.filter((m) => m.isPublic && m.status === 'PUBLISHED');
+    return SEED_STUDY_MATERIALS.map(normalizeStudyMaterial).filter((m) => m.isPublic && m.status === 'PUBLISHED');
   }
-  return SEED_STUDY_MATERIALS.filter((m) => m.isPublic && m.status === 'PUBLISHED');
+  return SEED_STUDY_MATERIALS.map(normalizeStudyMaterial).filter((m) => m.isPublic && m.status === 'PUBLISHED');
 }
 
 /**

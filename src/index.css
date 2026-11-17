@@ -137,4 +137,11 @@
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.6), 0 2px 4px -1px rgba(0, 0, 0, 0.4) !important;
 }
 
-
+/* Hide scrollbars cleanly for horizontal tab & chip scrollers */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}

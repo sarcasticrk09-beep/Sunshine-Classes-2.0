@@ -12,7 +12,8 @@ import {
   deleteStudyMaterial, 
   bulkDeleteStudyMaterials, 
   bulkUpdateStatus, 
-  generateSlug 
+  generateSlug,
+  normalizeStudyMaterial
 } from '../services/studyMaterialService';
 import { uploadToSupabaseStorage } from '../lib/supabase';
 import { SyncService } from '../services/SyncService';
@@ -57,15 +58,18 @@ interface StudyMaterialCMSProps {
 }
 
 const MATERIAL_TYPES: { type: StudyMaterialType; label: string; icon: string; bg: string }[] = [
-  { type: 'PDF', label: 'PDF Document', icon: '📄', bg: 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300' },
-  { type: 'NOTES', label: 'Study Notes', icon: '📝', bg: 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300' },
-  { type: 'WORKSHEET', label: 'Worksheet / Assignment', icon: '📋', bg: 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300' },
+  { type: 'PDF', label: 'Book / PDF Document', icon: '📄', bg: 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300' },
+  { type: 'NOTES', label: 'Chapter Notes', icon: '📝', bg: 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300' },
+  { type: 'ASSIGNMENT', label: 'Assignment', icon: '📑', bg: 'bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300' },
+  { type: 'WORKSHEET', label: 'Worksheet', icon: '📋', bg: 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300' },
   { type: 'QUESTION_BANK', label: 'Question Bank', icon: '🗂️', bg: 'bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-300' },
-  { type: 'SYLLABUS', label: 'Syllabus & Blueprint', icon: '📑', bg: 'bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-300' },
+  { type: 'SYLLABUS', label: 'Syllabus & Blueprint', icon: '📘', bg: 'bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-300' },
   { type: 'PYQ', label: 'Previous Year Question (PYQ)', icon: '📜', bg: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300' },
   { type: 'SAMPLE_PAPER', label: 'Sample Paper', icon: '🎯', bg: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300' },
   { type: 'FORMULA_SHEET', label: 'Formula Sheet', icon: '🧮', bg: 'bg-teal-50 text-teal-700 dark:bg-teal-950/30 dark:text-teal-300' },
+  { type: 'LAB_MANUAL', label: 'Practical & Lab Manual', icon: '🧪', bg: 'bg-lime-50 text-lime-700 dark:bg-lime-950/30 dark:text-lime-300' },
   { type: 'NCERT_SOLUTION', label: 'NCERT Solution', icon: '📖', bg: 'bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300' },
+  { type: 'OTHER', label: 'Other Resource', icon: '📦', bg: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
   { type: 'VIDEO_LINK', label: 'YouTube / Video Lecture', icon: '🎥', bg: 'bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300' },
   { type: 'EXTERNAL_LINK', label: 'External Resource', icon: '🔗', bg: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/30 dark:text-cyan-300' },
   { type: 'BLOG', label: 'Educational Article / Blog', icon: '📰', bg: 'bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300' }
@@ -102,13 +106,13 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
         if (stored) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed)) {
-            if (isInit || parsed.length > 0) return parsed;
+            if (isInit || parsed.length > 0) return parsed.map(normalizeStudyMaterial);
           }
         }
         if (isInit) return [];
       }
     } catch (e) {}
-    return SEED_STUDY_MATERIALS;
+    return SEED_STUDY_MATERIALS.map(normalizeStudyMaterial);
   });
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -248,7 +252,19 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
       // CMS Category Filter
       let matchCmsSection = true;
       if (selectedCmsSection === 'STUDY_MATERIAL') {
-        matchCmsSection = ['NOTES', 'QUESTION_BANK', 'PYQ', 'SAMPLE_PAPER', 'NCERT_SOLUTION', 'WORKSHEET', 'PDF'].includes(m.materialType || 'PDF');
+        matchCmsSection = [
+          'NOTES',
+          'QUESTION_BANK',
+          'PYQ',
+          'SAMPLE_PAPER',
+          'NCERT_SOLUTION',
+          'WORKSHEET',
+          'ASSIGNMENT',
+          'LAB_MANUAL',
+          'SYLLABUS',
+          'OTHER',
+          'PDF'
+        ].includes(m.materialType || 'PDF');
       } else if (selectedCmsSection === 'BLOG_ARTICLES') {
         matchCmsSection = m.materialType === 'BLOG';
       } else if (selectedCmsSection === 'ANNOUNCEMENTS') {

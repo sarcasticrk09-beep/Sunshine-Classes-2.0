@@ -702,6 +702,8 @@ export default function LandingPage({
               currentUser={currentUser}
               onNavigateSection={(sec) => setActiveSection(sec as any)}
               cmsMaterials={studyMaterials}
+              onOpenLoginModal={() => navigate('/login/student')}
+              embeddedInLayout={true}
             />
           </div>
         )}

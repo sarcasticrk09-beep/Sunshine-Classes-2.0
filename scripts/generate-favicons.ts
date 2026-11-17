@@ -268,13 +268,69 @@ async function main() {
     .png({ quality: 100 })
     .toFile(path.join(publicDir, 'favicon-512x512.png'));
 
-  // Standard legacy favicon.ico
-  await sharp(universalBuffer)
-    .resize(48, 48)
-    .png({ quality: 100 })
-    .toFile(path.join(publicDir, 'favicon.ico'));
+  // Build authentic multi-resolution Windows ICO (16x16, 32x32, 48x48)
+  const icoSizes = [16, 32, 48];
+  const pngBuffers: { size: number; buf: Buffer }[] = [];
+  for (const s of icoSizes) {
+    const b = await sharp(universalBuffer).resize(s, s).png().toBuffer();
+    pngBuffers.push({ size: s, buf: b });
+  }
 
-  console.log('✅ Generated all universal, dark-mode, and light-mode favicon assets from official logo emblem');
+  const icoHeader = Buffer.alloc(6);
+  icoHeader.writeUInt16LE(0, 0); // Reserved
+  icoHeader.writeUInt16LE(1, 2); // Type 1 = ICO
+  icoHeader.writeUInt16LE(pngBuffers.length, 4); // Count
+
+  let offset = 6 + 16 * pngBuffers.length;
+  const dirEntries: Buffer[] = [];
+  for (const item of pngBuffers) {
+    const entry = Buffer.alloc(16);
+    entry.writeUInt8(item.size === 256 ? 0 : item.size, 0);
+    entry.writeUInt8(item.size === 256 ? 0 : item.size, 1);
+    entry.writeUInt8(0, 2);
+    entry.writeUInt8(0, 3);
+    entry.writeUInt16LE(1, 4);
+    entry.writeUInt16LE(32, 6);
+    entry.writeUInt32LE(item.buf.length, 8);
+    entry.writeUInt32LE(offset, 12);
+    dirEntries.push(entry);
+    offset += item.buf.length;
+  }
+
+  const finalIco = Buffer.concat([icoHeader, ...dirEntries, ...pngBuffers.map((p) => p.buf)]);
+  fs.writeFileSync(path.join(publicDir, 'favicon.ico'), finalIco);
+
+  // Generate newly named assets to bypass any permanent browser SQLite favicon cache on /favicon.*
+  fs.writeFileSync(path.join(publicDir, 'logo-favicon.svg'), universalSvg, 'utf8');
+  fs.copyFileSync(path.join(publicDir, 'favicon-32x32.png'), path.join(publicDir, 'logo-favicon-32x32.png'));
+  fs.copyFileSync(path.join(publicDir, 'favicon-16x16.png'), path.join(publicDir, 'logo-favicon-16x16.png'));
+  fs.copyFileSync(path.join(publicDir, 'favicon-180x180.png'), path.join(publicDir, 'logo-favicon-180x180.png'));
+  fs.writeFileSync(path.join(publicDir, 'logo-favicon.ico'), finalIco);
+
+  // Sync all generated favicon assets to dist and build folders if they exist
+  const targetDirs = [path.resolve('dist'), path.resolve('build')];
+  const filesToSync = [
+    'favicon.svg', 'favicon-dark.svg', 'favicon-light.svg',
+    'favicon-16x16.png', 'favicon-32x32.png', 'favicon-180x180.png', 'favicon-512x512.png',
+    'favicon-dark-16x16.png', 'favicon-dark-32x32.png',
+    'favicon-light-16x16.png', 'favicon-light-32x32.png',
+    'favicon.ico', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png',
+    'logo-favicon.svg', 'logo-favicon-32x32.png', 'logo-favicon-16x16.png', 'logo-favicon-180x180.png', 'logo-favicon.ico',
+    'logo_emblem_transparent.png', 'logo_emblem_light_transparent.png'
+  ];
+
+  for (const dir of targetDirs) {
+    if (fs.existsSync(dir)) {
+      for (const file of filesToSync) {
+        const srcFile = path.join(publicDir, file);
+        if (fs.existsSync(srcFile)) {
+          fs.copyFileSync(srcFile, path.join(dir, file));
+        }
+      }
+    }
+  }
+
+  console.log('✅ Generated all universal, dark-mode, light-mode, and logo-favicon assets and synced to build/dist');
 }
 
 main().catch(err => {

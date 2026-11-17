@@ -563,6 +563,9 @@ export type StudyMaterialType =
   | 'SAMPLE_PAPER' 
   | 'FORMULA_SHEET' 
   | 'NCERT_SOLUTION' 
+  | 'ASSIGNMENT'
+  | 'LAB_MANUAL'
+  | 'OTHER'
   | 'VIDEO_LINK' 
   | 'EXTERNAL_LINK' 
   | 'BLOG';
@@ -583,6 +586,8 @@ export interface StudyMaterial {
   category?: 'NOTES' | 'QUESTION_PAPER' | string; // Legacy fallback
   file?: string; // Legacy fallback filename
   size?: string; // Legacy fallback e.g. '1.2 MB'
+  fileFormat?: string; // Optional explicit format e.g. 'PDF'
+  pageCount?: number; // Optional page count when known
   fileUrl?: string;
   thumbnailUrl?: string;
   youtubeUrl?: string;
