@@ -15,6 +15,7 @@ import {
   Search,
   ShieldAlert,
   Unlock,
+  Upload,
   X
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -24,6 +25,8 @@ import {
   incrementViewCount,
   normalizeStudyMaterial
 } from '../services/studyMaterialService';
+import { SyncService } from '../services/SyncService';
+import { safeSetItem } from '../utils/safeLocalStorage';
 import { StudyMaterial, User } from '../types';
 import { ResourceDirectoryRow } from './studyResources/ResourceDirectoryRow';
 import {
@@ -32,8 +35,10 @@ import {
   extractChapterOrderNumber,
   extractSearchSuggestions,
   getCategoryMeta,
+  getCategoryPriorityIndex,
   getSubjectVisualMeta,
   LIBRARY_CATEGORIES,
+  mapCategoryIdToMaterialType,
   matchesClassFilter,
   matchesLibraryCategory,
   matchesSearchQuery,
@@ -42,6 +47,7 @@ import {
   StudyResourceSortMode
 } from './studyResources/resourceMeta';
 import { ResourcePdfPreviewModal } from './studyResources/ResourcePdfPreviewModal';
+import { StudyMaterialUploadModal } from './studyResources/StudyMaterialUploadModal';
 
 export type LibraryNavTab = 'browse' | 'saved' | 'downloads';
 
@@ -60,6 +66,7 @@ export interface StudyResourcesWorkspaceProps {
   onMarkDownloaded?: (item: StudyMaterial) => void;
   onNavigateHome?: () => void;
   onOpenLoginModal?: () => void;
+  onAuditLog?: (action: string, details: string) => void;
   storageKeyPrefix?: string;
 }
 
@@ -80,6 +87,7 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
   onMarkDownloaded,
   onNavigateHome,
   onOpenLoginModal,
+  onAuditLog,
   storageKeyPrefix = 'public'
 }) => {
   const bookmarkStorageKey = `sunshine_bookmarked_resources_${storageKeyPrefix}`;
@@ -91,6 +99,40 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
   useEffect(() => {
     setLocalMaterials(materials.map(normalizeStudyMaterial));
   }, [materials]);
+
+  useEffect(() => {
+    const unsubscribe = SyncService.subscribe('study_materials', (docId, data) => {
+      if (docId === '*' && Array.isArray(data)) {
+        setLocalMaterials(data.map(normalizeStudyMaterial));
+        return;
+      }
+      if (data === null) {
+        setLocalMaterials((prev) =>
+          prev.filter((m) => m.id !== docId && m.materialId !== docId)
+        );
+      } else if (data && typeof data === 'object' && !Array.isArray(data)) {
+        const normalized = normalizeStudyMaterial(data as StudyMaterial);
+        setLocalMaterials((prev) => {
+          const targetId = docId || normalized.id || normalized.materialId;
+          const idx = prev.findIndex((m) => m.id === targetId || m.materialId === targetId);
+          if (idx > -1) {
+            const next = [...prev];
+            next[idx] = normalizeStudyMaterial({ ...next[idx], ...normalized });
+            return next;
+          }
+          return [normalized, ...prev];
+        });
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const canStaffUpload = Boolean(
+    currentUser &&
+      ['ADMIN', 'SUPER_ADMIN', 'FOUNDER', 'CO_FOUNDER', 'TEACHER'].includes(
+        String(currentUser.role).toUpperCase()
+      )
+  );
 
   // Consolidated 3-Tab Navigation + Drill-down State
   const [activeNavTab, setActiveNavTab] = useState<LibraryNavTab>('browse');
@@ -128,9 +170,10 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
     }
   });
 
-  // Preview, Access Guard & Toast State
+  // Preview, Access Guard, Quick Upload & Toast State
   const [previewMaterial, setPreviewMaterial] = useState<StudyMaterial | null>(null);
   const [restrictedModalMaterial, setRestrictedModalMaterial] = useState<StudyMaterial | null>(null);
+  const [isQuickUploadOpen, setIsQuickUploadOpen] = useState<boolean>(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -338,6 +381,9 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
             new Date(a.updatedAt || a.createdAt || a.date || 0).getTime()
           );
         }
+        const prioA = getCategoryPriorityIndex(a);
+        const prioB = getCategoryPriorityIndex(b);
+        if (prioA !== prioB) return prioA - prioB;
         const chA = extractChapterOrderNumber(a);
         const chB = extractChapterOrderNumber(b);
         if (chA !== chB) return chA - chB;
@@ -425,14 +471,22 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
     markDownloadedLocally(item);
 
     try {
-      if (item.fileUrl && item.fileUrl.startsWith('http')) {
+      if (item.fileUrl && (item.fileUrl.startsWith('http') || item.fileUrl.startsWith('/'))) {
         window.open(item.fileUrl, '_blank', 'noopener,noreferrer');
         showToast('Opening PDF');
+      } else if (item.fileUrl && item.fileUrl.startsWith('data:')) {
+        const link = document.createElement('a');
+        link.href = item.fileUrl;
+        link.download = item.file || `${item.slug || 'study_resource'}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast('Downloading file');
       } else if (item.externalUrl && item.externalUrl.startsWith('http')) {
         window.open(item.externalUrl, '_blank', 'noopener,noreferrer');
         showToast('Opening link');
       } else if (item.fileData) {
-        if (item.fileData.startsWith('http://') || item.fileData.startsWith('https://')) {
+        if (item.fileData.startsWith('http://') || item.fileData.startsWith('https://') || item.fileData.startsWith('/')) {
           window.open(item.fileData, '_blank', 'noopener,noreferrer');
         } else {
           const link = document.createElement('a');
@@ -612,38 +666,52 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
               : 'max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 space-y-2.5'
           }
         >
-          {/* Compact Search Bar */}
+          {/* Compact Search Bar (+ Quick Upload for Staff) */}
           <div className="space-y-1.5">
-            <div className="relative">
-              <Search
-                size={15}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-              />
-              <input
-                id="input-study-resource-search"
-                type="text"
-                placeholder={
-                  selectedSubject !== 'ALL'
-                    ? `Search in ${selectedSubject}...`
-                    : selectedCategoryMeta
-                    ? `Search in ${selectedCategoryMeta.label}...`
-                    : 'Search notes, books, papers, chapters...'
-                }
-                value={searchQuery}
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => setTimeout(() => setIsSearchFocused(false), 180)}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-10 sm:h-11 pl-9 pr-10 rounded-xl bg-slate-100/90 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-500 text-xs sm:text-sm font-medium border border-slate-200/70 dark:border-slate-700 focus:outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-amber-500 transition-colors"
-              />
-              {searchQuery && (
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1 min-w-0">
+                <Search
+                  size={15}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                />
+                <input
+                  id="input-study-resource-search"
+                  type="text"
+                  placeholder={
+                    selectedSubject !== 'ALL'
+                      ? `Search in ${selectedSubject}...`
+                      : selectedCategoryMeta
+                      ? `Search in ${selectedCategoryMeta.label}...`
+                      : 'Search notes, books, papers, chapters...'
+                  }
+                  value={searchQuery}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onBlur={() => setTimeout(() => setIsSearchFocused(false), 180)}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-10 sm:h-11 pl-9 pr-10 rounded-xl bg-slate-100/90 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-500 text-xs sm:text-sm font-medium border border-slate-200/70 dark:border-slate-700 focus:outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-amber-500 transition-colors"
+                />
+                {searchQuery && (
+                  <button
+                    id="btn-clear-study-search"
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    aria-label="Clear search"
+                    className="absolute right-0.5 top-1/2 -translate-y-1/2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                  >
+                    <X size={15} />
+                  </button>
+                )}
+              </div>
+
+              {canStaffUpload && (
                 <button
-                  id="btn-clear-study-search"
+                  id="btn-resources-quick-upload"
                   type="button"
-                  onClick={() => setSearchQuery('')}
-                  aria-label="Clear search"
-                  className="absolute right-0.5 top-1/2 -translate-y-1/2 min-h-[38px] min-w-[38px] flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                  onClick={() => setIsQuickUploadOpen(true)}
+                  className="h-10 sm:h-11 px-3 sm:px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer transition-colors"
                 >
-                  <X size={15} />
+                  <Upload size={14} />
+                  <span>Upload</span>
                 </button>
               )}
             </div>
@@ -1262,6 +1330,35 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+      {/* STAFF QUICK UPLOAD MODAL */}
+      <AnimatePresence>
+        {isQuickUploadOpen && currentUser && (
+          <StudyMaterialUploadModal
+            currentUser={currentUser}
+            defaultClass={selectedClass !== 'ALL' ? selectedClass : 'Class 10'}
+            defaultSubject={selectedSubject !== 'ALL' ? selectedSubject : 'Mathematics'}
+            defaultMaterialType={
+              selectedCategory !== 'ALL'
+                ? mapCategoryIdToMaterialType(selectedCategory)
+                : 'QUESTION_BANK'
+            }
+            onClose={() => setIsQuickUploadOpen(false)}
+            onSaved={(savedMaterial, isEdit) => {
+              setLocalMaterials((prev) => {
+                const next = isEdit
+                  ? prev.map((m) => (m.id === savedMaterial.id ? savedMaterial : m))
+                  : [savedMaterial, ...prev.filter((m) => m.id !== savedMaterial.id)];
+                safeSetItem('sunshine_study_materials_initialized', 'true');
+                safeSetItem('sunshine_study_materials', JSON.stringify(next));
+                return next;
+              });
+              setIsQuickUploadOpen(false);
+              showToast('Uploaded & synced live');
+            }}
+            onAuditLog={onAuditLog}
+          />
         )}
       </AnimatePresence>
     </div>

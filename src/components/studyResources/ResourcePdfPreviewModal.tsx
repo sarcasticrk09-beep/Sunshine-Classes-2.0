@@ -38,11 +38,13 @@ interface ResourcePdfPreviewModalProps {
 }
 
 const getRawPreviewUrl = (material: StudyMaterial): string | null => {
-  if (material.fileUrl && material.fileUrl.startsWith('http')) return material.fileUrl;
+  if (material.fileUrl && (material.fileUrl.startsWith('http') || material.fileUrl.startsWith('/') || material.fileUrl.startsWith('data:'))) {
+    return material.fileUrl;
+  }
   if (material.externalUrl && material.externalUrl.startsWith('http')) return material.externalUrl;
   if (
     material.fileData &&
-    (material.fileData.startsWith('http') || material.fileData.startsWith('data:application/pdf'))
+    (material.fileData.startsWith('http') || material.fileData.startsWith('/') || material.fileData.startsWith('data:'))
   ) {
     return material.fileData;
   }
@@ -145,7 +147,7 @@ export const ResourcePdfPreviewModal: React.FC<ResourcePdfPreviewModalProps> = (
                 <span className="hidden sm:inline" aria-hidden="true">·</span>
                 <span className="hidden sm:inline">{typeLabel}</span>
               </div>
-              <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-snug line-clamp-2 sm:line-clamp-1">
+              <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-snug break-words">
                 {material.title}
               </h2>
             </div>
@@ -360,7 +362,7 @@ export const ResourcePdfPreviewModal: React.FC<ResourcePdfPreviewModalProps> = (
                         : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
-                    <p className="text-xs font-semibold leading-snug line-clamp-2">{sib.title}</p>
+                    <p className="text-xs font-semibold leading-snug break-words">{sib.title}</p>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
                       {sib.subject} · {getResourceTypeLabel(sib)}
                     </p>

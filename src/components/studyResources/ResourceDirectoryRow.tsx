@@ -78,7 +78,7 @@ export const ResourceDirectoryRow: React.FC<ResourceDirectoryRowProps> = ({
           <div className="min-w-0 flex-1 space-y-0.5">
             <h3
               title={item.title}
-              className="text-[13px] sm:text-sm font-semibold text-slate-900 dark:text-white leading-snug truncate"
+              className="text-[13px] sm:text-sm font-semibold text-slate-900 dark:text-white leading-snug break-words"
             >
               {item.title}
             </h3>

@@ -178,10 +178,10 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
           )
       );
       setLoading(false);
-    } else {
-      loadMaterials();
+      return;
     }
 
+    loadMaterials();
     const unsubscribe = SyncService.subscribe('study_materials', () => {
       loadMaterials();
     });

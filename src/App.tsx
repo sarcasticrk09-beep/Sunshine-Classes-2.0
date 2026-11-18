@@ -1428,7 +1428,10 @@ export default function App() {
   useAdmissionsListener(setAdmissions, reconnectSignal);
   useFeeStatusesListener(setFeeStatuses, reconnectSignal);
   useUsersListener(setUsers, reconnectSignal);
-  useStudyMaterialsListener(setStudyMaterials, reconnectSignal);
+  useStudyMaterialsListener(
+    (items) => setStudyMaterials(Array.isArray(items) ? items.map(normalizeStudyMaterial) : []),
+    reconnectSignal
+  );
 
   // Update browser tab title and favicon dynamically on mount
   useEffect(() => {

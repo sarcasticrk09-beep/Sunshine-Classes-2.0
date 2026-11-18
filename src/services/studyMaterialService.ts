@@ -97,6 +97,12 @@ export async function getPublicStudyMaterials(): Promise<StudyMaterial[]> {
   return SEED_STUDY_MATERIALS.map(normalizeStudyMaterial).filter((m) => m.isPublic && m.status === 'PUBLISHED');
 }
 
+export function inferCategoryFromType(materialType?: StudyMaterialType): StudyMaterial['category'] {
+  if (materialType === 'NOTES') return 'NOTES';
+  if (materialType === 'PDF') return 'BOOK';
+  return 'QUESTION_PAPER';
+}
+
 /**
  * Create or save a new study material
  */
@@ -108,8 +114,9 @@ export async function createStudyMaterial(
   const newId = materialData.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `mat-${Date.now()}`);
   const now = new Date().toISOString();
   const slug = materialData.slug || generateSlug(materialData.title);
+  const materialType = materialData.materialType || 'NOTES';
 
-  const fullMaterial: StudyMaterial = {
+  const fullMaterial: StudyMaterial = normalizeStudyMaterial({
     id: newId,
     materialId: newId,
     title: materialData.title,
@@ -119,8 +126,8 @@ export async function createStudyMaterial(
     class: materialData.class,
     subject: materialData.subject,
     chapter: materialData.chapter || '',
-    materialType: materialData.materialType || 'NOTES',
-    category: materialData.category || 'NOTES',
+    materialType,
+    category: materialData.category || inferCategoryFromType(materialType),
     file: materialData.file || '',
     size: materialData.size || '1.0 MB',
     fileUrl: materialData.fileUrl || '',
@@ -141,10 +148,11 @@ export async function createStudyMaterial(
     createdAt: now,
     updatedAt: now,
     date: materialData.date || now.split('T')[0]
-  };
+  });
 
   try {
     await SyncService.set(COLLECTION_NAME, newId, fullMaterial);
+    await SyncService.processTransactionLog().catch(() => {});
   } catch (err) {
     console.error('Error saving study material:', err);
   }
@@ -160,7 +168,7 @@ export async function updateStudyMaterial(
   updates: Partial<StudyMaterial>
 ): Promise<void> {
   const now = new Date().toISOString();
-  const payload = {
+  const payload: Partial<StudyMaterial> = {
     ...updates,
     updatedAt: now
   };
@@ -168,9 +176,13 @@ export async function updateStudyMaterial(
   if (updates.title && !updates.slug) {
     payload.slug = generateSlug(updates.title);
   }
+  if (updates.materialType && !updates.category) {
+    payload.category = inferCategoryFromType(updates.materialType);
+  }
 
   try {
     await SyncService.update(COLLECTION_NAME, id, payload);
+    await SyncService.processTransactionLog().catch(() => {});
   } catch (err) {
     console.error(`Error updating study material ${id}:`, err);
   }

@@ -25,17 +25,17 @@ import { StudyMaterial } from '../../types';
 import { isNcertTextbookChapter } from '../../services/studyMaterialService';
 
 export type LibraryCategoryId =
-  | 'NOTES'
-  | 'PDF'
   | 'QUESTION_BANK'
   | 'SAMPLE_PAPER'
   | 'PYQ'
   | 'FORMULA_SHEET'
-  | 'ASSIGNMENT'
   | 'WORKSHEET'
+  | 'ASSIGNMENT'
   | 'SYLLABUS'
   | 'LAB_MANUAL'
-  | 'OTHER';
+  | 'OTHER'
+  | 'NOTES'
+  | 'PDF';
 
 export type StudyResourceSortMode = 'chapter' | 'newest' | 'alphabetical';
 
@@ -51,28 +51,10 @@ export interface LibraryCategoryMeta {
 
 export const LIBRARY_CATEGORIES: LibraryCategoryMeta[] = [
   {
-    id: 'NOTES',
-    label: 'Chapter Notes',
-    shortLabel: 'Notes',
-    description: 'Concise revision summaries, diagrams & key concepts',
-    Icon: FileText,
-    iconClass: 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border-amber-200/80 dark:border-amber-900/60',
-    accentBg: 'hover:border-amber-400 dark:hover:border-amber-500'
-  },
-  {
-    id: 'PDF',
-    label: 'NCERT Books & PDFs',
-    shortLabel: 'Books PDF',
-    description: 'Official NCERT textbook chapters & reference book PDFs',
-    Icon: Book,
-    iconClass: 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-400 border-rose-200/80 dark:border-rose-900/60',
-    accentBg: 'hover:border-rose-400 dark:hover:border-rose-500'
-  },
-  {
     id: 'QUESTION_BANK',
     label: 'Question Banks',
     shortLabel: 'Q-Banks',
-    description: 'Chapter-wise MCQs, assertion-reason & case studies',
+    description: 'Important questions, MCQs, assertion-reason & case studies',
     Icon: ClipboardCheck,
     iconClass: 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 border-indigo-200/80 dark:border-indigo-900/60',
     accentBg: 'hover:border-indigo-400 dark:hover:border-indigo-500'
@@ -105,15 +87,6 @@ export const LIBRARY_CATEGORIES: LibraryCategoryMeta[] = [
     accentBg: 'hover:border-orange-400 dark:hover:border-orange-500'
   },
   {
-    id: 'ASSIGNMENT',
-    label: 'Assignments',
-    shortLabel: 'Assignments',
-    description: 'Take-home homework tasks & graded problem sets',
-    Icon: FileSpreadsheet,
-    iconClass: 'bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-400 border-sky-200/80 dark:border-sky-900/60',
-    accentBg: 'hover:border-sky-400 dark:hover:border-sky-500'
-  },
-  {
     id: 'WORKSHEET',
     label: 'Worksheets',
     shortLabel: 'Worksheets',
@@ -121,6 +94,15 @@ export const LIBRARY_CATEGORIES: LibraryCategoryMeta[] = [
     Icon: ClipboardList,
     iconClass: 'bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-400 border-teal-200/80 dark:border-teal-900/60',
     accentBg: 'hover:border-teal-400 dark:hover:border-teal-500'
+  },
+  {
+    id: 'ASSIGNMENT',
+    label: 'Assignments',
+    shortLabel: 'Assignments',
+    description: 'Take-home homework tasks & graded problem sets',
+    Icon: FileSpreadsheet,
+    iconClass: 'bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-400 border-sky-200/80 dark:border-sky-900/60',
+    accentBg: 'hover:border-sky-400 dark:hover:border-sky-500'
   },
   {
     id: 'SYLLABUS',
@@ -148,6 +130,24 @@ export const LIBRARY_CATEGORIES: LibraryCategoryMeta[] = [
     Icon: FolderOpen,
     iconClass: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
     accentBg: 'hover:border-slate-400 dark:hover:border-slate-500'
+  },
+  {
+    id: 'NOTES',
+    label: 'Chapter Notes',
+    shortLabel: 'Notes',
+    description: 'Concise revision summaries, diagrams & key concepts',
+    Icon: FileText,
+    iconClass: 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border-amber-200/80 dark:border-amber-900/60',
+    accentBg: 'hover:border-amber-400 dark:hover:border-amber-500'
+  },
+  {
+    id: 'PDF',
+    label: 'NCERT Books & PDFs',
+    shortLabel: 'Books PDF',
+    description: 'Official NCERT textbook chapters & reference book PDFs',
+    Icon: Book,
+    iconClass: 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-400 border-rose-200/80 dark:border-rose-900/60',
+    accentBg: 'hover:border-rose-400 dark:hover:border-rose-500'
   }
 ];
 
@@ -167,8 +167,9 @@ export const SUBJECT_PRIORITY = [
 ];
 
 export const CLASS_PRIORITY = [
-  'Class 10',
   'Class 12',
+  'Class 11',
+  'Class 10',
   'Class 9',
   'Class 8',
   'Class 7',
@@ -176,6 +177,54 @@ export const CLASS_PRIORITY = [
   'Class 5',
   'Board Specials'
 ];
+
+export const UPLOAD_CLASSES_LIST = [
+  'Class 12',
+  'Class 11',
+  'Class 10',
+  'Class 9',
+  'Class 8',
+  'Class 7',
+  'Class 6',
+  'Class 5',
+  'Class 4',
+  'Class 3',
+  'Class 2',
+  'Class 1',
+  'Board Specials'
+];
+
+export const UPLOAD_SUBJECTS_LIST = [
+  'Mathematics',
+  'Science',
+  'Physics',
+  'Chemistry',
+  'Biology',
+  'English',
+  'Social Science',
+  'Hindi',
+  'Computer Science',
+  'Economics',
+  'Accountancy',
+  'Business Studies',
+  'General Knowledge'
+];
+
+export const mapCategoryIdToMaterialType = (categoryId?: string): StudyMaterial['materialType'] => {
+  const norm = (categoryId || '').toUpperCase();
+  if (norm === 'QUESTION_BANK') return 'QUESTION_BANK';
+  if (norm === 'SAMPLE_PAPER') return 'SAMPLE_PAPER';
+  if (norm === 'PYQ') return 'PYQ';
+  if (norm === 'FORMULA_SHEET') return 'FORMULA_SHEET';
+  if (norm === 'WORKSHEET') return 'WORKSHEET';
+  if (norm === 'ASSIGNMENT') return 'ASSIGNMENT';
+  if (norm === 'SYLLABUS') return 'SYLLABUS';
+  if (norm === 'LAB_MANUAL') return 'LAB_MANUAL';
+  if (norm === 'NOTES') return 'NOTES';
+  if (norm === 'PDF') return 'PDF';
+  if (norm === 'OTHER') return 'OTHER';
+  return 'QUESTION_BANK';
+};
 
 export const sanitizeElementId = (value: string): string =>
   value.toLowerCase().replace(/[^a-z0-9_-]/g, '-');
@@ -207,6 +256,12 @@ export const getResourceCategoryId = (item: StudyMaterial): LibraryCategoryId =>
   }
   if (c === 'NOTES') return 'NOTES';
   return 'OTHER';
+};
+
+export const getCategoryPriorityIndex = (item: StudyMaterial): number => {
+  const catId = getResourceCategoryId(item);
+  const idx = LIBRARY_CATEGORIES.findIndex((c) => c.id === catId);
+  return idx === -1 ? LIBRARY_CATEGORIES.length : idx;
 };
 
 export const matchesLibraryCategory = (item: StudyMaterial, categoryId: string): boolean => {
