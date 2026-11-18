@@ -1357,6 +1357,17 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
               setIsQuickUploadOpen(false);
               showToast('Uploaded & synced live');
             }}
+            onBulkSaved={(savedMaterials) => {
+              const newIds = new Set(savedMaterials.map((m) => m.id));
+              setLocalMaterials((prev) => {
+                const next = [...savedMaterials, ...prev.filter((m) => !newIds.has(m.id))];
+                safeSetItem('sunshine_study_materials_initialized', 'true');
+                safeSetItem('sunshine_study_materials', JSON.stringify(next));
+                return next;
+              });
+              setIsQuickUploadOpen(false);
+              showToast(`Uploaded & synced ${savedMaterials.length} files live`);
+            }}
             onAuditLog={onAuditLog}
           />
         )}

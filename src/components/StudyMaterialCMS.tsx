@@ -307,6 +307,18 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
     setEditingMaterial(null);
   };
 
+  const handleModalBulkSaved = (savedMaterials: StudyMaterial[]) => {
+    const newIds = new Set(savedMaterials.map((m) => m.id));
+    setMaterials((prev) => {
+      const next = [...savedMaterials, ...prev.filter((m) => !newIds.has(m.id))];
+      safeSetItem('sunshine_study_materials_initialized', 'true');
+      safeSetItem('sunshine_study_materials', JSON.stringify(next));
+      return next;
+    });
+    setIsFormOpen(false);
+    setEditingMaterial(null);
+  };
+
   const handleDeleteItem = async (id: string) => {
     const target = materials.find(m => m.id === id);
     if (!target) return;
@@ -767,6 +779,7 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
               setEditingMaterial(null);
             }}
             onSaved={handleModalSaved}
+            onBulkSaved={handleModalBulkSaved}
             onAuditLog={onAuditLog}
           />
         )}

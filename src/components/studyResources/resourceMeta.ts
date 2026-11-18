@@ -21,7 +21,7 @@ import {
   ScrollText,
   Sigma
 } from 'lucide-react';
-import { StudyMaterial } from '../../types';
+import { StudyMaterial, StudyMaterialType } from '../../types';
 import { isNcertTextbookChapter } from '../../services/studyMaterialService';
 
 export type LibraryCategoryId =
@@ -449,3 +449,349 @@ export const extractSearchSuggestions = (materials: StudyMaterial[], limit = 6):
     .slice(0, limit)
     .map(([term]) => term);
 };
+
+export interface ParsedFilenameMetadata {
+  title: string;
+  detectedClass?: string;
+  detectedSubject?: string;
+  detectedMaterialType?: StudyMaterialType;
+  detectedChapter?: string;
+  tags: string[];
+}
+
+const PRESERVED_UPPERCASE_TOKENS = new Set([
+  'CBSE',
+  'NCERT',
+  'PYQ',
+  'PYQS',
+  'SQP',
+  'MCQ',
+  'MCQS',
+  'PDF',
+  'VVI',
+  'DPP',
+  'SST',
+  'HOTS',
+  'ICSE',
+  'BSEB',
+  'UP',
+  'SQL',
+  'AI',
+  'II',
+  'III',
+  'IV',
+  'VI',
+  'VII',
+  'VIII',
+  'IX',
+  'XI',
+  'XII'
+]);
+
+const FILENAME_STOP_WORDS = new Set([
+  'the',
+  'and',
+  'for',
+  'with',
+  'from',
+  'into',
+  'that',
+  'this',
+  'pdf',
+  'doc',
+  'docx',
+  'ppt',
+  'pptx',
+  'zip',
+  'png',
+  'jpg',
+  'jpeg',
+  'webp',
+  'class',
+  'cls',
+  'std',
+  'grade',
+  'chapter',
+  'chap',
+  'unit',
+  'file',
+  'document',
+  'study',
+  'material',
+  'materials',
+  'resource',
+  'resources',
+  'sunshine',
+  'classes',
+  'final',
+  'new',
+  'latest',
+  'updated',
+  'copy',
+  'part',
+  'set',
+  'math',
+  'maths',
+  'mathematics',
+  'science',
+  'physics',
+  'chemistry',
+  'biology',
+  'english',
+  'hindi',
+  'social',
+  'computer',
+  'economics',
+  'accountancy',
+  'business',
+  'studies',
+  'sample',
+  'paper',
+  'papers',
+  'question',
+  'questions',
+  'important',
+  'bank',
+  'formula',
+  'formulas',
+  'sheet',
+  'sheets',
+  'notes',
+  'worksheet',
+  'worksheets',
+  'assignment',
+  'assignments',
+  'syllabus',
+  'manual',
+  'practical',
+  'ncert',
+  'cbse',
+  'icse',
+  'book',
+  'books',
+  'solution',
+  'solutions',
+  'solved',
+  'previous',
+  'year'
+]);
+
+const ROMAN_CLASS_MAP: Record<string, string> = {
+  xii: 'Class 12',
+  xi: 'Class 11',
+  x: 'Class 10',
+  ix: 'Class 9',
+  viii: 'Class 8',
+  vii: 'Class 7',
+  vi: 'Class 6',
+  v: 'Class 5',
+  iv: 'Class 4',
+  iii: 'Class 3',
+  ii: 'Class 2',
+  i: 'Class 1'
+};
+
+const formatWordCase = (word: string): string => {
+  const upper = word.toUpperCase();
+  if (PRESERVED_UPPERCASE_TOKENS.has(upper)) {
+    if (upper === 'PYQS') return 'PYQs';
+    if (upper === 'MCQS') return 'MCQs';
+    return upper;
+  }
+  if (/^\d+(?:st|nd|rd|th)?$/i.test(word)) return word.toLowerCase();
+  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+};
+
+export const parseStudyMaterialFilename = (
+  fileName: string,
+  defaults?: {
+    defaultClass?: string;
+    defaultSubject?: string;
+    defaultMaterialType?: StudyMaterialType;
+  }
+): ParsedFilenameMetadata => {
+  const withoutExt = fileName.replace(/\.[^/.]+$/, '');
+  const spacedRaw = withoutExt
+    .replace(/[_+]+/g, ' ')
+    .replace(/[-–—]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/([a-zA-Z])(\d)/g, '$1 $2')
+    .replace(/(\d)(?!(?:st|nd|rd|th)\b)([a-zA-Z])/gi, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const lower = spacedRaw.toLowerCase();
+  const cleanTitle = spacedRaw
+    .split(' ')
+    .filter(Boolean)
+    .map(formatWordCase)
+    .join(' ') || withoutExt;
+
+  let detectedClass: string | undefined;
+  const numericClassMatch =
+    lower.match(/\b(?:class|cls|std|grade)\s*(1[0-2]|[1-9])\b/i) ||
+    lower.match(/\b(1[0-2]|[1-9])\s*(?:th|st|nd|rd)\b/i);
+  if (numericClassMatch) {
+    const classNum = parseInt(numericClassMatch[1], 10);
+    if (classNum >= 1 && classNum <= 12) {
+      detectedClass = `Class ${classNum}`;
+    }
+  } else {
+    const romanClassMatch = lower.match(/\b(?:class|cls|std)\s*(xii|xi|x|ix|viii|vii|vi|v|iv|iii|ii|i)\b/i);
+    if (romanClassMatch) {
+      detectedClass = ROMAN_CLASS_MAP[romanClassMatch[1].toLowerCase()];
+    } else if (/\bboard\s*specials?\b/i.test(lower)) {
+      detectedClass = 'Board Specials';
+    }
+  }
+
+  let detectedSubject: string | undefined;
+  if (/\b(?:computer\s*science|comp\s*sci|informatics|python|sql)\b/i.test(lower)) {
+    detectedSubject = 'Computer Science';
+  } else if (/\b(?:social\s*science|social\s*studies|sst|history|geography|civics|political\s*science)\b/i.test(lower)) {
+    detectedSubject = 'Social Science';
+  } else if (/\b(?:business\s*studies|bst)\b/i.test(lower)) {
+    detectedSubject = 'Business Studies';
+  } else if (/\b(?:general\s*knowledge|gk)\b/i.test(lower)) {
+    detectedSubject = 'General Knowledge';
+  } else if (/\b(?:mathematics|maths|math|algebra|geometry|trigonometry|calculus|mensuration)\b/i.test(lower)) {
+    detectedSubject = 'Mathematics';
+  } else if (/\b(?:physics|phy|optics|mechanics|electromagnetism)\b/i.test(lower)) {
+    detectedSubject = 'Physics';
+  } else if (/\b(?:chemistry|chem|organic|inorganic)\b/i.test(lower)) {
+    detectedSubject = 'Chemistry';
+  } else if (/\b(?:biology|bio|botany|zoology|genetics)\b/i.test(lower)) {
+    detectedSubject = 'Biology';
+  } else if (/\b(?:science|sci)\b/i.test(lower)) {
+    detectedSubject = 'Science';
+  } else if (/\b(?:english|eng|grammar|literature)\b/i.test(lower)) {
+    detectedSubject = 'English';
+  } else if (/\b(?:hindi|vyakaran)\b/i.test(lower)) {
+    detectedSubject = 'Hindi';
+  } else if (/\b(?:economics|econ|macroeconomics|microeconomics)\b/i.test(lower)) {
+    detectedSubject = 'Economics';
+  } else if (/\b(?:accountancy|accounts|accounting)\b/i.test(lower)) {
+    detectedSubject = 'Accountancy';
+  }
+
+  let detectedMaterialType: StudyMaterialType | undefined;
+  let detectedTypeTag: string | undefined;
+  if (/\b(?:pyq|pyqs|previous\s*years?|past\s*years?|last\s*\d+\s*years?|board\s*papers?)\b/i.test(lower)) {
+    detectedMaterialType = 'PYQ';
+    detectedTypeTag = 'PYQ';
+  } else if (/\b(?:sample\s*papers?|sqp|model\s*papers?|mock\s*papers?|mock\s*tests?|pre\s*board)\b/i.test(lower)) {
+    detectedMaterialType = 'SAMPLE_PAPER';
+    detectedTypeTag = 'Sample Paper';
+  } else if (/\b(?:question\s*banks?|q\s*banks?|qbank|important\s*questions?|imp\s*questions?|imp\s*ques|most\s*expected|vvi|mcq|mcqs|case\s*stud(?:y|ies)|assertion|hots)\b/i.test(lower)) {
+    detectedMaterialType = 'QUESTION_BANK';
+    detectedTypeTag = /\bimportant|imp\s*ques|most\s*expected|vvi\b/i.test(lower)
+      ? 'Important Questions'
+      : 'Question Bank';
+  } else if (/\b(?:formulas?|cheat\s*sheets?|theorems?|equations?|mind\s*maps?|mindmap)\b/i.test(lower)) {
+    detectedMaterialType = 'FORMULA_SHEET';
+    detectedTypeTag = 'Formula Sheet';
+  } else if (/\b(?:worksheets?|dpp|daily\s*practice|practice\s*sheets?)\b/i.test(lower)) {
+    detectedMaterialType = 'WORKSHEET';
+    detectedTypeTag = 'Worksheet';
+  } else if (/\b(?:assignments?|homework)\b/i.test(lower)) {
+    detectedMaterialType = 'ASSIGNMENT';
+    detectedTypeTag = 'Assignment';
+  } else if (/\b(?:syllabus|blueprint|curriculum|marking\s*scheme)\b/i.test(lower)) {
+    detectedMaterialType = 'SYLLABUS';
+    detectedTypeTag = 'Syllabus';
+  } else if (/\b(?:lab\s*manuals?|practicals?|experiments?|viva)\b/i.test(lower)) {
+    detectedMaterialType = 'LAB_MANUAL';
+    detectedTypeTag = 'Lab Manual';
+  } else if (/\b(?:ncert\s*solutions?|solutions?|answer\s*keys?|solved)\b/i.test(lower)) {
+    detectedMaterialType = 'NCERT_SOLUTION';
+    detectedTypeTag = 'NCERT Solutions';
+  } else if (/\b(?:notes|summary|revision|key\s*points|one\s*shot|oneshot|handwritten)\b/i.test(lower)) {
+    detectedMaterialType = 'NOTES';
+    detectedTypeTag = 'Chapter Notes';
+  } else if (/\b(?:ncert\s*books?|textbooks?|books?)\b/i.test(lower)) {
+    detectedMaterialType = 'PDF';
+    detectedTypeTag = 'NCERT Book';
+  }
+
+  let detectedChapter: string | undefined;
+  const chapterMatch = lower.match(/\b(?:chapter|chap|ch|unit)\s*(\d{1,2})\b/i);
+  if (chapterMatch) {
+    detectedChapter = `Chapter ${parseInt(chapterMatch[1], 10)}`;
+  }
+
+  const tags: string[] = [];
+  const seenLower = new Set<string>();
+  const pushTag = (raw: string | undefined) => {
+    if (!raw) return;
+    const clean = raw.trim();
+    if (!clean) return;
+    const key = clean.toLowerCase();
+    if (!seenLower.has(key)) {
+      seenLower.add(key);
+      tags.push(clean);
+    }
+  };
+
+  pushTag(detectedClass || (defaults?.defaultClass && defaults.defaultClass !== 'ALL' ? defaults.defaultClass : undefined));
+  pushTag(detectedSubject || (defaults?.defaultSubject && defaults.defaultSubject !== 'ALL' ? defaults.defaultSubject : undefined));
+  pushTag(detectedTypeTag);
+  pushTag(detectedChapter);
+
+  if (/\bcbse\b/i.test(lower)) pushTag('CBSE');
+  if (/\bicse\b/i.test(lower)) pushTag('ICSE');
+  if (/\bup\s*board\b/i.test(lower)) pushTag('UP Board');
+  if (/\bbseb\b/i.test(lower)) pushTag('BSEB');
+  if (/\bncert\b/i.test(lower)) pushTag('NCERT');
+  if (/\bboard\s*exam\b/i.test(lower)) pushTag('Board Exam');
+  if (/\bmcq|mcqs\b/i.test(lower)) pushTag('MCQ');
+  if (/\bcase\s*study\b/i.test(lower)) pushTag('Case Study');
+  if (/\bassertion\b/i.test(lower)) pushTag('Assertion-Reason');
+  if (/\bsolved|solution|solutions|answer\s*key\b/i.test(lower)) pushTag('Solved');
+  if (/\brevision|one\s*shot|oneshot\b/i.test(lower)) pushTag('Revision');
+  if (/\bpre\s*board\b/i.test(lower)) pushTag('Pre-Board');
+  if (/\bhalf\s*yearly\b/i.test(lower)) pushTag('Half Yearly');
+  if (/\bterm\s*[12]\b/i.test(lower)) {
+    const m = lower.match(/\bterm\s*([12])\b/i);
+    if (m) pushTag(`Term ${m[1]}`);
+  }
+
+  const yearRangeMatch = spacedRaw.match(/\b(20\d{2})\s+(20\d{2}|\d{2})\b/);
+  if (yearRangeMatch) {
+    pushTag(`${yearRangeMatch[1]}-${yearRangeMatch[2]}`);
+  } else {
+    const yearMatches = spacedRaw.match(/\b(202[0-9]|2030)\b/g);
+    if (yearMatches) {
+      yearMatches.forEach((yr) => pushTag(yr));
+    }
+  }
+
+  const setMatch = lower.match(/\bset\s*([a-z0-9]{1,2})\b/i);
+  if (setMatch) {
+    pushTag(`Set ${setMatch[1].toUpperCase()}`);
+  }
+
+  // Extract up to 3 topic keywords from remaining descriptive filename tokens
+  const topicWords = spacedRaw
+    .split(' ')
+    .filter((word) => {
+      const wLower = word.toLowerCase();
+      if (wLower.length < 4) return false;
+      if (/^\d+(?:st|nd|rd|th)?$/.test(wLower)) return false;
+      if (FILENAME_STOP_WORDS.has(wLower)) return false;
+      if (seenLower.has(wLower)) return false;
+      return true;
+    })
+    .slice(0, 3);
+
+  topicWords.forEach((word) => pushTag(formatWordCase(word)));
+
+  return {
+    title: cleanTitle,
+    detectedClass,
+    detectedSubject,
+    detectedMaterialType: detectedMaterialType || defaults?.defaultMaterialType,
+    detectedChapter,
+    tags: tags.slice(0, 8)
+  };
+};
+
