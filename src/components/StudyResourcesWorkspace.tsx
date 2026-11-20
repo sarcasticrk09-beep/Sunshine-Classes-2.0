@@ -85,6 +85,7 @@ export interface StudyResourcesWorkspaceProps {
   onNavigateHome?: () => void;
   onOpenLoginModal?: () => void;
   onActiveResourceChange?: (material: StudyMaterial | null, activeCategory?: string) => void;
+  onCategoryChange?: (categoryId: string) => void;
   onAuditLog?: (action: string, details: string) => void;
   storageKeyPrefix?: string;
 }
@@ -110,6 +111,7 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
   onNavigateHome,
   onOpenLoginModal,
   onActiveResourceChange,
+  onCategoryChange,
   onAuditLog,
   storageKeyPrefix = 'public'
 }) => {
@@ -728,6 +730,7 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
       setSelectedSubject('ALL');
       setViewCategoryFilesDirectly(false);
       setSearchQuery('');
+      onCategoryChange?.('ALL');
     }
   };
 
@@ -736,6 +739,7 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
     setSelectedCategory(categoryId);
     setSelectedSubject('ALL');
     setViewCategoryFilesDirectly(false);
+    onCategoryChange?.(categoryId);
   };
 
   const handleOpenSubject = (subject: string) => {
@@ -758,6 +762,7 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
     }
     setActiveNavTab('browse');
     setSelectedCategory('ALL');
+    onCategoryChange?.('ALL');
   };
 
   const handleResetToCategories = () => {
@@ -767,6 +772,7 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
     setViewCategoryFilesDirectly(false);
     setChapterFilter('ALL');
     setActiveNavTab('browse');
+    onCategoryChange?.('ALL');
   };
 
   const selectedCategoryMeta =

@@ -197,14 +197,12 @@ interface ResourceRouteHandlerProps {
   currentUser: User | null;
   studyMaterials: StudyMaterial[];
   onOpenLoginModal: () => void;
-  fixedResourceType?: string;
 }
 
 const ResourceRouteHandler: React.FC<ResourceRouteHandlerProps> = ({
   currentUser,
   studyMaterials,
-  onOpenLoginModal,
-  fixedResourceType
+  onOpenLoginModal
 }) => {
   const { resourceType, chapterName } = useParams<{
     resourceType?: string;
@@ -217,17 +215,18 @@ const ResourceRouteHandler: React.FC<ResourceRouteHandlerProps> = ({
       (m) => (m.status === 'PUBLISHED' || !m.status) && (currentUser ? true : m.isPublic !== false)
     );
 
-    const rawResourceType = fixedResourceType || resourceType;
-    let resolvedCategory = resolveCategoryPresetFromUrlSlug(rawResourceType);
+    const normalizedType = resourceType ? decodeURIComponent(resourceType).trim().toLowerCase() : '';
+    const isRootAlias = normalizedType === 'study-material' || normalizedType === 'all';
+    let resolvedCategory = isRootAlias ? 'ALL' : resolveCategoryPresetFromUrlSlug(resourceType);
     let resolvedDocSlug = chapterName ? decodeURIComponent(chapterName).trim() : '';
 
-    // Support single-segment direct slugs like /resources/<doc-slug> when :resourceType is not a category
-    if (!resolvedDocSlug && rawResourceType && resolvedCategory === 'ALL') {
-      resolvedDocSlug = decodeURIComponent(rawResourceType).trim();
+    // Support single-segment direct slugs like /resources/<doc-slug> when :resourceType is not a category or root alias
+    if (!resolvedDocSlug && resourceType && !isRootAlias && resolvedCategory === 'ALL') {
+      resolvedDocSlug = decodeURIComponent(resourceType).trim();
     }
 
     // Fallback to pathname parser for deeper nested paths (e.g., wildcard routes)
-    if (!resolvedDocSlug && resolvedCategory === 'ALL') {
+    if (!resolvedDocSlug && resolvedCategory === 'ALL' && !isRootAlias) {
       const parsed = parseResourceRoutePath(location.pathname);
       resolvedCategory = parsed.categoryPreset;
       resolvedDocSlug = parsed.docSlug;
@@ -242,7 +241,7 @@ const ResourceRouteHandler: React.FC<ResourceRouteHandlerProps> = ({
       docSlug: resolvedDocSlug,
       matchedMaterial: matched ?? null
     };
-  }, [studyMaterials, currentUser, fixedResourceType, resourceType, chapterName, location.pathname]);
+  }, [studyMaterials, currentUser, resourceType, chapterName, location.pathname]);
 
   return (
     <PublicStudyMaterialPage
@@ -4034,17 +4033,6 @@ Sunshine Classes`;
             }
           />
           <Route
-            path="/resources/questionpaper/:chapterName"
-            element={
-              <ResourceRouteHandler
-                currentUser={currentUser}
-                studyMaterials={studyMaterials}
-                onOpenLoginModal={() => navigate('/login/student')}
-                fixedResourceType="questionpaper"
-              />
-            }
-          />
-          <Route
             path="/resources/:resourceType/:chapterName"
             element={
               <ResourceRouteHandler
@@ -4081,17 +4069,6 @@ Sunshine Classes`;
                 currentUser={currentUser}
                 cmsMaterials={studyMaterials}
                 onOpenLoginModal={() => navigate('/login/student')}
-              />
-            }
-          />
-          <Route
-            path="/study-material/questionpaper/:chapterName"
-            element={
-              <ResourceRouteHandler
-                currentUser={currentUser}
-                studyMaterials={studyMaterials}
-                onOpenLoginModal={() => navigate('/login/student')}
-                fixedResourceType="questionpaper"
               />
             }
           />

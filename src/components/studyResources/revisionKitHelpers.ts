@@ -219,6 +219,14 @@ export const parseResourceRoutePath = (
 
   const seg1 = decodeURIComponent(segments[1] || '');
   const seg2 = decodeURIComponent(segments[2] || '');
+
+  if (seg1 === 'study-material' || seg1 === 'all') {
+    return {
+      categoryPreset: 'ALL',
+      docSlug: seg2
+    };
+  }
+
   const mappedCategory = URL_SLUG_TO_CATEGORY_MAP[seg1];
 
   if (mappedCategory) {

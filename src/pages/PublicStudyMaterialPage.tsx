@@ -270,6 +270,17 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
     }
   };
 
+  const handleCategoryChange = (categoryId: string) => {
+    if (embeddedInLayout) return;
+    const targetPath =
+      categoryId && categoryId !== 'ALL'
+        ? `/resources/${getCategoryUrlSlug(categoryId)}`
+        : '/resources';
+    if (location.pathname !== targetPath || location.search) {
+      navigate(targetPath);
+    }
+  };
+
   const seoTitle = activeRouteMaterial
     ? activeRouteMaterial.seoTitle || `${activeRouteMaterial.title} | Sunshine Classes`
     : routeMeta.seoTitle;
@@ -296,6 +307,7 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
         headerSubtitle={routeMeta.subtitle}
         storageKeyPrefix={currentUser ? `user-${currentUser.id}` : 'public'}
         onActiveResourceChange={handleActiveResourceChange}
+        onCategoryChange={handleCategoryChange}
         onNavigateHome={() => {
           if (onNavigateSection) onNavigateSection('home');
           else navigate('/');
