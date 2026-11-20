@@ -173,6 +173,12 @@ const URL_SLUG_TO_CATEGORY_MAP: Record<string, LibraryCategoryId> = {
   'ncert-solutions': 'OTHER'
 };
 
+export const resolveCategoryPresetFromUrlSlug = (resourceType?: string): string => {
+  if (!resourceType) return 'ALL';
+  const normalized = decodeURIComponent(resourceType).trim().toLowerCase();
+  return URL_SLUG_TO_CATEGORY_MAP[normalized] || 'ALL';
+};
+
 export const getCategoryUrlSlug = (categoryId: string): string => {
   const key = categoryId.toUpperCase() as LibraryCategoryId;
   return CATEGORY_URL_SLUG_MAP[key] || 'other';
@@ -324,31 +330,77 @@ export const resolveMaterialByDocParam = (
   });
   if (normalizedMatch) return normalizedMatch;
 
-  // 3. Category-scoped shorthand match (e.g., /resources/questionpaper/chapter1 or /resources/notes/chapter1)
+  // 3. Category-scoped shorthand match (e.g., /resources/questionpaper/chapter1 or /resources/books/real-numbers)
   const scopedPool =
     categoryHint && categoryHint !== 'ALL'
       ? materials.filter((m) => getResourceCategoryId(m) === categoryHint)
       : materials;
-  const searchPool = scopedPool.length > 0 ? scopedPool : materials;
 
-  const chapterMatch = compactTarget.match(/^chapter(\d{1,2})$/);
-  if (chapterMatch) {
+  const findByChapterInPool = (pool: StudyMaterial[]): StudyMaterial | undefined => {
+    const chapterMatch = compactTarget.match(/^(?:chapter|ch)(\d{1,2})$/);
+    if (!chapterMatch) return undefined;
     const chNum = parseInt(chapterMatch[1], 10);
-    const byChapter = searchPool.find((m) => {
+    return pool.find((m) => {
       const text = `${m.chapter || ''} ${m.slug || ''} ${m.title || ''}`.toLowerCase();
       return (
-        new RegExp(`\\bchapter[-\\s]*0?${chNum}\\b`, 'i').test(text) ||
+        new RegExp(`\\b(?:chapter|ch)[-\\s]*0?${chNum}\\b`, 'i').test(text) ||
         extractChapterOrderNumber(m) === chNum
       );
     });
-    if (byChapter) return byChapter;
+  };
+
+  const findByTextInPool = (pool: StudyMaterial[]): StudyMaterial | undefined => {
+    if (compactTarget.length < 2) return undefined;
+    const rawTokens = target.split(/[^a-z0-9]+/).filter(Boolean);
+
+    // Prefer whole-word / tag / slug-token matches first (prevents e.g. 'sst' matching 'mathematics-standard')
+    const tokenMatch = pool.find((m) => {
+      const candidateTokens = [
+        m.id || '',
+        m.materialId || '',
+        getResourceSlug(m),
+        m.chapter || '',
+        m.title || '',
+        m.subject || '',
+        ...(m.tags || [])
+      ]
+        .join(' ')
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter(Boolean);
+      const tokenSet = new Set(candidateTokens);
+      return rawTokens.length > 0 && rawTokens.every((t) => tokenSet.has(t));
+    });
+    if (tokenMatch) return tokenMatch;
+
+    return pool.find((m) => {
+      const slugCompact = getResourceSlug(m).replace(/[^a-z0-9]/g, '');
+      const chapterCompact = (m.chapter || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const titleCompact = (m.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const subjectCompact = (m.subject || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      return (
+        slugCompact.includes(compactTarget) ||
+        chapterCompact.includes(compactTarget) ||
+        titleCompact.includes(compactTarget) ||
+        (subjectCompact.length >= 2 && subjectCompact === compactTarget)
+      );
+    });
+  };
+
+  // Prioritize matches inside the requested category first
+  if (scopedPool.length > 0) {
+    const scopedChapter = findByChapterInPool(scopedPool);
+    if (scopedChapter) return scopedChapter;
+
+    const scopedText = findByTextInPool(scopedPool);
+    if (scopedText) return scopedText;
   }
 
-  // 4. Partial slug/title match inside scoped pool
-  return searchPool.find((m) => {
-    const slugCompact = getResourceSlug(m).replace(/[^a-z0-9]/g, '');
-    return slugCompact.includes(compactTarget);
-  });
+  // Fallback across the full library if no item in the requested category matches the chapterName
+  const globalChapter = findByChapterInPool(materials);
+  if (globalChapter) return globalChapter;
+
+  return findByTextInPool(materials);
 };
 
 export const resolveMaterialsByKitParam = (

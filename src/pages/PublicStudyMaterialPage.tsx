@@ -129,6 +129,9 @@ interface PublicStudyMaterialPageProps {
   cmsMaterials?: StudyMaterial[];
   onOpenLoginModal?: () => void;
   embeddedInLayout?: boolean;
+  initialCategoryOverride?: string;
+  initialDocParamOverride?: string;
+  resolvedMaterialOverride?: StudyMaterial | null;
 }
 
 export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = ({
@@ -136,7 +139,10 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
   onNavigateSection,
   cmsMaterials,
   onOpenLoginModal,
-  embeddedInLayout = false
+  embeddedInLayout = false,
+  initialCategoryOverride,
+  initialDocParamOverride,
+  resolvedMaterialOverride
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -144,17 +150,34 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
   const parsedRoute = useMemo(() => parseResourceRoutePath(location.pathname), [location.pathname]);
   const routeMeta = useMemo(() => getRouteMeta(location.pathname), [location.pathname]);
   const resolvedCategoryPreset =
-    parsedRoute.categoryPreset !== 'ALL' ? parsedRoute.categoryPreset : routeMeta.categoryPreset;
+    initialCategoryOverride && initialCategoryOverride !== 'ALL'
+      ? initialCategoryOverride
+      : parsedRoute.categoryPreset !== 'ALL'
+        ? parsedRoute.categoryPreset
+        : routeMeta.categoryPreset;
 
   const queryParams = useMemo(() => {
     const params = new URLSearchParams(location.search);
+    const resolvedDoc =
+      initialDocParamOverride ||
+      resolvedMaterialOverride?.slug ||
+      resolvedMaterialOverride?.id ||
+      parsedRoute.docSlug ||
+      params.get('doc') ||
+      '';
     return {
       classParam: params.get('class') || 'ALL',
-      docParam: parsedRoute.docSlug || params.get('doc') || '',
+      docParam: resolvedDoc,
       kitParam: params.get('kit') || '',
       kitTitleParam: params.get('kitTitle') || ''
     };
-  }, [location.search, parsedRoute.docSlug]);
+  }, [
+    location.search,
+    initialDocParamOverride,
+    resolvedMaterialOverride?.slug,
+    resolvedMaterialOverride?.id,
+    parsedRoute.docSlug
+  ]);
 
   const [materials, setMaterials] = useState<StudyMaterial[]>(cmsMaterials || []);
   const [loading, setLoading] = useState(!cmsMaterials);
@@ -216,9 +239,10 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
   }, [cmsMaterials, currentUser]);
 
   const activeRouteMaterial = useMemo(() => {
+    if (resolvedMaterialOverride) return resolvedMaterialOverride;
     if (!queryParams.docParam || materials.length === 0) return undefined;
     return resolveMaterialByDocParam(materials, queryParams.docParam, resolvedCategoryPreset);
-  }, [materials, queryParams.docParam, resolvedCategoryPreset]);
+  }, [resolvedMaterialOverride, materials, queryParams.docParam, resolvedCategoryPreset]);
 
   const handleActiveResourceChange = (material: StudyMaterial | null, activeCategory?: string) => {
     if (embeddedInLayout) return;
@@ -231,7 +255,11 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
     }
 
     // Closing preview: return cleanly from individual resource URL back to category or /resources
-    if (parsedRoute.docSlug || new URLSearchParams(location.search).has('doc')) {
+    if (
+      initialDocParamOverride ||
+      parsedRoute.docSlug ||
+      new URLSearchParams(location.search).has('doc')
+    ) {
       const targetPath =
         activeCategory && activeCategory !== 'ALL'
           ? `/resources/${getCategoryUrlSlug(activeCategory)}`

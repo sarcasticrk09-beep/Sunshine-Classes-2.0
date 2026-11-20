@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import {
   UserRole,
   User,
@@ -101,7 +101,12 @@ import { ForcePasswordChange } from './components/ForcePasswordChange';
 import { UserProfileSecurityModal } from './components/UserProfileSecurityModal';
 import { MailSimulatorWidget } from './components/MailSimulatorWidget';
 import { PaymentSuccessModal } from './components/common/PaymentSuccessModal';
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
+import {
+  parseResourceRoutePath,
+  resolveCategoryPresetFromUrlSlug,
+  resolveMaterialByDocParam
+} from './components/studyResources/revisionKitHelpers';
 const FeesPage = lazyWithRetry(() => import('./pages/FeesPage').then(m => ({ default: m.FeesPage })), 'FeesPage');
 const ReceiptVerificationPage = lazyWithRetry(() => import('./pages/ReceiptVerificationPage').then(m => ({ default: m.ReceiptVerificationPage })), 'ReceiptVerificationPage');
 const PublicStudyMaterialPage = lazyWithRetry(() => import('./pages/PublicStudyMaterialPage'), 'PublicStudyMaterialPage');
@@ -187,6 +192,69 @@ const SEED_CLASS_FEE_CONFIGS: ClassFeeConfig[] = [
   { id: 'class-9', className: 'Class 9', monthlyFee: 1000, isActive: true, dueDate: 5 },
   { id: 'class-10', className: 'Class 10', monthlyFee: 1200, isActive: true, dueDate: 5 },
 ];
+
+interface ResourceRouteHandlerProps {
+  currentUser: User | null;
+  studyMaterials: StudyMaterial[];
+  onOpenLoginModal: () => void;
+  fixedResourceType?: string;
+}
+
+const ResourceRouteHandler: React.FC<ResourceRouteHandlerProps> = ({
+  currentUser,
+  studyMaterials,
+  onOpenLoginModal,
+  fixedResourceType
+}) => {
+  const { resourceType, chapterName } = useParams<{
+    resourceType?: string;
+    chapterName?: string;
+  }>();
+  const location = useLocation();
+
+  const { categoryPreset, docSlug, matchedMaterial } = useMemo(() => {
+    const mergedMaterials = mergeFeaturedSeedStudyMaterials(studyMaterials).filter(
+      (m) => (m.status === 'PUBLISHED' || !m.status) && (currentUser ? true : m.isPublic !== false)
+    );
+
+    const rawResourceType = fixedResourceType || resourceType;
+    let resolvedCategory = resolveCategoryPresetFromUrlSlug(rawResourceType);
+    let resolvedDocSlug = chapterName ? decodeURIComponent(chapterName).trim() : '';
+
+    // Support single-segment direct slugs like /resources/<doc-slug> when :resourceType is not a category
+    if (!resolvedDocSlug && rawResourceType && resolvedCategory === 'ALL') {
+      resolvedDocSlug = decodeURIComponent(rawResourceType).trim();
+    }
+
+    // Fallback to pathname parser for deeper nested paths (e.g., wildcard routes)
+    if (!resolvedDocSlug && resolvedCategory === 'ALL') {
+      const parsed = parseResourceRoutePath(location.pathname);
+      resolvedCategory = parsed.categoryPreset;
+      resolvedDocSlug = parsed.docSlug;
+    }
+
+    const matched = resolvedDocSlug
+      ? resolveMaterialByDocParam(mergedMaterials, resolvedDocSlug, resolvedCategory)
+      : undefined;
+
+    return {
+      categoryPreset: resolvedCategory,
+      docSlug: resolvedDocSlug,
+      matchedMaterial: matched ?? null
+    };
+  }, [studyMaterials, currentUser, fixedResourceType, resourceType, chapterName, location.pathname]);
+
+  return (
+    <PublicStudyMaterialPage
+      currentUser={currentUser}
+      cmsMaterials={studyMaterials}
+      onOpenLoginModal={onOpenLoginModal}
+      initialCategoryOverride={categoryPreset}
+      initialDocParamOverride={docSlug}
+      resolvedMaterialOverride={matchedMaterial}
+    />
+  );
+};
 
 export default function App() {
   const location = useLocation();
@@ -3966,11 +4034,42 @@ Sunshine Classes`;
             }
           />
           <Route
+            path="/resources/questionpaper/:chapterName"
+            element={
+              <ResourceRouteHandler
+                currentUser={currentUser}
+                studyMaterials={studyMaterials}
+                onOpenLoginModal={() => navigate('/login/student')}
+                fixedResourceType="questionpaper"
+              />
+            }
+          />
+          <Route
+            path="/resources/:resourceType/:chapterName"
+            element={
+              <ResourceRouteHandler
+                currentUser={currentUser}
+                studyMaterials={studyMaterials}
+                onOpenLoginModal={() => navigate('/login/student')}
+              />
+            }
+          />
+          <Route
+            path="/resources/:resourceType"
+            element={
+              <ResourceRouteHandler
+                currentUser={currentUser}
+                studyMaterials={studyMaterials}
+                onOpenLoginModal={() => navigate('/login/student')}
+              />
+            }
+          />
+          <Route
             path="/resources/*"
             element={
-              <PublicStudyMaterialPage
+              <ResourceRouteHandler
                 currentUser={currentUser}
-                cmsMaterials={studyMaterials}
+                studyMaterials={studyMaterials}
                 onOpenLoginModal={() => navigate('/login/student')}
               />
             }
@@ -3986,11 +4085,42 @@ Sunshine Classes`;
             }
           />
           <Route
+            path="/study-material/questionpaper/:chapterName"
+            element={
+              <ResourceRouteHandler
+                currentUser={currentUser}
+                studyMaterials={studyMaterials}
+                onOpenLoginModal={() => navigate('/login/student')}
+                fixedResourceType="questionpaper"
+              />
+            }
+          />
+          <Route
+            path="/study-material/:resourceType/:chapterName"
+            element={
+              <ResourceRouteHandler
+                currentUser={currentUser}
+                studyMaterials={studyMaterials}
+                onOpenLoginModal={() => navigate('/login/student')}
+              />
+            }
+          />
+          <Route
+            path="/study-material/:resourceType"
+            element={
+              <ResourceRouteHandler
+                currentUser={currentUser}
+                studyMaterials={studyMaterials}
+                onOpenLoginModal={() => navigate('/login/student')}
+              />
+            }
+          />
+          <Route
             path="/study-material/*"
             element={
-              <PublicStudyMaterialPage
+              <ResourceRouteHandler
                 currentUser={currentUser}
-                cmsMaterials={studyMaterials}
+                studyMaterials={studyMaterials}
                 onOpenLoginModal={() => navigate('/login/student')}
               />
             }
