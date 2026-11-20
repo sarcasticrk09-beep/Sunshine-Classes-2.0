@@ -128,9 +128,14 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
 
   const routeMeta = useMemo(() => getRouteMeta(location.pathname), [location.pathname]);
 
-  const queryClass = useMemo(() => {
+  const queryParams = useMemo(() => {
     const params = new URLSearchParams(location.search);
-    return params.get('class') || 'ALL';
+    return {
+      classParam: params.get('class') || 'ALL',
+      docParam: params.get('doc') || '',
+      kitParam: params.get('kit') || '',
+      kitTitleParam: params.get('kitTitle') || ''
+    };
   }, [location.search]);
 
   const [materials, setMaterials] = useState<StudyMaterial[]>(cmsMaterials || []);
@@ -201,8 +206,11 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
         onRetry={loadMaterials}
         currentUser={currentUser}
         variant={embeddedInLayout ? 'embedded-public' : 'public'}
-        defaultClass={queryClass}
+        defaultClass={queryParams.classParam}
         initialCategory={routeMeta.categoryPreset}
+        initialDocParam={queryParams.docParam}
+        initialKitParam={queryParams.kitParam}
+        initialKitTitle={queryParams.kitTitleParam}
         headerTitle={routeMeta.title}
         headerSubtitle={routeMeta.subtitle}
         storageKeyPrefix={currentUser ? `user-${currentUser.id}` : 'public'}

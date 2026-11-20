@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -6,13 +6,16 @@ import {
   BookOpen,
   CheckCircle2,
   ChevronRight,
+  ClipboardCheck,
   Download,
   FolderOpen,
   LayoutGrid,
+  Link2,
   Lock,
   LogIn,
   RefreshCw,
   Search,
+  Share2,
   ShieldAlert,
   Unlock,
   Upload,
@@ -47,6 +50,16 @@ import {
   StudyResourceSortMode
 } from './studyResources/resourceMeta';
 import { ResourcePdfPreviewModal } from './studyResources/ResourcePdfPreviewModal';
+import { RevisionKitModal } from './studyResources/RevisionKitModal';
+import {
+  buildKitShareUrl,
+  buildKitWhatsAppHref,
+  copyTextToClipboard,
+  getMaterialPrimaryId,
+  resolveMaterialByDocParam,
+  resolveMaterialsByKitParam,
+  SavedRevisionKit
+} from './studyResources/revisionKitHelpers';
 import { StudyMaterialUploadModal } from './studyResources/StudyMaterialUploadModal';
 
 export type LibraryNavTab = 'browse' | 'saved' | 'downloads';
@@ -60,6 +73,9 @@ export interface StudyResourcesWorkspaceProps {
   variant?: 'public' | 'embedded-public' | 'student';
   defaultClass?: string;
   initialCategory?: string;
+  initialDocParam?: string;
+  initialKitParam?: string;
+  initialKitTitle?: string;
   headerTitle?: string;
   headerSubtitle?: string;
   cachedIds?: string[];
@@ -81,6 +97,9 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
   variant = 'public',
   defaultClass = 'ALL',
   initialCategory = 'ALL',
+  initialDocParam = '',
+  initialKitParam = '',
+  initialKitTitle = '',
   headerTitle = 'Study Resources',
   headerSubtitle = 'Your complete digital learning library',
   cachedIds = [],
@@ -92,6 +111,7 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
 }) => {
   const bookmarkStorageKey = `sunshine_bookmarked_resources_${storageKeyPrefix}`;
   const downloadHistoryKey = `sunshine_downloaded_resources_${storageKeyPrefix}`;
+  const revisionKitStorageKey = `sunshine_revision_kit_${storageKeyPrefix}`;
 
   const [localMaterials, setLocalMaterials] = useState<StudyMaterial[]>(() =>
     materials.map(normalizeStudyMaterial)
@@ -170,12 +190,30 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
     }
   });
 
-  // Preview, Access Guard, Quick Upload & Toast State
+  // Preview, Access Guard, Revision Kit, Quick Upload & Toast State
   const [previewMaterial, setPreviewMaterial] = useState<StudyMaterial | null>(null);
   const [restrictedModalMaterial, setRestrictedModalMaterial] = useState<StudyMaterial | null>(null);
   const [isQuickUploadOpen, setIsQuickUploadOpen] = useState<boolean>(false);
+  const [isRevisionKitOpen, setIsRevisionKitOpen] = useState<boolean>(false);
+  const [savedRevisionKit, setSavedRevisionKit] = useState<SavedRevisionKit | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(revisionKitStorageKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as SavedRevisionKit;
+      if (parsed && Array.isArray(parsed.itemIds)) return parsed;
+      return null;
+    } catch {
+      return null;
+    }
+  });
+  const [sharedKitSession, setSharedKitSession] = useState<{
+    kit: SavedRevisionKit;
+    missingCount: number;
+  } | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const handledDeepLinkRef = useRef<string>('');
 
   useEffect(() => {
     setActiveNavTab('browse');
@@ -200,13 +238,18 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (previewMaterial) setPreviewMaterial(null);
-        if (restrictedModalMaterial) setRestrictedModalMaterial(null);
+        if (previewMaterial) {
+          setPreviewMaterial(null);
+        } else if (restrictedModalMaterial) {
+          setRestrictedModalMaterial(null);
+        } else if (isRevisionKitOpen) {
+          setIsRevisionKitOpen(false);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [previewMaterial, restrictedModalMaterial]);
+  }, [previewMaterial, restrictedModalMaterial, isRevisionKitOpen]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -233,6 +276,71 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
     const validIds = new Set(publishedMaterials.map((m) => m.id || m.materialId));
     return allDownloadedIds.filter((id) => validIds.has(id)).length;
   }, [publishedMaterials, allDownloadedIds]);
+
+  const activeKitProgress = useMemo(() => {
+    const sourceKit = sharedKitSession?.kit || savedRevisionKit;
+    if (!sourceKit || sourceKit.itemIds.length === 0) return null;
+    const validIds = new Set(publishedMaterials.map(getMaterialPrimaryId));
+    const existingIds = sourceKit.itemIds.filter((id) => validIds.has(id));
+    if (existingIds.length === 0) return null;
+    const doneCount = existingIds.filter((id) => sourceKit.completedIds.includes(id)).length;
+    return { done: doneCount, total: existingIds.length };
+  }, [sharedKitSession, savedRevisionKit, publishedMaterials]);
+
+  // Hydrate deep-linked ?doc=... or ?kit=... URLs once when materials are loaded
+  useEffect(() => {
+    const deepLinkKey = `${initialDocParam}|${initialKitParam}|${initialKitTitle}`;
+    if (!initialDocParam && !initialKitParam) return;
+    if (loading || localMaterials.length === 0) return;
+    if (handledDeepLinkRef.current === deepLinkKey) return;
+
+    handledDeepLinkRef.current = deepLinkKey;
+
+    if (initialDocParam) {
+      const matched = resolveMaterialByDocParam(localMaterials, initialDocParam);
+      if (matched) {
+        const accessible = matched.isPublic !== false || Boolean(currentUser);
+        if (accessible) {
+          setPreviewMaterial(matched);
+          incrementViewCount(matched.id).catch(() => {});
+        } else {
+          setRestrictedModalMaterial(matched);
+        }
+      } else {
+        showToast('Shared document was not found');
+      }
+      return;
+    }
+
+    if (initialKitParam) {
+      const { items, missingCount } = resolveMaterialsByKitParam(publishedMaterials, initialKitParam);
+      if (items.length > 0) {
+        const kitTitle = initialKitTitle.trim() || 'Shared Exam Revision Kit';
+        const sharedKit: SavedRevisionKit = {
+          title: kitTitle,
+          className: defaultClass && defaultClass !== 'ALL' ? defaultClass : items[0].class || 'ALL',
+          subjects: Array.from(new Set(items.map((m) => m.subject).filter(Boolean))),
+          preset: 'custom',
+          itemIds: items.map(getMaterialPrimaryId),
+          completedIds: [],
+          updatedAt: new Date().toISOString()
+        };
+        setSharedKitSession({ kit: sharedKit, missingCount });
+        setIsRevisionKitOpen(true);
+      } else {
+        showToast('Shared revision kit has no available public files');
+      }
+    }
+  }, [
+    initialDocParam,
+    initialKitParam,
+    initialKitTitle,
+    loading,
+    localMaterials,
+    publishedMaterials,
+    currentUser,
+    defaultClass
+  ]);
 
   const availableClasses = useMemo(() => {
     const classSet = new Set<string>();
@@ -424,6 +532,57 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
       showToast(exists ? 'Removed from Saved' : 'Saved resource');
       return next;
     });
+  };
+
+  const handleSaveAllToBookmarks = (items: StudyMaterial[]) => {
+    const incomingIds = items.map(getMaterialPrimaryId).filter(Boolean);
+    if (incomingIds.length === 0) return;
+    setBookmarkedIds((prev) => {
+      const merged = Array.from(new Set([...prev, ...incomingIds]));
+      const addedCount = merged.length - prev.length;
+      try {
+        localStorage.setItem(bookmarkStorageKey, JSON.stringify(merged));
+      } catch {
+        // Ignore quota errors
+      }
+      showToast(
+        addedCount > 0
+          ? `Saved ${addedCount} ${addedCount === 1 ? 'resource' : 'resources'}`
+          : 'All kit items are already in Saved'
+      );
+      return merged;
+    });
+  };
+
+  const handlePersistRevisionKit = (kit: SavedRevisionKit) => {
+    if (sharedKitSession && kit.preset === 'custom') {
+      setSharedKitSession({ kit, missingCount: sharedKitSession.missingCount });
+      return;
+    }
+    if (sharedKitSession) {
+      setSharedKitSession(null);
+    }
+    setSavedRevisionKit(kit);
+    safeSetItem(revisionKitStorageKey, JSON.stringify(kit));
+  };
+
+  const handleAdoptSharedKit = (kit: SavedRevisionKit) => {
+    setSavedRevisionKit(kit);
+    safeSetItem(revisionKitStorageKey, JSON.stringify(kit));
+    setSharedKitSession(null);
+    showToast('Revision kit saved to this device');
+  };
+
+  const handleCopySavedListLink = async () => {
+    const ids = filteredDirectoryMaterials.map(getMaterialPrimaryId).filter(Boolean);
+    if (ids.length === 0) return;
+    const label =
+      selectedClass && selectedClass !== 'ALL'
+        ? `${selectedClass} Saved Study Pack`
+        : 'Sunshine Classes Saved Study Pack';
+    const url = buildKitShareUrl(ids, label, selectedClass);
+    const copied = await copyTextToClipboard(url);
+    showToast(copied ? 'Shareable Saved list link copied' : 'Unable to copy link automatically');
   };
 
   const handlePreview = (item: StudyMaterial) => {
@@ -703,6 +862,26 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
                 )}
               </div>
 
+              <button
+                id="btn-open-revision-kit"
+                type="button"
+                onClick={() => setIsRevisionKitOpen(true)}
+                aria-label="Open Exam Revision Kit builder"
+                className="h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-amber-500 dark:hover:border-amber-500 text-slate-800 dark:text-slate-100 text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer transition-colors tabular-nums"
+              >
+                <ClipboardCheck size={15} className="text-amber-500 shrink-0" />
+                <span className="hidden sm:inline">
+                  {activeKitProgress
+                    ? `Revision Kit · ${activeKitProgress.done}/${activeKitProgress.total}`
+                    : 'Revision Kit'}
+                </span>
+                <span className="sm:hidden">
+                  {activeKitProgress
+                    ? `Kit ${activeKitProgress.done}/${activeKitProgress.total}`
+                    : 'Kit'}
+                </span>
+              </button>
+
               {canStaffUpload && (
                 <button
                   id="btn-resources-quick-upload"
@@ -852,6 +1031,24 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
                     </button>
                   );
                 })}
+                <div className="pt-1.5 mt-1.5 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    id="btn-sidebar-nav-kit"
+                    type="button"
+                    onClick={() => setIsRevisionKitOpen(true)}
+                    className="w-full min-h-[42px] flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2">
+                      <ClipboardCheck size={15} />
+                      <span>Exam Revision Kit</span>
+                    </span>
+                    {activeKitProgress && (
+                      <span className="tabular-nums text-[11px] opacity-90">
+                        {activeKitProgress.done}/{activeKitProgress.total}
+                      </span>
+                    )}
+                  </button>
+                </div>
               </div>
             </aside>
           )}
@@ -1100,10 +1297,41 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
                     </h2>
                   </div>
 
-                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400 tabular-nums shrink-0">
-                    {filteredDirectoryMaterials.length}{' '}
-                    {filteredDirectoryMaterials.length === 1 ? 'file' : 'files'}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {activeNavTab === 'saved' && filteredDirectoryMaterials.length > 0 && (
+                      <>
+                        <button
+                          id="btn-share-saved-list"
+                          type="button"
+                          onClick={handleCopySavedListLink}
+                          className="min-h-[38px] px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-amber-500 text-slate-700 dark:text-slate-200 text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                        >
+                          <Link2 size={13} />
+                          <span>Share Saved</span>
+                        </button>
+                        <a
+                          id="link-whatsapp-saved-list"
+                          href={buildKitWhatsAppHref(
+                            filteredDirectoryMaterials.map(getMaterialPrimaryId),
+                            selectedClass && selectedClass !== 'ALL'
+                              ? `${selectedClass} Saved Study Pack`
+                              : 'Sunshine Classes Saved Study Pack',
+                            selectedClass
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label="Share saved list on WhatsApp"
+                          className="min-h-[38px] min-w-[38px] rounded-xl border border-emerald-200 dark:border-emerald-900/70 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 inline-flex items-center justify-center"
+                        >
+                          <Share2 size={14} />
+                        </a>
+                      </>
+                    )}
+                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400 tabular-nums shrink-0">
+                      {filteredDirectoryMaterials.length}{' '}
+                      {filteredDirectoryMaterials.length === 1 ? 'file' : 'files'}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Optional Slim Sort / Chapter Row (only shown when helpful) */}
@@ -1269,6 +1497,32 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
             onClose={() => setPreviewMaterial(null)}
             onDownload={(item) => handleDownload(item)}
             onToggleBookmark={(item) => handleToggleBookmark(item)}
+            onShareFeedback={showToast}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* EXAM REVISION KIT BUILDER & CHECKLIST SHEET */}
+      <AnimatePresence>
+        {isRevisionKitOpen && (
+          <RevisionKitModal
+            materials={publishedMaterials}
+            availableClasses={availableClasses}
+            activeClass={selectedClass}
+            savedKit={sharedKitSession ? sharedKitSession.kit : savedRevisionKit}
+            sharedKitMeta={
+              sharedKitSession
+                ? { isShared: true, missingCount: sharedKitSession.missingCount }
+                : null
+            }
+            downloadingId={downloadingId}
+            onSaveKit={handlePersistRevisionKit}
+            onAdoptSharedKit={handleAdoptSharedKit}
+            onSaveAllToBookmarks={handleSaveAllToBookmarks}
+            onPreview={handlePreview}
+            onDownload={handleDownload}
+            onFeedback={showToast}
+            onClose={() => setIsRevisionKitOpen(false)}
           />
         )}
       </AnimatePresence>

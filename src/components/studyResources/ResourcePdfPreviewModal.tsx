@@ -1,16 +1,19 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   ArrowLeft,
   Bookmark,
+  Check,
   ChevronLeft,
   ChevronRight,
   Download,
   ExternalLink,
   FileText,
   Info,
+  Link2,
   Loader2,
   Maximize2,
+  Share2,
   X,
   ZoomIn,
   ZoomOut
@@ -25,6 +28,11 @@ import {
   getResourceTypeLabel,
   sanitizeElementId
 } from './resourceMeta';
+import {
+  buildResourceShareUrl,
+  buildResourceWhatsAppHref,
+  copyTextToClipboard
+} from './revisionKitHelpers';
 
 interface ResourcePdfPreviewModalProps {
   material: StudyMaterial;
@@ -35,6 +43,7 @@ interface ResourcePdfPreviewModalProps {
   onClose: () => void;
   onDownload: (item: StudyMaterial) => void;
   onToggleBookmark: (item: StudyMaterial) => void;
+  onShareFeedback?: (message: string) => void;
 }
 
 const getRawPreviewUrl = (material: StudyMaterial): string | null => {
@@ -59,13 +68,17 @@ export const ResourcePdfPreviewModal: React.FC<ResourcePdfPreviewModalProps> = (
   onSelectMaterial,
   onClose,
   onDownload,
-  onToggleBookmark
+  onToggleBookmark,
+  onShareFeedback
 }) => {
   const [pageNumber, setPageNumber] = useState(1);
   const [zoomPercent, setZoomPercent] = useState(100);
   const [isFrameLoading, setIsFrameLoading] = useState(true);
   const [hasFrameError, setHasFrameError] = useState(false);
   const [showMobileInfo, setShowMobileInfo] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const shareMenuRef = useRef<HTMLDivElement | null>(null);
 
   const isFormulaSheet =
     material.materialType === 'FORMULA_SHEET' ||
@@ -73,6 +86,7 @@ export const ResourcePdfPreviewModal: React.FC<ResourcePdfPreviewModalProps> = (
     material.tags?.some((t) => t.toLowerCase().includes('formula'));
 
   const rawUrl = useMemo(() => getRawPreviewUrl(material), [material]);
+  const whatsAppShareHref = useMemo(() => buildResourceWhatsAppHref(material), [material]);
 
   useEffect(() => {
     setPageNumber(1);
@@ -80,7 +94,35 @@ export const ResourcePdfPreviewModal: React.FC<ResourcePdfPreviewModalProps> = (
     setIsFrameLoading(Boolean(rawUrl && !isFormulaSheet));
     setHasFrameError(false);
     setShowMobileInfo(false);
+    setShowShareMenu(false);
+    setCopiedLink(false);
   }, [material.id, rawUrl, isFormulaSheet]);
+
+  useEffect(() => {
+    if (!showShareMenu) return;
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (shareMenuRef.current && !shareMenuRef.current.contains(event.target as Node)) {
+        setShowShareMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [showShareMenu]);
+
+  const handleCopyResourceLink = async () => {
+    const shareUrl = buildResourceShareUrl(material);
+    const copied = await copyTextToClipboard(shareUrl);
+    if (copied) {
+      setCopiedLink(true);
+      onShareFeedback?.('Direct resource link copied');
+      setTimeout(() => {
+        setCopiedLink(false);
+        setShowShareMenu(false);
+      }, 900);
+    } else {
+      onShareFeedback?.('Unable to copy link automatically');
+    }
+  };
 
   const effectiveIframeUrl = useMemo(() => {
     if (!rawUrl) return null;
@@ -111,7 +153,7 @@ export const ResourcePdfPreviewModal: React.FC<ResourcePdfPreviewModalProps> = (
   return (
     <div
       id="modal-pdf-preview"
-      className="fixed inset-0 z-50 flex items-center justify-center sm:p-4 lg:p-6 bg-slate-950/80 backdrop-blur-xs"
+      className="fixed inset-0 z-[60] flex items-center justify-center sm:p-4 lg:p-6 bg-slate-950/80 backdrop-blur-xs"
       onClick={onClose}
     >
       <motion.div
@@ -186,6 +228,60 @@ export const ResourcePdfPreviewModal: React.FC<ResourcePdfPreviewModalProps> = (
                 className={isBookmarked ? 'fill-amber-500 text-amber-500' : ''}
               />
             </button>
+
+            {/* Share Direct Link / WhatsApp Menu */}
+            <div ref={shareMenuRef} className="relative">
+              <button
+                id="btn-preview-modal-share"
+                type="button"
+                onClick={() => setShowShareMenu((prev) => !prev)}
+                aria-label="Share resource"
+                aria-expanded={showShareMenu}
+                aria-haspopup="menu"
+                className={`min-h-[44px] min-w-[44px] rounded-xl border flex items-center justify-center transition-colors cursor-pointer ${
+                  showShareMenu
+                    ? 'bg-slate-900 dark:bg-slate-100 border-slate-900 dark:border-slate-100 text-white dark:text-slate-900'
+                    : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                }`}
+              >
+                <Share2 size={16} />
+              </button>
+
+              {showShareMenu && (
+                <div
+                  id="popover-preview-share"
+                  role="menu"
+                  className="absolute right-0 mt-1.5 w-52 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl p-1.5 z-30 space-y-1"
+                >
+                  <button
+                    id="btn-preview-copy-link"
+                    type="button"
+                    role="menuitem"
+                    onClick={handleCopyResourceLink}
+                    className="w-full min-h-[42px] px-3 rounded-lg text-left text-xs font-semibold text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    {copiedLink ? (
+                      <Check size={14} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    ) : (
+                      <Link2 size={14} className="text-slate-500 dark:text-slate-400 shrink-0" />
+                    )}
+                    <span>{copiedLink ? 'Link Copied' : 'Copy Direct Link'}</span>
+                  </button>
+                  <a
+                    id="link-preview-whatsapp-share"
+                    href={whatsAppShareHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    role="menuitem"
+                    onClick={() => setShowShareMenu(false)}
+                    className="w-full min-h-[42px] px-3 rounded-lg text-left text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center gap-2 transition-colors"
+                  >
+                    <Share2 size={14} className="shrink-0" />
+                    <span>Share on WhatsApp</span>
+                  </a>
+                </div>
+              )}
+            </div>
 
             {rawUrl && (
               <a
