@@ -93,6 +93,10 @@ export const buildCuratedRevisionKit = (
   const pool = preferredMatches.length > 0 ? preferredMatches : classAndSubjectScoped;
 
   const sorted = [...pool].sort((a, b) => {
+    const featA = a.isFeatured ? 0 : 1;
+    const featB = b.isFeatured ? 0 : 1;
+    if (featA !== featB) return featA - featB;
+
     const prioA = getCategoryPriorityIndex(a);
     const prioB = getCategoryPriorityIndex(b);
     if (prioA !== prioB) return prioA - prioB;

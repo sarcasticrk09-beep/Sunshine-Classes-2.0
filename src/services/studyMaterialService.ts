@@ -29,6 +29,31 @@ export function isNcertTextbookChapter(item: Partial<StudyMaterial>): boolean {
   return isNcertChapterTitle && isTextbookMeta;
 }
 
+const DELETED_MATERIAL_IDS_KEY = 'sunshine_deleted_study_material_ids';
+
+function getDeletedMaterialIdSet(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem(DELETED_MATERIAL_IDS_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function recordDeletedMaterialIds(ids: string[]): void {
+  if (typeof window === 'undefined' || ids.length === 0) return;
+  try {
+    const existing = getDeletedMaterialIdSet();
+    ids.forEach((id) => existing.add(String(id)));
+    localStorage.setItem(DELETED_MATERIAL_IDS_KEY, JSON.stringify(Array.from(existing)));
+  } catch {
+    // Ignore storage quota errors
+  }
+}
+
 /**
  * Normalize legacy NCERT textbook chapter entries from NOTES -> PDF / BOOK
  */
@@ -44,6 +69,48 @@ export function normalizeStudyMaterial(item: StudyMaterial): StudyMaterial {
 }
 
 /**
+ * Ensure newly added featured seed materials (e.g., official Board 2027 Important Questions)
+ * are automatically merged into existing local/cloud libraries unless explicitly deleted by staff.
+ */
+export function mergeFeaturedSeedStudyMaterials(list: StudyMaterial[]): StudyMaterial[] {
+  const normalizedList = (list || []).map(normalizeStudyMaterial);
+  const deletedIds = getDeletedMaterialIdSet();
+  const seedFeatured = SEED_STUDY_MATERIALS.filter((s) => s.isFeatured).map(normalizeStudyMaterial);
+  const seedFeaturedById = new Map<string, StudyMaterial>();
+  seedFeatured.forEach((item) => {
+    seedFeaturedById.set(item.id, item);
+    if (item.materialId) seedFeaturedById.set(item.materialId, item);
+  });
+
+  const existingIds = new Set<string>();
+  const hydrated = normalizedList.map((item) => {
+    if (item.id) existingIds.add(item.id);
+    if (item.materialId) existingIds.add(item.materialId);
+    const matchingSeed = seedFeaturedById.get(item.id) || (item.materialId ? seedFeaturedById.get(item.materialId) : undefined);
+    if (matchingSeed) {
+      return {
+        ...item,
+        isFeatured: item.isFeatured !== undefined ? item.isFeatured : matchingSeed.isFeatured,
+        highlightBadge: item.highlightBadge || matchingSeed.highlightBadge,
+        pageCount: item.pageCount || matchingSeed.pageCount,
+        fileFormat: item.fileFormat || matchingSeed.fileFormat
+      };
+    }
+    return item;
+  });
+
+  const missingFeatured = seedFeatured.filter(
+    (item) =>
+      !existingIds.has(item.id) &&
+      (!item.materialId || !existingIds.has(item.materialId)) &&
+      !deletedIds.has(item.id) &&
+      (!item.materialId || !deletedIds.has(item.materialId))
+  );
+
+  return missingFeatured.length > 0 ? [...missingFeatured, ...hydrated] : hydrated;
+}
+
+/**
  * Fetch all study materials
  */
 export async function getStudyMaterials(): Promise<StudyMaterial[]> {
@@ -54,7 +121,7 @@ export async function getStudyMaterials(): Promise<StudyMaterial[]> {
       if (hasDummy) {
         return SEED_STUDY_MATERIALS.map(normalizeStudyMaterial);
       }
-      return list.map((data) => normalizeStudyMaterial({
+      const mapped = list.map((data) => normalizeStudyMaterial({
         ...data,
         id: data.id,
         materialId: data.materialId || data.id,
@@ -62,6 +129,7 @@ export async function getStudyMaterials(): Promise<StudyMaterial[]> {
         file: data.file || data.fileUrl || '',
         category: data.category || (data.materialType === 'NOTES' ? 'NOTES' : data.materialType === 'PDF' ? 'BOOK' : 'QUESTION_PAPER')
       }));
+      return mergeFeaturedSeedStudyMaterials(mapped);
     }
   } catch (err) {
     console.warn('Study materials fetch error:', err);
@@ -84,8 +152,7 @@ export async function getPublicStudyMaterials(): Promise<StudyMaterial[]> {
       if (hasDummy) {
         return SEED_STUDY_MATERIALS.map(normalizeStudyMaterial).filter((m) => m.isPublic && m.status === 'PUBLISHED');
       }
-      return list
-        .map(normalizeStudyMaterial)
+      return mergeFeaturedSeedStudyMaterials(list)
         .filter((m) => (m.isPublic === undefined || m.isPublic) && (m.status === undefined || m.status === 'PUBLISHED'));
     }
   } catch (err) {
@@ -130,12 +197,16 @@ export async function createStudyMaterial(
     category: materialData.category || inferCategoryFromType(materialType),
     file: materialData.file || '',
     size: materialData.size || '1.0 MB',
+    fileFormat: materialData.fileFormat,
+    pageCount: materialData.pageCount,
     fileUrl: materialData.fileUrl || '',
     thumbnailUrl: materialData.thumbnailUrl || '',
     youtubeUrl: materialData.youtubeUrl || '',
     externalUrl: materialData.externalUrl || '',
     fileData: materialData.fileData || '',
     isPublic: materialData.isPublic !== undefined ? materialData.isPublic : true,
+    isFeatured: materialData.isFeatured,
+    highlightBadge: materialData.highlightBadge,
     status: materialData.status || 'PUBLISHED',
     downloadCount: 0,
     viewCount: 0,
@@ -192,6 +263,7 @@ export async function updateStudyMaterial(
  * Delete a study material by ID
  */
 export async function deleteStudyMaterial(id: string): Promise<void> {
+  recordDeletedMaterialIds([id]);
   try {
     await SyncService.delete(COLLECTION_NAME, id);
   } catch (err) {
@@ -203,6 +275,7 @@ export async function deleteStudyMaterial(id: string): Promise<void> {
  * Bulk delete study materials
  */
 export async function bulkDeleteStudyMaterials(ids: string[]): Promise<void> {
+  recordDeletedMaterialIds(ids);
   for (const id of ids) {
     await SyncService.delete(COLLECTION_NAME, id);
   }

@@ -69,6 +69,9 @@ import { UNIVERSAL_COURSES, getCourseBySlug } from '../data/coursesData';
 import { CourseDirectoryPage } from './courses/CourseDirectoryPage';
 import { CourseDetailPage } from './courses/CourseDetailPage';
 import { AdmissionsPage } from './admissions/AdmissionsPage';
+import { CrashCourseLaunchModal } from './landing/CrashCourseLaunchModal';
+import { TeacherImpactAwardSection } from './landing/TeacherImpactAwardSection';
+import { CRASH_COURSE_POPUP_SESSION_KEY } from '../data/crashCourseAwardData';
 
 const WhatsAppIcon = ({ className = "w-5 h-5", size = 20 }: { className?: string; size?: number }) => (
   <svg 
@@ -156,6 +159,38 @@ export default function LandingPage({
 
   const activeSection = getSectionFromPath(location.pathname);
   const [isCourseNavLoading, setIsCourseNavLoading] = useState(false);
+  const [isCrashCoursePopupOpen, setIsCrashCoursePopupOpen] = useState(false);
+
+  const handleCloseCrashCoursePopup = () => {
+    setIsCrashCoursePopupOpen(false);
+    try {
+      sessionStorage.setItem(CRASH_COURSE_POPUP_SESSION_KEY, 'true');
+    } catch {
+      // Ignore storage availability errors
+    }
+  };
+
+  useEffect(() => {
+    if (activeSection !== 'home') return;
+    try {
+      if (sessionStorage.getItem(CRASH_COURSE_POPUP_SESSION_KEY) === 'true') {
+        return;
+      }
+    } catch {
+      // Proceed even if sessionStorage is unavailable
+    }
+
+    const timer = window.setTimeout(() => {
+      try {
+        sessionStorage.setItem(CRASH_COURSE_POPUP_SESSION_KEY, 'true');
+      } catch {
+        // Ignore storage availability errors
+      }
+      setIsCrashCoursePopupOpen(true);
+    }, 1500);
+
+    return () => window.clearTimeout(timer);
+  }, [activeSection]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -496,6 +531,10 @@ export default function LandingPage({
             <ToppersSection 
               toppers={toppers} 
               onNavigateResults={() => setActiveSection('results' as any)}
+            />
+
+            <TeacherImpactAwardSection
+              onOpenCrashCourse={() => setIsCrashCoursePopupOpen(true)}
             />
 
             <WhyChooseUsSection strengths={strengths} />
@@ -949,6 +988,12 @@ export default function LandingPage({
 
       {/* Sticky Mobile Bottom Navigation Bar */}
       <MobileBottomNav activeSection={activeSection} setActiveSection={setActiveSection} />
+
+      {/* CLASS 10 BOARD EXAM CRASH COURSE LAUNCH POP-UP */}
+      <CrashCourseLaunchModal
+        isOpen={isCrashCoursePopupOpen}
+        onClose={handleCloseCrashCoursePopup}
+      />
 
       {/* GOOGLE FORM-STYLE ENROLLMENT FAILURE REPORTING MODAL */}
       {showSupportForm && (

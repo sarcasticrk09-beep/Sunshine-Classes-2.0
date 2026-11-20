@@ -17,6 +17,7 @@ import {
   Search,
   Share2,
   ShieldAlert,
+  Star,
   Unlock,
   Upload,
   X
@@ -26,6 +27,7 @@ import { FormulaSheetsData } from '../data/formulaSheetsData';
 import {
   incrementDownloadCount,
   incrementViewCount,
+  mergeFeaturedSeedStudyMaterials,
   normalizeStudyMaterial
 } from '../services/studyMaterialService';
 import { SyncService } from '../services/SyncService';
@@ -114,16 +116,16 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
   const revisionKitStorageKey = `sunshine_revision_kit_${storageKeyPrefix}`;
 
   const [localMaterials, setLocalMaterials] = useState<StudyMaterial[]>(() =>
-    materials.map(normalizeStudyMaterial)
+    mergeFeaturedSeedStudyMaterials(materials)
   );
   useEffect(() => {
-    setLocalMaterials(materials.map(normalizeStudyMaterial));
+    setLocalMaterials(mergeFeaturedSeedStudyMaterials(materials));
   }, [materials]);
 
   useEffect(() => {
     const unsubscribe = SyncService.subscribe('study_materials', (docId, data) => {
       if (docId === '*' && Array.isArray(data)) {
-        setLocalMaterials(data.map(normalizeStudyMaterial));
+        setLocalMaterials(mergeFeaturedSeedStudyMaterials(data));
         return;
       }
       if (data === null) {
@@ -369,6 +371,10 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
     return publishedMaterials.filter((item) => matchesClassFilter(item.class, selectedClass));
   }, [publishedMaterials, selectedClass]);
 
+  const featuredMaterials = useMemo(() => {
+    return classScopedMaterials.filter((item) => item.isFeatured);
+  }, [classScopedMaterials]);
+
   const categoriesWithCounts = useMemo(() => {
     return LIBRARY_CATEGORIES.map((cat) => {
       const count = classScopedMaterials.filter((item) => matchesLibraryCategory(item, cat.id)).length;
@@ -489,6 +495,9 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
             new Date(a.updatedAt || a.createdAt || a.date || 0).getTime()
           );
         }
+        const featA = a.isFeatured ? 0 : 1;
+        const featB = b.isFeatured ? 0 : 1;
+        if (featA !== featB) return featA - featB;
         const prioA = getCategoryPriorityIndex(a);
         const prioB = getCategoryPriorityIndex(b);
         if (prioA !== prioB) return prioA - prioB;
@@ -1086,8 +1095,110 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
                 )}
               </div>
             ) : activeStage === 'categories' ? (
-              /* START SCREEN: CATEGORY GRID ONLY */
-              <section id="section-resource-categories" className="space-y-3">
+              /* START SCREEN: HIGHLIGHTED IMPORTANT QUESTIONS + CATEGORY GRID */
+              <section id="section-resource-categories" className="space-y-4">
+                {featuredMaterials.length > 0 && (
+                  <div
+                    id="section-featured-important-questions"
+                    className="bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/90 dark:border-amber-900/60 rounded-2xl overflow-hidden"
+                  >
+                    <div className="px-3.5 py-2.5 sm:px-5 sm:py-3 border-b border-amber-200/70 dark:border-amber-900/50 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Star size={15} className="fill-amber-500 text-amber-500 shrink-0" />
+                        <h2 className="font-display text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
+                          Highlighted · Board 2027 Important Questions
+                        </h2>
+                      </div>
+                      <button
+                        id="btn-featured-open-qbank"
+                        type="button"
+                        onClick={() => handleOpenCategory('QUESTION_BANK')}
+                        className="min-h-[34px] px-2 -mr-1 rounded-lg text-xs font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-100/80 dark:hover:bg-amber-950/60 inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer transition-colors"
+                      >
+                        <span>All Q-Banks</span>
+                        <ArrowRight size={13} />
+                      </button>
+                    </div>
+
+                    <div className="divide-y divide-amber-200/60 dark:divide-amber-900/40">
+                      {featuredMaterials.map((item) => {
+                        const id = item.id || item.materialId || item.slug;
+                        const safeId = sanitizeElementId(String(id));
+                        const { Icon, badgeClass } = getSubjectVisualMeta(item.subject || '');
+                        const isDownloaded = allDownloadedIds.includes(id);
+                        return (
+                          <div
+                            key={id}
+                            id={`row-featured-resource-${safeId}`}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => handlePreview(item)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                handlePreview(item);
+                              }
+                            }}
+                            aria-label={`Preview ${item.title}`}
+                            className="px-3.5 py-3 sm:px-5 sm:py-3.5 hover:bg-amber-100/55 dark:hover:bg-amber-950/40 active:bg-amber-100/80 dark:active:bg-amber-950/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-500 transition-colors cursor-pointer"
+                          >
+                            <div className="flex items-center justify-between gap-2.5 sm:gap-4 min-w-0">
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <div
+                                  className={`hidden sm:flex w-9 h-9 rounded-xl border items-center justify-center shrink-0 ${badgeClass}`}
+                                >
+                                  <Icon size={17} />
+                                </div>
+                                <div className="min-w-0 flex-1 space-y-0.5">
+                                  <h3
+                                    title={item.title}
+                                    className="text-[13px] sm:text-sm font-semibold text-slate-900 dark:text-white leading-snug break-words"
+                                  >
+                                    {item.title}
+                                  </h3>
+                                  <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 tabular-nums truncate">
+                                    <span className="font-semibold text-amber-800 dark:text-amber-300">
+                                      {item.highlightBadge || 'Most Repeated Board Questions'}
+                                    </span>
+                                    <span aria-hidden="true"> · </span>
+                                    <span>{item.class}</span>
+                                    {item.pageCount ? ` · ${item.pageCount} pages` : ''}
+                                    {item.size ? ` · ${item.size}` : ''}
+                                    {isDownloaded && (
+                                      <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
+                                        {' · Offline'}
+                                      </span>
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <button
+                                id={`btn-featured-download-${safeId}`}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownload(item);
+                                }}
+                                disabled={downloadingId === item.id}
+                                aria-label={`Download ${item.title}`}
+                                title="Download PDF"
+                                className={`min-h-[44px] min-w-[44px] -mr-1.5 sm:mr-0 rounded-xl flex items-center justify-center shrink-0 active:scale-95 transition-colors cursor-pointer disabled:opacity-60 ${
+                                  isDownloaded
+                                    ? 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
+                                    : 'text-amber-800 dark:text-amber-300 hover:bg-amber-200/60 dark:hover:bg-amber-900/50'
+                                }`}
+                              >
+                                <Download size={17} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {activeCategories.length > 0 ? (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3.5">
                     {activeCategories.map((cat) => {

@@ -10,6 +10,7 @@ import {
   deleteStudyMaterial,
   bulkDeleteStudyMaterials,
   bulkUpdateStatus,
+  mergeFeaturedSeedStudyMaterials,
   normalizeStudyMaterial
 } from '../services/studyMaterialService';
 import { SyncService } from '../services/SyncService';
@@ -38,7 +39,8 @@ import {
   CheckSquare,
   X,
   ExternalLink,
-  RefreshCw
+  RefreshCw,
+  Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -98,7 +100,7 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
         if (stored) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed)) {
-            if (isInit || parsed.length > 0) return parsed.map(normalizeStudyMaterial);
+            if (isInit || parsed.length > 0) return mergeFeaturedSeedStudyMaterials(parsed);
           }
         }
         if (isInit) return [];
@@ -140,7 +142,7 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
 
     const unsubscribe = SyncService.subscribe('study_materials', (docId, data) => {
       if (docId === '*' && Array.isArray(data)) {
-        setMaterials(data.map(normalizeStudyMaterial));
+        setMaterials(mergeFeaturedSeedStudyMaterials(data));
         return;
       }
       if (data === null) {
@@ -660,7 +662,13 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
                   return (
                     <tr 
                       key={item.id} 
-                      className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors ${isSelected ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''}`}
+                      className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors ${
+                        isSelected
+                          ? 'bg-amber-50/70 dark:bg-amber-950/30'
+                          : item.isFeatured
+                          ? 'bg-amber-50/40 dark:bg-amber-950/15'
+                          : ''
+                      }`}
                     >
                       <td className="py-3.5 px-4">
                         <input
@@ -672,11 +680,17 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
                       </td>
 
                       <td className="py-3.5 px-4 max-w-xs">
-                        <div className="font-semibold text-slate-900 dark:text-white truncate" title={item.title}>
+                        {item.isFeatured && (
+                          <div className="flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400 mb-0.5">
+                            <Star size={11} className="fill-amber-500 text-amber-500 shrink-0" />
+                            <span>{item.highlightBadge ? `Highlighted · ${item.highlightBadge}` : 'Highlighted'}</span>
+                          </div>
+                        )}
+                        <div className="font-semibold text-slate-900 dark:text-white break-words" title={item.title}>
                           {item.title}
                         </div>
                         <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
-                          <span className="font-mono text-[11px] text-amber-600 dark:text-amber-400">/{item.slug}</span>
+                          <span className="font-mono text-[11px] text-amber-600 dark:text-amber-400 truncate">/{item.slug}</span>
                           {item.chapter && <span className="truncate">| {item.chapter}</span>}
                         </div>
                       </td>

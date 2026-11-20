@@ -594,6 +594,8 @@ export interface StudyMaterial {
   externalUrl?: string;
   fileData?: string;
   isPublic: boolean;
+  isFeatured?: boolean;
+  highlightBadge?: string;
   status: StudyMaterialStatus;
   downloadCount: number;
   viewCount: number;

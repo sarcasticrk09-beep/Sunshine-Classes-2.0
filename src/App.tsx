@@ -83,7 +83,7 @@ import {
 } from './data';
 
 import { migrateExistingData, generateFeeRecords, getCurrentAndNextMonths } from './lib/feeUtils';
-import { isNcertTextbookChapter, normalizeStudyMaterial } from './services/studyMaterialService';
+import { isNcertTextbookChapter, mergeFeaturedSeedStudyMaterials, normalizeStudyMaterial } from './services/studyMaterialService';
 import { safeSetItem, safeGetItem } from './utils/safeLocalStorage';
 import { generateReceiptPdf } from './lib/pdfGenerator';
 import { lazyWithRetry } from './utils/lazyWithRetry';
@@ -445,7 +445,7 @@ export default function App() {
     return raw;
   });
   const [studyMaterials, setStudyMaterials] = useState<StudyMaterial[]>(() =>
-    getOrSeedLocal('study_materials', SEED_STUDY_MATERIALS).map(normalizeStudyMaterial)
+    mergeFeaturedSeedStudyMaterials(getOrSeedLocal('study_materials', SEED_STUDY_MATERIALS))
   );
   const [founders, setFounders] = useState<FounderMember[]>(() => {
     const raw = getOrSeedLocal('founders', SEED_FOUNDERS);
@@ -1257,13 +1257,23 @@ export default function App() {
     const hadStaleNcertNotes = Array.isArray(loadedStudyMaterials) && loadedStudyMaterials.some(
       (m) => m.materialType === 'NOTES' && isNcertTextbookChapter(m)
     );
-    const finalStudyMaterials = (!loadedStudyMaterials || loadedStudyMaterials.length === 0 || loadedStudyMaterials.some(m => m.fileUrl?.includes('dummy.pdf'))) 
-      ? SEED_STUDY_MATERIALS 
-      : hadStaleNcertNotes
-        ? loadedStudyMaterials.map(normalizeStudyMaterial)
-        : loadedStudyMaterials;
+    const mergedCloudMaterials =
+      !loadedStudyMaterials ||
+      loadedStudyMaterials.length === 0 ||
+      loadedStudyMaterials.some((m) => m.fileUrl?.includes('dummy.pdf'))
+        ? SEED_STUDY_MATERIALS.map(normalizeStudyMaterial)
+        : mergeFeaturedSeedStudyMaterials(loadedStudyMaterials);
 
-    if (finalStudyMaterials !== loadedStudyMaterials) {
+    const studyMaterialsChanged =
+      !loadedStudyMaterials ||
+      loadedStudyMaterials.length === 0 ||
+      hadStaleNcertNotes ||
+      mergedCloudMaterials.length !== loadedStudyMaterials.length ||
+      mergedCloudMaterials.some((m, idx) => m.isFeatured !== loadedStudyMaterials[idx]?.isFeatured);
+
+    const finalStudyMaterials = mergedCloudMaterials;
+
+    if (studyMaterialsChanged) {
       syncState('study_materials', finalStudyMaterials);
     }
 

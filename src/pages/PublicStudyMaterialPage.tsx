@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { StudyMaterial, User } from '../types';
-import { getPublicStudyMaterials, getStudyMaterials, normalizeStudyMaterial } from '../services/studyMaterialService';
+import { getPublicStudyMaterials, getStudyMaterials, mergeFeaturedSeedStudyMaterials, normalizeStudyMaterial } from '../services/studyMaterialService';
 import { SEED_STUDY_MATERIALS } from '../data';
 import { SyncService } from '../services/SyncService';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -157,7 +157,9 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
           }
         });
       }
-      const activeData = (combined.length > 0 ? combined : SEED_STUDY_MATERIALS).map(normalizeStudyMaterial);
+      const activeData = mergeFeaturedSeedStudyMaterials(
+        combined.length > 0 ? combined : SEED_STUDY_MATERIALS
+      );
       setMaterials(
         activeData.filter(
           (m) => (m.status === 'PUBLISHED' || !m.status) && (currentUser ? true : m.isPublic !== false)
@@ -176,8 +178,7 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
   useEffect(() => {
     if (cmsMaterials && Array.isArray(cmsMaterials)) {
       setMaterials(
-        cmsMaterials
-          .map(normalizeStudyMaterial)
+        mergeFeaturedSeedStudyMaterials(cmsMaterials)
           .filter(
             (m) => (m.status === 'PUBLISHED' || !m.status) && (currentUser ? true : m.isPublic !== false)
           )

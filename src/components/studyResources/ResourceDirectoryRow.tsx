@@ -2,7 +2,8 @@ import React from 'react';
 import {
   CheckCircle2,
   Download,
-  Lock
+  Lock,
+  Star
 } from 'lucide-react';
 import { StudyMaterial } from '../../types';
 import {
@@ -39,9 +40,11 @@ export const ResourceDirectoryRow: React.FC<ResourceDirectoryRowProps> = ({
   const categoryId = getResourceCategoryId(item);
   const categoryMeta = getCategoryMeta(categoryId);
   const Icon = categoryMeta?.Icon;
-  const iconClass =
-    categoryMeta?.iconClass ||
-    'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+  const isFeatured = Boolean(item.isFeatured);
+  const iconClass = isFeatured
+    ? 'bg-amber-100/80 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-300/80 dark:border-amber-800/70'
+    : categoryMeta?.iconClass ||
+      'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700';
 
   const formatLabel = getFileFormatLabel(item);
   const chapterInfo = extractChapterInfo(item);
@@ -62,10 +65,14 @@ export const ResourceDirectoryRow: React.FC<ResourceDirectoryRowProps> = ({
         }
       }}
       aria-label={`Preview ${item.title}`}
-      className="px-3.5 py-3 sm:px-5 sm:py-3.5 bg-white dark:bg-slate-900 hover:bg-slate-50/90 dark:hover:bg-slate-800/40 active:bg-slate-100/80 dark:active:bg-slate-800/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-500 transition-colors cursor-pointer"
+      className={`px-3.5 py-3 sm:px-5 sm:py-3.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-500 transition-colors cursor-pointer ${
+        isFeatured
+          ? 'bg-amber-50/55 dark:bg-amber-950/20 hover:bg-amber-50/90 dark:hover:bg-amber-950/35 active:bg-amber-100/70 dark:active:bg-amber-950/50'
+          : 'bg-white dark:bg-slate-900 hover:bg-slate-50/90 dark:hover:bg-slate-800/40 active:bg-slate-100/80 dark:active:bg-slate-800/70'
+      }`}
     >
       <div className="flex items-center justify-between gap-2.5 sm:gap-4 min-w-0">
-        {/* Left Zone: Minimal Category Icon (sm+) + Ellipsis Title + 1-Line Subtitle */}
+        {/* Left Zone: Minimal Category Icon (sm+) + Unclipped Title + 1-Line Subtitle */}
         <div className="flex items-center gap-3 min-w-0 flex-1">
           {Icon && (
             <div
@@ -76,6 +83,15 @@ export const ResourceDirectoryRow: React.FC<ResourceDirectoryRowProps> = ({
           )}
 
           <div className="min-w-0 flex-1 space-y-0.5">
+            {isFeatured && (
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-700 dark:text-amber-400 tabular-nums">
+                <Star size={11} className="fill-amber-500 text-amber-500 shrink-0" />
+                <span className="truncate">
+                  {item.highlightBadge ? `Highlighted · ${item.highlightBadge}` : 'Highlighted'}
+                </span>
+              </div>
+            )}
+
             <h3
               title={item.title}
               className="text-[13px] sm:text-sm font-semibold text-slate-900 dark:text-white leading-snug break-words"
@@ -89,6 +105,7 @@ export const ResourceDirectoryRow: React.FC<ResourceDirectoryRowProps> = ({
               </span>
               <span aria-hidden="true"> · </span>
               <span>{formatLabel}</span>
+              {item.pageCount ? ` · ${item.pageCount} pages` : ''}
               {item.size ? ` · ${item.size}` : ''}
               {distinctChapter ? ` · ${distinctChapter}` : ''}
               {isLocked && (
