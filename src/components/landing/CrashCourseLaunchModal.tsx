@@ -9,7 +9,7 @@ import {
   Phone,
   X
 } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
   CLASS_10_CRASH_COURSE_DATA,
   TEACHER_IMPACT_AWARD_DATA
@@ -27,10 +27,38 @@ const SWIPE_THRESHOLD_PX = 40;
 
 const SLIDE_LABELS = ['Class 10 Crash Course', 'EduCart Impact Award'] as const;
 
+const SLIDE_VARIANTS = {
+  enter: (dir: 1 | -1) => ({
+    opacity: 0,
+    x: dir * 48,
+    scale: 0.97
+  }),
+  center: {
+    opacity: 1,
+    x: 0,
+    scale: 1,
+    transition: {
+      x: { type: 'spring' as const, stiffness: 380, damping: 21, mass: 0.85 },
+      scale: { type: 'spring' as const, stiffness: 420, damping: 22 },
+      opacity: { duration: 0.16 }
+    }
+  },
+  exit: (dir: 1 | -1) => ({
+    opacity: 0,
+    x: dir * -36,
+    scale: 0.98,
+    transition: {
+      duration: 0.14,
+      ease: [0.4, 0, 1, 1] as const
+    }
+  })
+};
+
 export const CrashCourseLaunchModal: React.FC<CrashCourseLaunchModalProps> = ({
   isOpen,
   onClose
 }) => {
+  const prefersReducedMotion = useReducedMotion();
   const [activeSlide, setActiveSlide] = useState<0 | 1>(0);
   const [direction, setDirection] = useState<1 | -1>(1);
   const [isAutoPaused, setIsAutoPaused] = useState(false);
@@ -119,20 +147,32 @@ export const CrashCourseLaunchModal: React.FC<CrashCourseLaunchModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div
+        <motion.div
           id="modal-crash-course-launch-backdrop"
           role="dialog"
           aria-modal="true"
           aria-labelledby="heading-crash-course-popup"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
           onClick={onClose}
           className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs"
         >
           <motion.div
             id="modal-crash-course-launch"
-            initial={{ opacity: 0, scale: 0.96, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 8 }}
-            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 72, scale: 0.98 }}
+            animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
+            exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 56, scale: 0.98 }}
+            transition={
+              prefersReducedMotion
+                ? { duration: 0.16 }
+                : {
+                    y: { type: 'spring', stiffness: 320, damping: 28, mass: 0.9 },
+                    scale: { type: 'spring', stiffness: 340, damping: 28 },
+                    opacity: { duration: 0.2 }
+                  }
+            }
             onClick={(e) => e.stopPropagation()}
             onMouseEnter={() => setIsAutoPaused(true)}
             onTouchStart={handleTouchStart}
@@ -152,15 +192,16 @@ export const CrashCourseLaunchModal: React.FC<CrashCourseLaunchModalProps> = ({
 
             {/* Single-Slide Stage */}
             <div className="relative overflow-hidden">
-              <AnimatePresence mode="wait" initial={false}>
+              <AnimatePresence mode="wait" initial={false} custom={direction}>
                 {activeSlide === 0 ? (
                   <motion.div
                     key="slide-crash-course"
                     id="slide-popup-crash-course"
-                    initial={{ opacity: 0, x: direction * 24 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: direction * -24 }}
-                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                    custom={direction}
+                    variants={prefersReducedMotion ? undefined : SLIDE_VARIANTS}
+                    initial={prefersReducedMotion ? { opacity: 0 } : 'enter'}
+                    animate={prefersReducedMotion ? { opacity: 1 } : 'center'}
+                    exit={prefersReducedMotion ? { opacity: 0 } : 'exit'}
                   >
                     {/* Compact Navy Header Band */}
                     <div className="bg-[#0B2545] text-white px-5 pt-5 pb-4 pr-14 space-y-1.5">
@@ -205,10 +246,11 @@ export const CrashCourseLaunchModal: React.FC<CrashCourseLaunchModalProps> = ({
                   <motion.div
                     key="slide-teacher-award"
                     id="slide-popup-teacher-award"
-                    initial={{ opacity: 0, x: direction * 24 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: direction * -24 }}
-                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                    custom={direction}
+                    variants={prefersReducedMotion ? undefined : SLIDE_VARIANTS}
+                    initial={prefersReducedMotion ? { opacity: 0 } : 'enter'}
+                    animate={prefersReducedMotion ? { opacity: 1 } : 'center'}
+                    exit={prefersReducedMotion ? { opacity: 0 } : 'exit'}
                   >
                     {/* Framed Full Portrait Stage (Zero cropping of face or EduCart plaque) */}
                     <div className="bg-[#0B2545] px-4 pt-4 pb-3 flex items-center justify-center">
@@ -339,7 +381,7 @@ export const CrashCourseLaunchModal: React.FC<CrashCourseLaunchModalProps> = ({
               </div>
             </div>
           </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
   );

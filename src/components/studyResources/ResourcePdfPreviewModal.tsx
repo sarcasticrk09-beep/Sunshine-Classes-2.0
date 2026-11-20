@@ -29,6 +29,7 @@ import {
   sanitizeElementId
 } from './resourceMeta';
 import {
+  buildResourcePath,
   buildResourceShareUrl,
   buildResourceWhatsAppHref,
   copyTextToClipboard
@@ -251,8 +252,19 @@ export const ResourcePdfPreviewModal: React.FC<ResourcePdfPreviewModalProps> = (
                 <div
                   id="popover-preview-share"
                   role="menu"
-                  className="absolute right-0 mt-1.5 w-52 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl p-1.5 z-30 space-y-1"
+                  className="absolute right-0 mt-1.5 w-64 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl p-1.5 z-30 space-y-1"
                 >
+                  <div className="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700/70">
+                    <span className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                      Resource Link
+                    </span>
+                    <span
+                      title={buildResourcePath(material)}
+                      className="block font-mono text-[11px] text-amber-700 dark:text-amber-400 truncate mt-0.5"
+                    >
+                      {buildResourcePath(material)}
+                    </span>
+                  </div>
                   <button
                     id="btn-preview-copy-link"
                     type="button"

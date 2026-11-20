@@ -24,6 +24,7 @@ import {
   UPLOAD_CLASSES_LIST,
   UPLOAD_SUBJECTS_LIST
 } from './studyResources/resourceMeta';
+import { buildResourcePath } from './studyResources/revisionKitHelpers';
 import {
   Plus,
   Search,
@@ -690,7 +691,17 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
                           {item.title}
                         </div>
                         <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
-                          <span className="font-mono text-[11px] text-amber-600 dark:text-amber-400 truncate">/{item.slug}</span>
+                          <a
+                            id={`link-cms-resource-url-${item.id}`}
+                            href={buildResourcePath(item)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={`Open ${buildResourcePath(item)}`}
+                            className="font-mono text-[11px] text-amber-600 dark:text-amber-400 hover:underline truncate inline-flex items-center gap-1 max-w-[230px]"
+                          >
+                            <span className="truncate">{buildResourcePath(item)}</span>
+                            <ExternalLink size={10} className="shrink-0" />
+                          </a>
                           {item.chapter && <span className="truncate">| {item.chapter}</span>}
                         </div>
                       </td>

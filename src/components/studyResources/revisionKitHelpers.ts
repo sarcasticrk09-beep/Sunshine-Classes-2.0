@@ -118,18 +118,126 @@ export const buildCuratedRevisionKit = (
   return { items: selected, title };
 };
 
-const getPublicResourcesBaseUrl = (): string => {
-  if (typeof window === 'undefined') return 'https://sunshineclasses.in/resources';
-  return `${window.location.origin}/resources`;
+const CATEGORY_URL_SLUG_MAP: Record<LibraryCategoryId, string> = {
+  QUESTION_BANK: 'question-bank',
+  SAMPLE_PAPER: 'sample-papers',
+  PYQ: 'pyqs',
+  FORMULA_SHEET: 'formula-sheets',
+  WORKSHEET: 'worksheets',
+  ASSIGNMENT: 'assignments',
+  SYLLABUS: 'syllabus',
+  LAB_MANUAL: 'lab-manuals',
+  NOTES: 'notes',
+  PDF: 'books',
+  OTHER: 'other'
 };
 
+const URL_SLUG_TO_CATEGORY_MAP: Record<string, LibraryCategoryId> = {
+  'question-bank': 'QUESTION_BANK',
+  'questionbank': 'QUESTION_BANK',
+  'question-paper': 'QUESTION_BANK',
+  'question-papers': 'QUESTION_BANK',
+  'questionpaper': 'QUESTION_BANK',
+  'important-questions': 'QUESTION_BANK',
+  'sample-paper': 'SAMPLE_PAPER',
+  'sample-papers': 'SAMPLE_PAPER',
+  'samplepaper': 'SAMPLE_PAPER',
+  'practice-papers': 'SAMPLE_PAPER',
+  'mock-tests': 'SAMPLE_PAPER',
+  'pyq': 'PYQ',
+  'pyqs': 'PYQ',
+  'board-papers': 'PYQ',
+  'previous-year': 'PYQ',
+  'formula-sheet': 'FORMULA_SHEET',
+  'formula-sheets': 'FORMULA_SHEET',
+  'formula': 'FORMULA_SHEET',
+  'formulas': 'FORMULA_SHEET',
+  'worksheet': 'WORKSHEET',
+  'worksheets': 'WORKSHEET',
+  'homework': 'WORKSHEET',
+  'assignment': 'ASSIGNMENT',
+  'assignments': 'ASSIGNMENT',
+  'syllabus': 'SYLLABUS',
+  'blueprint': 'SYLLABUS',
+  'lab-manual': 'LAB_MANUAL',
+  'lab-manuals': 'LAB_MANUAL',
+  'practical': 'LAB_MANUAL',
+  'notes': 'NOTES',
+  'note': 'NOTES',
+  'chapter-notes': 'NOTES',
+  'book': 'PDF',
+  'books': 'PDF',
+  'ncert-books': 'PDF',
+  'pdf': 'PDF',
+  'other': 'OTHER',
+  'ncert-solutions': 'OTHER'
+};
+
+export const getCategoryUrlSlug = (categoryId: string): string => {
+  const key = categoryId.toUpperCase() as LibraryCategoryId;
+  return CATEGORY_URL_SLUG_MAP[key] || 'other';
+};
+
+export const getResourceSlug = (item: StudyMaterial): string => {
+  if (item.slug && item.slug.trim()) return item.slug.trim().toLowerCase();
+  const base = (item.title || item.id || item.materialId || 'resource')
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return base || String(item.id || item.materialId || 'resource');
+};
+
+export const buildResourcePath = (item: StudyMaterial): string => {
+  const categorySlug = getCategoryUrlSlug(getResourceCategoryId(item));
+  const docSlug = getResourceSlug(item);
+  return `/resources/${categorySlug}/${docSlug}`;
+};
+
+export const parseResourceRoutePath = (
+  pathname: string
+): { categoryPreset: string; docSlug: string } => {
+  const cleanPath = pathname.replace(/\/+$/, '').toLowerCase();
+  const segments = cleanPath.split('/').filter(Boolean);
+
+  // Expects /resources/... or /study-material/...
+  if (segments.length <= 1) {
+    return { categoryPreset: 'ALL', docSlug: '' };
+  }
+
+  const root = segments[0];
+  if (root !== 'resources' && root !== 'study-material') {
+    return { categoryPreset: 'ALL', docSlug: '' };
+  }
+
+  const seg1 = decodeURIComponent(segments[1] || '');
+  const seg2 = decodeURIComponent(segments[2] || '');
+  const mappedCategory = URL_SLUG_TO_CATEGORY_MAP[seg1];
+
+  if (mappedCategory) {
+    return {
+      categoryPreset: mappedCategory,
+      docSlug: seg2
+    };
+  }
+
+  // Fallback: /resources/<doc-slug> directly without category prefix
+  return {
+    categoryPreset: 'ALL',
+    docSlug: seg1
+  };
+};
+
+const getPublicResourcesOrigin = (): string => {
+  if (typeof window === 'undefined') return 'https://sunshineclasses.in';
+  return window.location.origin;
+};
+
+const getPublicResourcesBaseUrl = (): string => `${getPublicResourcesOrigin()}/resources`;
+
 export const buildResourceShareUrl = (item: StudyMaterial): string => {
-  const base = getPublicResourcesBaseUrl();
-  const docKey = item.slug || item.id || item.materialId || '';
-  const params = new URLSearchParams();
-  if (docKey) params.set('doc', docKey);
-  if (item.class && item.class !== 'ALL') params.set('class', item.class);
-  return `${base}?${params.toString()}`;
+  return `${getPublicResourcesOrigin()}${buildResourcePath(item)}`;
 };
 
 export const buildKitShareUrl = (
@@ -192,16 +300,55 @@ export const copyTextToClipboard = async (text: string): Promise<boolean> => {
 
 export const resolveMaterialByDocParam = (
   materials: StudyMaterial[],
-  docParam: string
+  docParam: string,
+  categoryHint?: string
 ): StudyMaterial | undefined => {
-  const target = docParam.trim().toLowerCase();
+  const target = decodeURIComponent(docParam || '').trim().toLowerCase();
   if (!target) return undefined;
-  return materials.find(
+
+  // 1. Exact match on slug, id, or materialId
+  const exact = materials.find(
     (m) =>
       (m.slug && m.slug.toLowerCase() === target) ||
       (m.id && m.id.toLowerCase() === target) ||
       (m.materialId && m.materialId.toLowerCase() === target)
   );
+  if (exact) return exact;
+
+  // 2. Normalized alphanumeric match (e.g., ignores hyphen/underscore differences)
+  const compactTarget = target.replace(/[^a-z0-9]/g, '');
+  const normalizedMatch = materials.find((m) => {
+    const slugCompact = getResourceSlug(m).replace(/[^a-z0-9]/g, '');
+    const idCompact = String(m.id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    return slugCompact === compactTarget || idCompact === compactTarget;
+  });
+  if (normalizedMatch) return normalizedMatch;
+
+  // 3. Category-scoped shorthand match (e.g., /resources/questionpaper/chapter1 or /resources/notes/chapter1)
+  const scopedPool =
+    categoryHint && categoryHint !== 'ALL'
+      ? materials.filter((m) => getResourceCategoryId(m) === categoryHint)
+      : materials;
+  const searchPool = scopedPool.length > 0 ? scopedPool : materials;
+
+  const chapterMatch = compactTarget.match(/^chapter(\d{1,2})$/);
+  if (chapterMatch) {
+    const chNum = parseInt(chapterMatch[1], 10);
+    const byChapter = searchPool.find((m) => {
+      const text = `${m.chapter || ''} ${m.slug || ''} ${m.title || ''}`.toLowerCase();
+      return (
+        new RegExp(`\\bchapter[-\\s]*0?${chNum}\\b`, 'i').test(text) ||
+        extractChapterOrderNumber(m) === chNum
+      );
+    });
+    if (byChapter) return byChapter;
+  }
+
+  // 4. Partial slug/title match inside scoped pool
+  return searchPool.find((m) => {
+    const slugCompact = getResourceSlug(m).replace(/[^a-z0-9]/g, '');
+    return slugCompact.includes(compactTarget);
+  });
 };
 
 export const resolveMaterialsByKitParam = (

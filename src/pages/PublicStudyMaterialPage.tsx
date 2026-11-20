@@ -6,6 +6,12 @@ import { SyncService } from '../services/SyncService';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { SEOHead } from '../components/SEOHead';
 import { StudyResourcesWorkspace } from '../components/StudyResourcesWorkspace';
+import {
+  buildResourcePath,
+  getCategoryUrlSlug,
+  parseResourceRoutePath,
+  resolveMaterialByDocParam
+} from '../components/studyResources/revisionKitHelpers';
 
 const getRouteMeta = (pathname: string) => {
   const p = pathname.toLowerCase();
@@ -54,15 +60,6 @@ const getRouteMeta = (pathname: string) => {
       seoDesc: 'Practice full-length mock exams and sample question papers for Class 10 board preparation.'
     };
   }
-  if (p.includes('/study-material')) {
-    return {
-      title: 'Study Material Library',
-      subtitle: 'Complete PDF notes, formula sheets, and exam kits across all Sunshine tuition batches.',
-      categoryPreset: 'ALL',
-      seoTitle: 'Comprehensive Study Material Library | Sunshine Classes Pihani',
-      seoDesc: 'Access complete PDF study materials and course packages for Sunshine Classes students.'
-    };
-  }
   if (p.includes('/syllabus') || p.includes('/blueprint')) {
     return {
       title: 'Board Syllabus & Blueprints',
@@ -72,7 +69,7 @@ const getRouteMeta = (pathname: string) => {
       seoDesc: 'Download syllabus, chapter weightage, and exam blueprints for Sunshine Classes students.'
     };
   }
-  if (p.includes('/question-bank') || p.includes('/question-papers')) {
+  if (p.includes('/question-bank') || p.includes('/question-papers') || p.includes('/questionpaper')) {
     return {
       title: 'Chapter-Wise Question Banks',
       subtitle: 'Question banks, 1-mark MCQs, case study sets, and long answer practice guides.',
@@ -97,6 +94,24 @@ const getRouteMeta = (pathname: string) => {
       categoryPreset: 'LAB_MANUAL',
       seoTitle: 'Science Practical & Lab Manuals | Sunshine Classes Pihani',
       seoDesc: 'Access science practical guides, experiment logs, and viva preparation manuals.'
+    };
+  }
+  if (p.includes('/books') || p.includes('/ncert-books')) {
+    return {
+      title: 'NCERT Books & Reference PDFs',
+      subtitle: 'Official NCERT textbook chapters and reference book PDFs.',
+      categoryPreset: 'PDF',
+      seoTitle: 'NCERT Books & Chapter PDFs | Sunshine Classes Pihani',
+      seoDesc: 'Read and download official NCERT textbook chapter PDFs on Sunshine Classes.'
+    };
+  }
+  if (p.includes('/study-material')) {
+    return {
+      title: 'Study Material Library',
+      subtitle: 'Complete PDF notes, formula sheets, and exam kits across all Sunshine tuition batches.',
+      categoryPreset: 'ALL',
+      seoTitle: 'Comprehensive Study Material Library | Sunshine Classes Pihani',
+      seoDesc: 'Access complete PDF study materials and course packages for Sunshine Classes students.'
     };
   }
   return {
@@ -126,17 +141,20 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
   const navigate = useNavigate();
   const location = useLocation();
 
+  const parsedRoute = useMemo(() => parseResourceRoutePath(location.pathname), [location.pathname]);
   const routeMeta = useMemo(() => getRouteMeta(location.pathname), [location.pathname]);
+  const resolvedCategoryPreset =
+    parsedRoute.categoryPreset !== 'ALL' ? parsedRoute.categoryPreset : routeMeta.categoryPreset;
 
   const queryParams = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return {
       classParam: params.get('class') || 'ALL',
-      docParam: params.get('doc') || '',
+      docParam: parsedRoute.docSlug || params.get('doc') || '',
       kitParam: params.get('kit') || '',
       kitTitleParam: params.get('kitTitle') || ''
     };
-  }, [location.search]);
+  }, [location.search, parsedRoute.docSlug]);
 
   const [materials, setMaterials] = useState<StudyMaterial[]>(cmsMaterials || []);
   const [loading, setLoading] = useState(!cmsMaterials);
@@ -197,9 +215,43 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
     };
   }, [cmsMaterials, currentUser]);
 
+  const activeRouteMaterial = useMemo(() => {
+    if (!queryParams.docParam || materials.length === 0) return undefined;
+    return resolveMaterialByDocParam(materials, queryParams.docParam, resolvedCategoryPreset);
+  }, [materials, queryParams.docParam, resolvedCategoryPreset]);
+
+  const handleActiveResourceChange = (material: StudyMaterial | null, activeCategory?: string) => {
+    if (embeddedInLayout) return;
+    if (material) {
+      const nextPath = buildResourcePath(material);
+      if (location.pathname !== nextPath) {
+        navigate(nextPath);
+      }
+      return;
+    }
+
+    // Closing preview: return cleanly from individual resource URL back to category or /resources
+    if (parsedRoute.docSlug || new URLSearchParams(location.search).has('doc')) {
+      const targetPath =
+        activeCategory && activeCategory !== 'ALL'
+          ? `/resources/${getCategoryUrlSlug(activeCategory)}`
+          : '/resources';
+      if (location.pathname !== targetPath || location.search) {
+        navigate(targetPath, { replace: true });
+      }
+    }
+  };
+
+  const seoTitle = activeRouteMaterial
+    ? activeRouteMaterial.seoTitle || `${activeRouteMaterial.title} | Sunshine Classes`
+    : routeMeta.seoTitle;
+  const seoDesc = activeRouteMaterial
+    ? activeRouteMaterial.metaDescription || activeRouteMaterial.description || activeRouteMaterial.title
+    : routeMeta.seoDesc;
+
   return (
     <>
-      <SEOHead title={routeMeta.seoTitle} description={routeMeta.seoDesc} />
+      <SEOHead title={seoTitle} description={seoDesc} />
       <StudyResourcesWorkspace
         materials={materials}
         loading={loading}
@@ -208,13 +260,14 @@ export const PublicStudyMaterialPage: React.FC<PublicStudyMaterialPageProps> = (
         currentUser={currentUser}
         variant={embeddedInLayout ? 'embedded-public' : 'public'}
         defaultClass={queryParams.classParam}
-        initialCategory={routeMeta.categoryPreset}
+        initialCategory={resolvedCategoryPreset}
         initialDocParam={queryParams.docParam}
         initialKitParam={queryParams.kitParam}
         initialKitTitle={queryParams.kitTitleParam}
         headerTitle={routeMeta.title}
         headerSubtitle={routeMeta.subtitle}
         storageKeyPrefix={currentUser ? `user-${currentUser.id}` : 'public'}
+        onActiveResourceChange={handleActiveResourceChange}
         onNavigateHome={() => {
           if (onNavigateSection) onNavigateSection('home');
           else navigate('/');

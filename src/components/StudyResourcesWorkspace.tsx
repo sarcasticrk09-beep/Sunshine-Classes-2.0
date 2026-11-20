@@ -84,6 +84,7 @@ export interface StudyResourcesWorkspaceProps {
   onMarkDownloaded?: (item: StudyMaterial) => void;
   onNavigateHome?: () => void;
   onOpenLoginModal?: () => void;
+  onActiveResourceChange?: (material: StudyMaterial | null, activeCategory?: string) => void;
   onAuditLog?: (action: string, details: string) => void;
   storageKeyPrefix?: string;
 }
@@ -108,6 +109,7 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
   onMarkDownloaded,
   onNavigateHome,
   onOpenLoginModal,
+  onActiveResourceChange,
   onAuditLog,
   storageKeyPrefix = 'public'
 }) => {
@@ -217,14 +219,23 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const handledDeepLinkRef = useRef<string>('');
 
+  const prevInitialCategoryRef = useRef<string>(
+    initialCategory && initialCategory !== 'ALL' ? initialCategory : 'ALL'
+  );
+
   useEffect(() => {
+    if (initialDocParam) return;
+    const nextCategory = initialCategory && initialCategory !== 'ALL' ? initialCategory : 'ALL';
+    if (prevInitialCategoryRef.current === nextCategory) return;
+    prevInitialCategoryRef.current = nextCategory;
+    if (selectedCategory === nextCategory) return;
     setActiveNavTab('browse');
-    setSelectedCategory(initialCategory && initialCategory !== 'ALL' ? initialCategory : 'ALL');
+    setSelectedCategory(nextCategory);
     setSelectedSubject('ALL');
     setViewCategoryFilesDirectly(false);
     setChapterFilter('ALL');
     setVisibleLimit(DIRECTORY_PAGE_SIZE);
-  }, [initialCategory]);
+  }, [initialCategory, initialDocParam, selectedCategory]);
 
   useEffect(() => {
     if (defaultClass && defaultClass !== 'ALL') {
@@ -242,6 +253,7 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
       if (e.key === 'Escape') {
         if (previewMaterial) {
           setPreviewMaterial(null);
+          onActiveResourceChange?.(null, selectedCategory);
         } else if (restrictedModalMaterial) {
           setRestrictedModalMaterial(null);
         } else if (isRevisionKitOpen) {
@@ -251,7 +263,7 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [previewMaterial, restrictedModalMaterial, isRevisionKitOpen]);
+  }, [previewMaterial, restrictedModalMaterial, isRevisionKitOpen, selectedCategory, onActiveResourceChange]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -289,17 +301,23 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
     return { done: doneCount, total: existingIds.length };
   }, [sharedKitSession, savedRevisionKit, publishedMaterials]);
 
-  // Hydrate deep-linked ?doc=... or ?kit=... URLs once when materials are loaded
+  // Hydrate deep-linked /resources/<category>/<slug>, ?doc=..., or ?kit=... URLs when materials load or route changes
   useEffect(() => {
-    const deepLinkKey = `${initialDocParam}|${initialKitParam}|${initialKitTitle}`;
-    if (!initialDocParam && !initialKitParam) return;
+    const deepLinkKey = `${initialCategory}|${initialDocParam}|${initialKitParam}|${initialKitTitle}`;
+    if (!initialDocParam && !initialKitParam) {
+      if (handledDeepLinkRef.current) {
+        handledDeepLinkRef.current = '';
+        setPreviewMaterial(null);
+      }
+      return;
+    }
     if (loading || localMaterials.length === 0) return;
     if (handledDeepLinkRef.current === deepLinkKey) return;
 
     handledDeepLinkRef.current = deepLinkKey;
 
     if (initialDocParam) {
-      const matched = resolveMaterialByDocParam(localMaterials, initialDocParam);
+      const matched = resolveMaterialByDocParam(localMaterials, initialDocParam, initialCategory);
       if (matched) {
         const accessible = matched.isPublic !== false || Boolean(currentUser);
         if (accessible) {
@@ -334,6 +352,7 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
       }
     }
   }, [
+    initialCategory,
     initialDocParam,
     initialKitParam,
     initialKitTitle,
@@ -600,7 +619,13 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
       return;
     }
     setPreviewMaterial(item);
+    onActiveResourceChange?.(item, selectedCategory);
     incrementViewCount(item.id).catch(() => {});
+  };
+
+  const handleClosePreview = () => {
+    setPreviewMaterial(null);
+    onActiveResourceChange?.(null, selectedCategory);
   };
 
   const markDownloadedLocally = (item: StudyMaterial) => {
@@ -1605,7 +1630,7 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
             )}
             isDownloading={downloadingId === previewMaterial.id}
             onSelectMaterial={(next) => handlePreview(next)}
-            onClose={() => setPreviewMaterial(null)}
+            onClose={handleClosePreview}
             onDownload={(item) => handleDownload(item)}
             onToggleBookmark={(item) => handleToggleBookmark(item)}
             onShareFeedback={showToast}
