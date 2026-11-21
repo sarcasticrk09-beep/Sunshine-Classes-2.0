@@ -4579,6 +4579,160 @@ Sunshine Classes — *Excellence in Education* ☀️`;
     }
   });
 
+  // 1b. Google Maps Places API (New) Server-Side Proxy for Live Sunshine Classes Reviews
+  const SUNSHINE_GOOGLE_MAPS_SHORT_URL = "https://maps.app.goo.gl/GFnMMNa9S2F5Vw7A6";
+  const SUNSHINE_MAPS_COORDS = { latitude: 27.6223773, longitude: 80.207193 };
+  const GOOGLE_REVIEWS_CACHE_TTL_MS = 15 * 60 * 1000;
+  let cachedGoogleReviewsPayload: { data: Record<string, unknown>; expiresAt: number } | null = null;
+
+  app.get("/api/google-maps/reviews", async (_req, res) => {
+    try {
+      const apiKey = (
+        process.env.GOOGLE_MAPS_API_KEY ||
+        process.env.VITE_GOOGLE_MAPS_API_KEY ||
+        ""
+      ).trim();
+
+      if (!apiKey) {
+        return res.status(200).json({
+          configured: false,
+          source: "google_maps",
+          googleMapsUrl: SUNSHINE_GOOGLE_MAPS_SHORT_URL,
+          reviews: []
+        });
+      }
+
+      if (cachedGoogleReviewsPayload && Date.now() < cachedGoogleReviewsPayload.expiresAt) {
+        return res.status(200).json(cachedGoogleReviewsPayload.data);
+      }
+
+      // Places API (New) Text Search — modern replacement for legacy PlacesService
+      // Doc: https://developers.google.com/maps/documentation/places/web-service/text-search?utm_campaign=gmp_mcp_codeassist_v1_aistudio
+      const fieldMask = [
+        "places.id",
+        "places.displayName",
+        "places.formattedAddress",
+        "places.rating",
+        "places.userRatingCount",
+        "places.reviews",
+        "places.googleMapsUri",
+        "places.googleMapsLinks"
+      ].join(",");
+
+      const response = await fetch("https://places.googleapis.com/v1/places:searchText", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": apiKey,
+          "X-Goog-FieldMask": fieldMask,
+          "X-Goog-Maps-Solution-ID": "gmp_mcp_codeassist_v1_aistudio"
+        },
+        body: JSON.stringify({
+          textQuery: "SUNSHINE CLASSES Pihani",
+          pageSize: 1,
+          languageCode: "en",
+          regionCode: "IN",
+          locationBias: {
+            circle: {
+              center: SUNSHINE_MAPS_COORDS,
+              radius: 500.0
+            }
+          }
+        })
+      });
+
+      const rawText = await response.text();
+      let json: Record<string, any> = {};
+      try {
+        json = JSON.parse(rawText) as Record<string, any>;
+      } catch {
+        json = {};
+      }
+
+      const errorStatus = String(json?.error?.status || "");
+      if (response.status === 429 || errorStatus === "RESOURCE_EXHAUSTED") {
+        return res.status(429).json({
+          configured: true,
+          quotaExceeded: true,
+          error: "Google Maps Platform quota exceeded",
+          googleMapsUrl: SUNSHINE_GOOGLE_MAPS_SHORT_URL,
+          reviews: []
+        });
+      }
+
+      if (!response.ok) {
+        console.warn("[Google Maps Places API] Non-OK response:", response.status, json?.error?.message || rawText.slice(0, 200));
+        return res.status(200).json({
+          configured: true,
+          source: "google_maps",
+          googleMapsUrl: SUNSHINE_GOOGLE_MAPS_SHORT_URL,
+          reviews: [],
+          unavailable: true
+        });
+      }
+
+      const place = Array.isArray(json.places) ? json.places[0] : undefined;
+      if (!place) {
+        return res.status(200).json({
+          configured: true,
+          source: "google_maps",
+          googleMapsUrl: SUNSHINE_GOOGLE_MAPS_SHORT_URL,
+          reviews: []
+        });
+      }
+
+      const rawReviews: Array<Record<string, any>> = Array.isArray(place.reviews) ? place.reviews : [];
+      const normalizedReviews = rawReviews
+        .map((rev, idx) => {
+          const textBody = String(rev?.text?.text || rev?.originalText?.text || "").trim();
+          const authorName = String(rev?.authorAttribution?.displayName || "Google Reviewer").trim();
+          return {
+            id: String(rev?.name || `gmap-review-${idx}`),
+            authorName,
+            authorUri: String(rev?.authorAttribution?.uri || place.googleMapsUri || SUNSHINE_GOOGLE_MAPS_SHORT_URL),
+            authorPhotoUri: String(rev?.authorAttribution?.photoUri || ""),
+            rating: typeof rev?.rating === "number" ? rev.rating : 5,
+            text: textBody,
+            relativePublishTimeDescription: String(rev?.relativePublishTimeDescription || "Google Maps Review"),
+            publishTime: String(rev?.publishTime || ""),
+            googleMapsUri: String(rev?.googleMapsUri || place?.googleMapsLinks?.reviewsUri || place.googleMapsUri || SUNSHINE_GOOGLE_MAPS_SHORT_URL)
+          };
+        })
+        .filter((r) => r.rating >= 4 && r.text.length > 0);
+
+      const payload: Record<string, unknown> = {
+        configured: true,
+        source: "google_maps",
+        placeId: String(place.id || ""),
+        displayName: String(place?.displayName?.text || "Sunshine Classes"),
+        formattedAddress: String(place.formattedAddress || ""),
+        rating: typeof place.rating === "number" ? place.rating : null,
+        userRatingCount: typeof place.userRatingCount === "number" ? place.userRatingCount : null,
+        googleMapsUrl: String(place.googleMapsUri || SUNSHINE_GOOGLE_MAPS_SHORT_URL),
+        reviewsUri: String(place?.googleMapsLinks?.reviewsUri || place.googleMapsUri || SUNSHINE_GOOGLE_MAPS_SHORT_URL),
+        writeAReviewUri: String(place?.googleMapsLinks?.writeAReviewUri || place.googleMapsUri || SUNSHINE_GOOGLE_MAPS_SHORT_URL),
+        reviews: normalizedReviews
+      };
+
+      cachedGoogleReviewsPayload = {
+        data: payload,
+        expiresAt: Date.now() + GOOGLE_REVIEWS_CACHE_TTL_MS
+      };
+
+      return res.status(200).json(payload);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      console.warn("[Google Maps Reviews Proxy] Failed to load reviews:", msg);
+      return res.status(200).json({
+        configured: true,
+        source: "google_maps",
+        googleMapsUrl: SUNSHINE_GOOGLE_MAPS_SHORT_URL,
+        reviews: [],
+        unavailable: true
+      });
+    }
+  });
+
   // 2. Vite middleware setup for Development & SPA Asset Routing
   const isProduction = process.env.NODE_ENV === "production" || !!process.env.RENDER || !!process.env.VERCEL || !!process.env.RAILWAY_ENVIRONMENT;
   if (!isProduction) {

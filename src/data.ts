@@ -1949,16 +1949,7 @@ export const SEED_BLOGS: BlogPost[] = [
   }
 ];
 
-export const SEED_TESTIMONIALS: Testimonial[] = [
-  {
-    id: 'tstml1',
-    name: 'Sanjay Verma (Parent of Rahul Verma)',
-    role: 'PARENT',
-    content: 'Sunshine Classes completely transformed Rahul\'s attitude towards Mathematics. The personalized weekly feedback report and digital attendance alert help me track his regular progress easily.',
-    rating: 5,
-    avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=60'
-  }
-];
+export const SEED_TESTIMONIALS: Testimonial[] = [];
 
 export const SEED_GALLERY: GalleryItem[] = [
   { id: 'g1', title: 'Saraswati Puja & Board Aspirants blessing ceremony', category: 'EVENTS', imageUrl: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=600&auto=format&fit=crop&q=60' },

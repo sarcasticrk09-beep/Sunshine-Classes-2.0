@@ -285,6 +285,13 @@ export default function App() {
   const [cloudLoading, setCloudLoading] = useState(false);
   const [cloudError, setCloudError] = useState<string | null>(null);
   const [cloudOnline, setCloudOnline] = useState(navigator.onLine);
+  const [gmpQuotaExceeded, setGmpQuotaExceeded] = useState(false);
+
+  useEffect(() => {
+    const handleGmpQuotaExceeded = () => setGmpQuotaExceeded(true);
+    window.addEventListener('gmp-quota-exceeded', handleGmpQuotaExceeded);
+    return () => window.removeEventListener('gmp-quota-exceeded', handleGmpQuotaExceeded);
+  }, []);
 
   useEffect(() => {
     const handleOnline = () => setCloudOnline(true);
@@ -3984,6 +3991,35 @@ Sunshine Classes`;
         id="main-app-container"
         className="min-h-screen bg-slate-50 dark:bg-slate-950 relative flex flex-col justify-between max-w-full overflow-x-clip transition-colors duration-300"
       >
+      {gmpQuotaExceeded && (
+        <div
+          id="banner-gmp-quota-exceeded"
+          className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2.5 text-xs md:text-sm text-center sticky top-0 z-50 shadow-sm flex items-center justify-center gap-3"
+        >
+          <span>
+            Google Maps Platform quota reached. If you are the app owner, visit{' '}
+            <a
+              id="link-gmp-quota-help"
+              href="https://developers.google.com/maps/ai/ai-studio?utm_campaign=gmp_mcp_codeassist_v1_aistudio#quota_exceeded_errors"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline font-semibold text-amber-950 hover:text-amber-800"
+            >
+              maps developer site
+            </a>{' '}
+            for instructions to update your account.
+          </span>
+          <button
+            id="btn-dismiss-gmp-quota-banner"
+            type="button"
+            onClick={() => setGmpQuotaExceeded(false)}
+            aria-label="Dismiss notice"
+            className="text-amber-800 hover:text-amber-950 p-1 rounded-md cursor-pointer"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
       {/* Primary ERP / Website Display Controller */}
       <div className="flex-1">
         <SEOHead />
