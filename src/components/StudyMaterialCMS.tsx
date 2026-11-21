@@ -120,7 +120,7 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
   const [selectedType, setSelectedType] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [selectedPublic, setSelectedPublic] = useState<string>('ALL');
-  const [sortBy, setSortBy] = useState<'NEWEST' | 'OLDEST' | 'MOST_VIEWED' | 'MOST_DOWNLOADED' | 'TITLE'>('NEWEST');
+  const [sortBy, setSortBy] = useState<'MODIFIED' | 'NEWEST' | 'OLDEST' | 'MOST_VIEWED' | 'MOST_DOWNLOADED' | 'TITLE'>('MODIFIED');
 
   // Modal State
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -261,6 +261,13 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
 
       return matchCmsSection && matchSearch && matchClass && matchSubject && matchType && matchStatus && matchPublic;
     }).sort((a, b) => {
+      if (sortBy === 'MODIFIED') {
+        const modDiff =
+          new Date(b.updatedAt || b.createdAt || b.date || 0).getTime() -
+          new Date(a.updatedAt || a.createdAt || a.date || 0).getTime();
+        if (modDiff !== 0) return modDiff;
+        return a.title.localeCompare(b.title);
+      }
       if (sortBy === 'NEWEST') return new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime();
       if (sortBy === 'OLDEST') return new Date(a.createdAt || a.date || 0).getTime() - new Date(b.createdAt || b.date || 0).getTime();
       if (sortBy === 'TITLE') return a.title.localeCompare(b.title);
@@ -555,10 +562,15 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
 
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
+              onChange={(e) =>
+                setSortBy(
+                  e.target.value as 'MODIFIED' | 'NEWEST' | 'OLDEST' | 'MOST_VIEWED' | 'MOST_DOWNLOADED' | 'TITLE'
+                )
+              }
               className="px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500"
               id="select-filter-sort"
             >
+              <option value="MODIFIED">Recently Modified</option>
               <option value="NEWEST">Newest First</option>
               <option value="OLDEST">Oldest First</option>
               <option value="TITLE">Title A-Z</option>

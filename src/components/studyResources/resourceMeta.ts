@@ -40,7 +40,7 @@ export type LibraryCategoryId =
   | 'NOTES'
   | 'PDF';
 
-export type StudyResourceSortMode = 'chapter' | 'newest' | 'alphabetical';
+export type StudyResourceSortMode = 'modified' | 'chapter' | 'newest' | 'alphabetical';
 
 export interface LibraryCategoryMeta {
   id: LibraryCategoryId;
@@ -351,10 +351,72 @@ export const IMPORTANT_QUESTIONS_SUBJECT_FILTERS = [
   'Mathematics',
   'Science',
   'Social Science',
-  'History',
   'English',
   'Hindi'
 ] as const;
+
+export const SUBJECT_SUBCATEGORIES: Record<string, readonly string[]> = {
+  'social science': ['History', 'Civics', 'Economics', 'Geography'],
+  science: ['Physics', 'Biology', 'Chemistry'],
+  english: ['English Language', 'English Literature'],
+  hindi: ['Hindi Language', 'Hindi Literature']
+};
+
+export const getSubjectSubcategories = (subject?: string): readonly string[] => {
+  const key = (subject || '').trim().toLowerCase();
+  if (!key || key === 'all') return [];
+  if (key === 'social studies' || key === 'sst') {
+    return SUBJECT_SUBCATEGORIES['social science'];
+  }
+  return SUBJECT_SUBCATEGORIES[key] || [];
+};
+
+const SUBCATEGORY_KEYWORD_PATTERNS: Record<string, RegExp> = {
+  history:
+    /\b(?:history|nationalism|print\s*culture|global\s*world|industrialisation|french\s*revolution|nazism|russian\s*revolution|pastoralists|forest\s*society|colonialism)\b/i,
+  civics:
+    /\b(?:civics|political\s*science|democratic\s*politics|power[\s-]*sharing|federalism|political\s*parties|outcomes\s*of\s*democracy|gender.*religion.*caste|constitutional\s*design|electoral\s*politics|working\s*of\s*institutions|democratic\s*rights)\b/i,
+  economics:
+    /\b(?:economics?|sectors\s*of.*economy|money\s*(?:&|and)\s*credit|globalisation|consumer\s*rights|palampur|people\s*as\s*resource|poverty|food\s*security|development)\b/i,
+  geography:
+    /\b(?:geography|resources\s*(?:&|and)\s*development|forest\s*(?:&|and)\s*wildlife|water\s*resources|agriculture|minerals|manufacturing\s*industries|lifelines\s*of\s*national\s*economy|climate|drainage|physical\s*features|natural\s*vegetation|map\s*work|map\s*pointing)\b/i,
+  physics:
+    /\b(?:physics|light|reflection|refraction|human\s*eye|electricity|magnetic|motion|force|laws?\s*of\s*motion|gravitation|work\s*(?:&|and)\s*energy|sound|optics|numericals?|electric|ray\s*diagrams?|friction|pressure|heat|stars|solar\s*system|waves|current)\b/i,
+  biology:
+    /\b(?:biology|life\s*processes|control\s*(?:&|and)\s*coordination|reproduc(?:e|tion)|heredity|evolution|our\s*environment|fundamental\s*unit\s*of\s*life|cell|tissues|diversity\s*in\s*living|why\s*do\s*we\s*fall\s*ill|improvement\s*in\s*food|crop\s*production|microorganisms|conservation\s*of\s*plants|nutrition|respiration|transportation\s*in\s*animals|organisms)\b/i,
+  chemistry:
+    /\b(?:chemistry|chemical\s*reactions?|equations|acids|bases|salts|metals|non[\s-]*metals|carbon|compounds|periodic|matter\s*in\s*our\s*surroundings|matter\s*around\s*us\s*pure|atoms|molecules|structure\s*of\s*the\s*atom|synthetic\s*fibres|coal|petroleum|combustion|flame|redox)\b/i,
+  'english language':
+    /\b(?:english\s*language|grammar|writing\s*skills?|comprehension|unseen\s*passage|formal\s*letter|analytical\s*paragraph|tenses|modals|determiners|reported\s*speech|editing|omission|gap\s*filling|notice\s*writing|article\s*writing|essay|vocabulary)\b/i,
+  'english literature':
+    /\b(?:english\s*literature|literature|first\s*flight|footprints\s*without\s*feet|beehive|moments|flamingo|vistas|prose|poetry|poems?|novel|drama|letter\s*to\s*god|nelson\s*mandela|anne\s*frank|glimpses\s*of\s*india|mijbil|madam\s*rides|sermon\s*at\s*benares)\b/i,
+  'hindi language':
+    /(?:\bhindi\s*language\b|\bvyakaran\b|\bgrammar\b|\bpatra\s*lekhan\b|\banuchh?ed\b|\bvigyapan\b|\bsandesh\b|\bnibandh\b|\bsamas\b|\balankar\b|\bmuhavare\b|\bpadbandh\b|\bvakya\b|\brachna\b|\blekhan\b|\bbhasha\b|व्याकरण|भाषा)/i,
+  'hindi literature':
+    /(?:\bhindi\s*literature\b|\bsahitya\b|\bkshitij\b|\bkritika\b|\bsparsh\b|\bsanchayan\b|\bvasant\b|\bdurva\b|\baroh\b|\bvitan\b|\bantara\b|\bantaral\b|\bgadya\b|\bpadya\b|\bkavita\b|\bkahani\b|\bsurdas\b|\btulsidas\b|\bkabir\b|\bpremchand\b|साहित्य)/i
+};
+
+export const matchesSubjectSubcategory = (
+  item: StudyMaterial,
+  subcategory: string
+): boolean => {
+  if (!subcategory || subcategory === 'ALL') return true;
+  const key = subcategory.trim().toLowerCase();
+  const pattern = SUBCATEGORY_KEYWORD_PATTERNS[key];
+  const primaryText = [
+    item.title,
+    item.chapter,
+    ...(item.tags || []),
+    ...(item.keywords || [])
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  if (pattern) {
+    return pattern.test(primaryText);
+  }
+  return primaryText.toLowerCase().includes(key);
+};
 
 export const matchesImportantQuestionsSubject = (
   item: StudyMaterial,
@@ -374,20 +436,7 @@ export const matchesImportantQuestionsSubject = (
     );
   }
 
-  if (target === 'history') {
-    const haystack = [
-      item.subject,
-      item.title,
-      item.chapter,
-      ...(item.tags || [])
-    ]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase();
-    return /\bhistory\b/i.test(haystack);
-  }
-
-  return false;
+  return matchesSubjectSubcategory(item, subjectFilter);
 };
 
 export const matchesSearchQuery = (item: StudyMaterial, query: string): boolean => {
