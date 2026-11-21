@@ -69,13 +69,20 @@ const getRouteMeta = (pathname: string) => {
       seoDesc: 'Download syllabus, chapter weightage, and exam blueprints for Sunshine Classes students.'
     };
   }
-  if (p.includes('/question-bank') || p.includes('/question-papers') || p.includes('/questionpaper')) {
+  if (
+    p.includes('/important-questions') ||
+    p.includes('/important-question') ||
+    p.includes('/imp-questions') ||
+    p.includes('/question-bank') ||
+    p.includes('/question-papers') ||
+    p.includes('/questionpaper')
+  ) {
     return {
-      title: 'Chapter-Wise Question Banks',
-      subtitle: 'Question banks, 1-mark MCQs, case study sets, and long answer practice guides.',
+      title: 'Important Questions',
+      subtitle: 'Most repeated board exam questions, chapter-wise MCQs, case study sets, and long answer practice guides.',
       categoryPreset: 'QUESTION_BANK',
-      seoTitle: 'Class 9 & 10 Question Banks | Sunshine Classes Pihani',
-      seoDesc: 'Chapter-wise question banks with solved problems for Class 9 and 10 board prep.'
+      seoTitle: 'Class 9 & 10 Important Questions | Sunshine Classes Pihani',
+      seoDesc: 'Chapter-wise important questions and most repeated board exam sets for Class 9 and 10 preparation.'
     };
   }
   if (p.includes('/assignments') || p.includes('/assignment')) {

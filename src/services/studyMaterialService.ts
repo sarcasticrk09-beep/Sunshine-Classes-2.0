@@ -29,6 +29,19 @@ export function isNcertTextbookChapter(item: Partial<StudyMaterial>): boolean {
   return isNcertChapterTitle && isTextbookMeta;
 }
 
+/**
+ * Identify official CBSE Question Bank PDFs (or items titled "Question Bank")
+ * that should be separated from the dedicated Important Questions section.
+ */
+export function isExternalQuestionBankResource(item: Partial<StudyMaterial>): boolean {
+  const title = (item.title || '').trim();
+  const url = (item.fileUrl || '').toLowerCase();
+  return (
+    url.includes('/web_material/questionbank/') ||
+    /\bquestion\s*banks?\b/i.test(title)
+  );
+}
+
 const DELETED_MATERIAL_IDS_KEY = 'sunshine_deleted_study_material_ids';
 
 function getDeletedMaterialIdSet(): Set<string> {
@@ -55,38 +68,55 @@ function recordDeletedMaterialIds(ids: string[]): void {
 }
 
 /**
- * Normalize legacy NCERT textbook chapter entries from NOTES -> PDF / BOOK
+ * Normalize legacy misclassified study materials:
+ * - NCERT textbook chapter PDFs from NOTES/QUESTION_BANK -> PDF / BOOK
+ * - Official CBSE Question Bank PDFs from QUESTION_BANK (Important Questions) -> OTHER
  */
 export function normalizeStudyMaterial(item: StudyMaterial): StudyMaterial {
-  if (isNcertTextbookChapter(item) && item.materialType === 'NOTES') {
+  const url = (item.fileUrl || '').toLowerCase();
+  if (
+    (isNcertTextbookChapter(item) && item.materialType === 'NOTES') ||
+    (item.materialType === 'QUESTION_BANK' && url.includes('ncert.nic.in/textbook/pdf/'))
+  ) {
     return {
       ...item,
       materialType: 'PDF',
-      category: item.category === 'NOTES' || !item.category ? 'BOOK' : item.category
+      category: item.category === 'NOTES' || item.category === 'QUESTION_PAPER' || !item.category ? 'BOOK' : item.category
+    };
+  }
+  if (item.materialType === 'QUESTION_BANK' && isExternalQuestionBankResource(item)) {
+    return {
+      ...item,
+      materialType: 'OTHER'
     };
   }
   return item;
 }
 
 /**
- * Ensure newly added featured seed materials (e.g., official Board 2027 Important Questions)
- * are automatically merged into existing local/cloud libraries unless explicitly deleted by staff.
+ * Ensure newly added featured or bundled local seed materials (e.g., official Board 2027
+ * and chapter-wise Important Questions PDFs) are automatically merged into existing
+ * local/cloud libraries unless explicitly deleted by staff.
  */
 export function mergeFeaturedSeedStudyMaterials(list: StudyMaterial[]): StudyMaterial[] {
   const normalizedList = (list || []).map(normalizeStudyMaterial);
   const deletedIds = getDeletedMaterialIdSet();
-  const seedFeatured = SEED_STUDY_MATERIALS.filter((s) => s.isFeatured).map(normalizeStudyMaterial);
-  const seedFeaturedById = new Map<string, StudyMaterial>();
-  seedFeatured.forEach((item) => {
-    seedFeaturedById.set(item.id, item);
-    if (item.materialId) seedFeaturedById.set(item.materialId, item);
+  const seedCurated = SEED_STUDY_MATERIALS.filter(
+    (s) => s.isFeatured || Boolean(s.fileUrl && s.fileUrl.startsWith('/assets/aistudio/'))
+  ).map(normalizeStudyMaterial);
+  const seedCuratedById = new Map<string, StudyMaterial>();
+  seedCurated.forEach((item) => {
+    seedCuratedById.set(item.id, item);
+    if (item.materialId) seedCuratedById.set(item.materialId, item);
   });
 
   const existingIds = new Set<string>();
   const hydrated = normalizedList.map((item) => {
     if (item.id) existingIds.add(item.id);
     if (item.materialId) existingIds.add(item.materialId);
-    const matchingSeed = seedFeaturedById.get(item.id) || (item.materialId ? seedFeaturedById.get(item.materialId) : undefined);
+    const matchingSeed =
+      seedCuratedById.get(item.id) ||
+      (item.materialId ? seedCuratedById.get(item.materialId) : undefined);
     if (matchingSeed) {
       return {
         ...item,
@@ -99,7 +129,7 @@ export function mergeFeaturedSeedStudyMaterials(list: StudyMaterial[]): StudyMat
     return item;
   });
 
-  const missingFeatured = seedFeatured.filter(
+  const missingCurated = seedCurated.filter(
     (item) =>
       !existingIds.has(item.id) &&
       (!item.materialId || !existingIds.has(item.materialId)) &&
@@ -107,7 +137,7 @@ export function mergeFeaturedSeedStudyMaterials(list: StudyMaterial[]): StudyMat
       (!item.materialId || !deletedIds.has(item.materialId))
   );
 
-  return missingFeatured.length > 0 ? [...missingFeatured, ...hydrated] : hydrated;
+  return missingCurated.length > 0 ? [...missingCurated, ...hydrated] : hydrated;
 }
 
 /**

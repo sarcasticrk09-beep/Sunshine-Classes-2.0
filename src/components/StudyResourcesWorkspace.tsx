@@ -1141,12 +1141,12 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
                         </h2>
                       </div>
                       <button
-                        id="btn-featured-open-qbank"
+                        id="btn-featured-open-important-questions"
                         type="button"
                         onClick={() => handleOpenCategory('QUESTION_BANK')}
                         className="min-h-[34px] px-2 -mr-1 rounded-lg text-xs font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-100/80 dark:hover:bg-amber-950/60 inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer transition-colors"
                       >
-                        <span>All Q-Banks</span>
+                        <span>All Important Questions</span>
                         <ArrowRight size={13} />
                       </button>
                     </div>

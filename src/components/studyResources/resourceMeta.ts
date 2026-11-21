@@ -22,7 +22,10 @@ import {
   Sigma
 } from 'lucide-react';
 import { StudyMaterial, StudyMaterialType } from '../../types';
-import { isNcertTextbookChapter } from '../../services/studyMaterialService';
+import {
+  isExternalQuestionBankResource,
+  isNcertTextbookChapter
+} from '../../services/studyMaterialService';
 
 export type LibraryCategoryId =
   | 'QUESTION_BANK'
@@ -52,9 +55,9 @@ export interface LibraryCategoryMeta {
 export const LIBRARY_CATEGORIES: LibraryCategoryMeta[] = [
   {
     id: 'QUESTION_BANK',
-    label: 'Question Banks',
-    shortLabel: 'Q-Banks',
-    description: 'Important questions, MCQs, assertion-reason & case studies',
+    label: 'Important Questions',
+    shortLabel: 'Imp. Questions',
+    description: 'Curated board-exam important questions, chapter-wise solved Q&A & most repeated sets',
     Icon: ClipboardCheck,
     iconClass: 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 border-indigo-200/80 dark:border-indigo-900/60',
     accentBg: 'hover:border-indigo-400 dark:hover:border-indigo-500'
@@ -126,7 +129,7 @@ export const LIBRARY_CATEGORIES: LibraryCategoryMeta[] = [
     id: 'OTHER',
     label: 'Other Resources',
     shortLabel: 'Other',
-    description: 'NCERT solutions, study articles & reference links',
+    description: 'Official CBSE question banks, NCERT solutions, study guides & reference links',
     Icon: FolderOpen,
     iconClass: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
     accentBg: 'hover:border-slate-400 dark:hover:border-slate-500'
@@ -241,6 +244,9 @@ export const getResourceCategoryId = (item: StudyMaterial): LibraryCategoryId =>
   if (isNcertTextbookChapter(item)) return 'PDF';
   const t = (item.materialType || '').toUpperCase();
   const c = (item.category || '').toUpperCase();
+  const url = (item.fileUrl || '').toLowerCase();
+  if (t === 'QUESTION_BANK' && url.includes('ncert.nic.in/textbook/pdf/')) return 'PDF';
+  if (t === 'QUESTION_BANK' && isExternalQuestionBankResource(item)) return 'OTHER';
   if (t === 'NOTES') return 'NOTES';
   if (t === 'PDF' || c === 'BOOK' || c === 'TEXTBOOK') return 'PDF';
   if (t === 'QUESTION_BANK') return 'QUESTION_BANK';
@@ -269,6 +275,9 @@ export const matchesLibraryCategory = (item: StudyMaterial, categoryId: string):
   const target = categoryId.toUpperCase();
   const resolved = getResourceCategoryId(item);
   if (resolved === target) return true;
+  if (target === 'QUESTION_BANK') {
+    return false;
+  }
   if (target === 'NCERT_SOLUTION') {
     return (item.materialType || '').toUpperCase() === 'NCERT_SOLUTION';
   }
@@ -682,11 +691,12 @@ export const parseStudyMaterialFilename = (
   } else if (/\b(?:sample\s*papers?|sqp|model\s*papers?|mock\s*papers?|mock\s*tests?|pre\s*board)\b/i.test(lower)) {
     detectedMaterialType = 'SAMPLE_PAPER';
     detectedTypeTag = 'Sample Paper';
-  } else if (/\b(?:question\s*banks?|q\s*banks?|qbank|important\s*questions?|imp\s*questions?|imp\s*ques|most\s*expected|vvi|mcq|mcqs|case\s*stud(?:y|ies)|assertion|hots)\b/i.test(lower)) {
+  } else if (/\b(?:question\s*banks?|q\s*banks?|qbank)\b/i.test(lower)) {
+    detectedMaterialType = 'OTHER';
+    detectedTypeTag = 'Question Bank';
+  } else if (/\b(?:important\s*questions?|imp\s*questions?|imp\s*ques|most\s*expected|vvi|mcq|mcqs|case\s*stud(?:y|ies)|assertion|hots)\b/i.test(lower)) {
     detectedMaterialType = 'QUESTION_BANK';
-    detectedTypeTag = /\bimportant|imp\s*ques|most\s*expected|vvi\b/i.test(lower)
-      ? 'Important Questions'
-      : 'Question Bank';
+    detectedTypeTag = 'Important Questions';
   } else if (/\b(?:formulas?|cheat\s*sheets?|theorems?|equations?|mind\s*maps?|mindmap)\b/i.test(lower)) {
     detectedMaterialType = 'FORMULA_SHEET';
     detectedTypeTag = 'Formula Sheet';

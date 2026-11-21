@@ -38,7 +38,7 @@ export interface UploadMaterialTypeOption {
 }
 
 export const UPLOAD_MATERIAL_TYPES: UploadMaterialTypeOption[] = [
-  { type: 'QUESTION_BANK', label: 'Question Bank / Important Questions', badgeClass: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300' },
+  { type: 'QUESTION_BANK', label: 'Important Questions', badgeClass: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300' },
   { type: 'SAMPLE_PAPER', label: 'Sample Paper', badgeClass: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' },
   { type: 'PYQ', label: 'Previous Year Paper (PYQ)', badgeClass: 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' },
   { type: 'FORMULA_SHEET', label: 'Formula Sheet', badgeClass: 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300' },

@@ -119,7 +119,7 @@ export const buildCuratedRevisionKit = (
 };
 
 const CATEGORY_URL_SLUG_MAP: Record<LibraryCategoryId, string> = {
-  QUESTION_BANK: 'question-bank',
+  QUESTION_BANK: 'important-questions',
   SAMPLE_PAPER: 'sample-papers',
   PYQ: 'pyqs',
   FORMULA_SHEET: 'formula-sheets',
@@ -133,12 +133,15 @@ const CATEGORY_URL_SLUG_MAP: Record<LibraryCategoryId, string> = {
 };
 
 const URL_SLUG_TO_CATEGORY_MAP: Record<string, LibraryCategoryId> = {
+  'important-questions': 'QUESTION_BANK',
+  'important-question': 'QUESTION_BANK',
+  'importantquestions': 'QUESTION_BANK',
+  'imp-questions': 'QUESTION_BANK',
   'question-bank': 'QUESTION_BANK',
   'questionbank': 'QUESTION_BANK',
   'question-paper': 'QUESTION_BANK',
   'question-papers': 'QUESTION_BANK',
   'questionpaper': 'QUESTION_BANK',
-  'important-questions': 'QUESTION_BANK',
   'sample-paper': 'SAMPLE_PAPER',
   'sample-papers': 'SAMPLE_PAPER',
   'samplepaper': 'SAMPLE_PAPER',
