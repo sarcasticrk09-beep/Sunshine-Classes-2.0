@@ -161,7 +161,7 @@ export const SUBJECT_PRIORITY = [
   'Chemistry',
   'Biology',
   'English',
-  'Social Studies',
+  'Social Science',
   'Hindi',
   'Computer Science',
   'Economics',
@@ -345,6 +345,49 @@ export const matchesClassFilter = (itemClass: string | undefined, selectedClass:
     normalizedItem === 'all' ||
     normalizedItem === 'board specials'
   );
+};
+
+export const IMPORTANT_QUESTIONS_SUBJECT_FILTERS = [
+  'Mathematics',
+  'Science',
+  'Social Science',
+  'History',
+  'English',
+  'Hindi'
+] as const;
+
+export const matchesImportantQuestionsSubject = (
+  item: StudyMaterial,
+  subjectFilter: string
+): boolean => {
+  if (!subjectFilter || subjectFilter === 'ALL') return true;
+  const target = subjectFilter.trim().toLowerCase();
+  const itemSubject = (item.subject || '').trim().toLowerCase();
+
+  if (itemSubject === target) return true;
+
+  if (target === 'social science' || target === 'social studies') {
+    return (
+      itemSubject === 'social science' ||
+      itemSubject === 'social studies' ||
+      itemSubject === 'sst'
+    );
+  }
+
+  if (target === 'history') {
+    const haystack = [
+      item.subject,
+      item.title,
+      item.chapter,
+      ...(item.tags || [])
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    return /\bhistory\b/i.test(haystack);
+  }
+
+  return false;
 };
 
 export const matchesSearchQuery = (item: StudyMaterial, query: string): boolean => {

@@ -68,29 +68,52 @@ function recordDeletedMaterialIds(ids: string[]): void {
 }
 
 /**
+ * Unify equivalent Social Studies / SST subject names to canonical "Social Science"
+ * so duplicate subject folders or filter options never appear.
+ */
+export function normalizeStudyMaterialSubject(subject?: string): string {
+  const trimmed = (subject || '').trim();
+  if (!trimmed) return '';
+  const lower = trimmed.toLowerCase();
+  if (lower === 'social studies' || lower === 'sst' || lower === 'social science') {
+    return 'Social Science';
+  }
+  return trimmed;
+}
+
+/**
  * Normalize legacy misclassified study materials:
+ * - Unify "Social Studies" / "SST" -> "Social Science"
  * - NCERT textbook chapter PDFs from NOTES/QUESTION_BANK -> PDF / BOOK
  * - Official CBSE Question Bank PDFs from QUESTION_BANK (Important Questions) -> OTHER
  */
 export function normalizeStudyMaterial(item: StudyMaterial): StudyMaterial {
-  const url = (item.fileUrl || '').toLowerCase();
+  const normalizedSubject = normalizeStudyMaterialSubject(item.subject);
+  const baseItem =
+    normalizedSubject && normalizedSubject !== item.subject
+      ? { ...item, subject: normalizedSubject }
+      : item;
+  const url = (baseItem.fileUrl || '').toLowerCase();
   if (
-    (isNcertTextbookChapter(item) && item.materialType === 'NOTES') ||
-    (item.materialType === 'QUESTION_BANK' && url.includes('ncert.nic.in/textbook/pdf/'))
+    (isNcertTextbookChapter(baseItem) && baseItem.materialType === 'NOTES') ||
+    (baseItem.materialType === 'QUESTION_BANK' && url.includes('ncert.nic.in/textbook/pdf/'))
   ) {
     return {
-      ...item,
+      ...baseItem,
       materialType: 'PDF',
-      category: item.category === 'NOTES' || item.category === 'QUESTION_PAPER' || !item.category ? 'BOOK' : item.category
+      category:
+        baseItem.category === 'NOTES' || baseItem.category === 'QUESTION_PAPER' || !baseItem.category
+          ? 'BOOK'
+          : baseItem.category
     };
   }
-  if (item.materialType === 'QUESTION_BANK' && isExternalQuestionBankResource(item)) {
+  if (baseItem.materialType === 'QUESTION_BANK' && isExternalQuestionBankResource(baseItem)) {
     return {
-      ...item,
+      ...baseItem,
       materialType: 'OTHER'
     };
   }
-  return item;
+  return baseItem;
 }
 
 /**
