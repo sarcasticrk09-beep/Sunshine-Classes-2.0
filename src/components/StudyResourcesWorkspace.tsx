@@ -39,21 +39,24 @@ import {
   extractChapterInfo,
   extractChapterOrderNumber,
   extractSearchSuggestions,
+  formatSubjectDropdownLabel,
   getCategoryMeta,
   getCategoryPriorityIndex,
+  getSubjectSubcategoryOrder,
   getSubjectSubcategories,
   getSubjectVisualMeta,
-  IMPORTANT_QUESTIONS_SUBJECT_FILTERS,
   LIBRARY_CATEGORIES,
   mapCategoryIdToMaterialType,
   matchesClassFilter,
   matchesImportantQuestionsSubject,
   matchesLibraryCategory,
   matchesSearchQuery,
+  matchesSubjectFilter,
   matchesSubjectSubcategory,
   orderSubjectsByPriority,
   sanitizeElementId,
-  StudyResourceSortMode
+  StudyResourceSortMode,
+  SUBJECT_FILTER_DROPDOWN_OPTIONS
 } from './studyResources/resourceMeta';
 import { ResourcePdfPreviewModal } from './studyResources/ResourcePdfPreviewModal';
 import { RevisionKitModal } from './studyResources/RevisionKitModal';
@@ -444,29 +447,7 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
     }));
   }, [categoryScopedMaterials]);
 
-  const importantQuestionsSubjectOptions = useMemo(() => {
-    if (selectedCategory !== 'QUESTION_BANK') return [];
-    const orderedNames: string[] = [...IMPORTANT_QUESTIONS_SUBJECT_FILTERS];
-    categorySubjects.forEach((sub) => {
-      if (!orderedNames.some((n) => n.toLowerCase() === sub.subject.toLowerCase())) {
-        orderedNames.push(sub.subject);
-      }
-    });
-    return orderedNames.map((subjectName) => ({
-      value: subjectName,
-      label: subjectName,
-      count: categoryScopedMaterials.filter((item) =>
-        matchesImportantQuestionsSubject(item, subjectName)
-      ).length
-    }));
-  }, [selectedCategory, categorySubjects, categoryScopedMaterials]);
-
-  const searchSuggestions = useMemo(
-    () => extractSearchSuggestions(classScopedMaterials, 5),
-    [classScopedMaterials]
-  );
-
-  const subjectScopedDirectoryMaterials = useMemo(() => {
+  const workspaceSubjectScopeMaterials = useMemo(() => {
     if (activeNavTab === 'saved') {
       const savedSet = new Set(bookmarkedIds);
       return publishedMaterials.filter(
@@ -487,38 +468,53 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
       );
     }
 
-    return classScopedMaterials.filter((item) => {
-      if (selectedCategory !== 'ALL' && !matchesLibraryCategory(item, selectedCategory)) {
-        return false;
-      }
-      if (selectedSubject !== 'ALL') {
-        const subjectMatches =
-          selectedCategory === 'QUESTION_BANK'
-            ? matchesImportantQuestionsSubject(item, selectedSubject)
-            : item.subject === selectedSubject;
-        if (!subjectMatches) {
-          return false;
-        }
-      }
-      if (!matchesSearchQuery(item, searchQuery)) {
-        return false;
-      }
-      return true;
-    });
+    return categoryScopedMaterials.filter((item) => matchesSearchQuery(item, searchQuery));
   }, [
     activeNavTab,
     bookmarkedIds,
     allDownloadedIds,
     publishedMaterials,
-    classScopedMaterials,
     selectedClass,
-    selectedCategory,
-    selectedSubject,
-    searchQuery
+    searchQuery,
+    categoryScopedMaterials
   ]);
 
+  const workspaceSubjectFilterOptions = useMemo(() => {
+    const orderedNames: string[] = [...SUBJECT_FILTER_DROPDOWN_OPTIONS];
+    categorySubjects.forEach((sub) => {
+      if (!orderedNames.some((n) => n.toLowerCase() === sub.subject.toLowerCase())) {
+        orderedNames.push(sub.subject);
+      }
+    });
+    return orderedNames.map((subjectName) => ({
+      value: subjectName,
+      label: subjectName,
+      count: workspaceSubjectScopeMaterials.filter((item) =>
+        selectedCategory === 'QUESTION_BANK'
+          ? matchesImportantQuestionsSubject(item, subjectName)
+          : matchesSubjectFilter(item, subjectName)
+      ).length
+    }));
+  }, [categorySubjects, workspaceSubjectScopeMaterials, selectedCategory]);
+
+  const searchSuggestions = useMemo(
+    () => extractSearchSuggestions(classScopedMaterials, 5),
+    [classScopedMaterials]
+  );
+
+  const subjectScopedDirectoryMaterials = useMemo(() => {
+    if (selectedSubject === 'ALL') {
+      return workspaceSubjectScopeMaterials;
+    }
+    return workspaceSubjectScopeMaterials.filter((item) =>
+      selectedCategory === 'QUESTION_BANK'
+        ? matchesImportantQuestionsSubject(item, selectedSubject)
+        : matchesSubjectFilter(item, selectedSubject)
+    );
+  }, [workspaceSubjectScopeMaterials, selectedCategory, selectedSubject]);
+
   const activeSubjectSubcategories = useMemo(() => {
-    if (activeNavTab !== 'browse' || selectedSubject === 'ALL') return [];
+    if (selectedSubject === 'ALL') return [];
     const labels = getSubjectSubcategories(selectedSubject);
     if (labels.length === 0) return [];
     return labels.map((label) => ({
@@ -528,20 +524,16 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
         matchesSubjectSubcategory(item, label)
       ).length
     }));
-  }, [activeNavTab, selectedSubject, subjectScopedDirectoryMaterials]);
+  }, [selectedSubject, subjectScopedDirectoryMaterials]);
 
   const directorySourceMaterials = useMemo(() => {
-    if (
-      activeNavTab !== 'browse' ||
-      selectedSubject === 'ALL' ||
-      selectedSubcategory === 'ALL'
-    ) {
+    if (selectedSubject === 'ALL' || selectedSubcategory === 'ALL') {
       return subjectScopedDirectoryMaterials;
     }
     return subjectScopedDirectoryMaterials.filter((item) =>
       matchesSubjectSubcategory(item, selectedSubcategory)
     );
-  }, [activeNavTab, selectedSubject, selectedSubcategory, subjectScopedDirectoryMaterials]);
+  }, [selectedSubject, selectedSubcategory, subjectScopedDirectoryMaterials]);
 
   const availableChapters = useMemo(() => {
     const chSet = new Set<string>();
@@ -574,6 +566,9 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
             new Date(b.updatedAt || b.createdAt || b.date || 0).getTime() -
             new Date(a.updatedAt || a.createdAt || a.date || 0).getTime();
           if (modDiff !== 0) return modDiff;
+          const subA = getSubjectSubcategoryOrder(a);
+          const subB = getSubjectSubcategoryOrder(b);
+          if (subA !== subB) return subA - subB;
           const chA = extractChapterOrderNumber(a);
           const chB = extractChapterOrderNumber(b);
           if (chA !== chB) return chA - chB;
@@ -584,6 +579,9 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
             new Date(b.createdAt || b.date || b.updatedAt || 0).getTime() -
             new Date(a.createdAt || a.date || a.updatedAt || 0).getTime();
           if (createdDiff !== 0) return createdDiff;
+          const subA = getSubjectSubcategoryOrder(a);
+          const subB = getSubjectSubcategoryOrder(b);
+          if (subA !== subB) return subA - subB;
           const chA = extractChapterOrderNumber(a);
           const chB = extractChapterOrderNumber(b);
           if (chA !== chB) return chA - chB;
@@ -595,6 +593,9 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
         const prioA = getCategoryPriorityIndex(a);
         const prioB = getCategoryPriorityIndex(b);
         if (prioA !== prioB) return prioA - prioB;
+        const subA = getSubjectSubcategoryOrder(a);
+        const subB = getSubjectSubcategoryOrder(b);
+        if (subA !== subB) return subA - subB;
         const chA = extractChapterOrderNumber(a);
         const chB = extractChapterOrderNumber(b);
         if (chA !== chB) return chA - chB;
@@ -1043,33 +1044,55 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
             )}
           </div>
 
-          {/* Horizontal Class Selector Bar */}
-          <div
-            id="sticky-class-tabs-strip"
-            className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5"
-            role="tablist"
-            aria-label="Select Class"
-          >
-            {availableClasses.map((cls) => {
-              const isActive = selectedClass === cls;
-              return (
-                <button
-                  key={cls}
-                  id={`btn-class-tab-${sanitizeElementId(cls)}`}
-                  type="button"
-                  role="tab"
-                  aria-selected={isActive}
-                  onClick={() => setSelectedClass(cls)}
-                  className={`min-h-[34px] px-3 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
-                    isActive
-                      ? 'bg-[#0B2545] dark:bg-amber-500 text-white dark:text-slate-950'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  {cls === 'ALL' ? 'All Classes' : cls}
-                </button>
-              );
-            })}
+          {/* Horizontal Class Selector Bar + Universal Subject Filter Dropdown */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div
+              id="sticky-class-tabs-strip"
+              className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5 min-w-0"
+              role="tablist"
+              aria-label="Select Class"
+            >
+              {availableClasses.map((cls) => {
+                const isActive = selectedClass === cls;
+                return (
+                  <button
+                    key={cls}
+                    id={`btn-class-tab-${sanitizeElementId(cls)}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => setSelectedClass(cls)}
+                    className={`min-h-[34px] px-3 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
+                      isActive
+                        ? 'bg-[#0B2545] dark:bg-amber-500 text-white dark:text-slate-950'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {cls === 'ALL' ? 'All Classes' : cls}
+                  </button>
+                );
+              })}
+            </div>
+
+            <select
+              id="select-study-resources-subject"
+              value={selectedSubject}
+              onChange={(e) => {
+                setSelectedSubject(e.target.value);
+                setSelectedSubcategory('ALL');
+              }}
+              aria-label="Filter study resources by subject"
+              className="h-[34px] px-2.5 rounded-lg bg-white dark:bg-slate-900 border border-amber-300/90 dark:border-amber-700/70 text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-amber-500 cursor-pointer shrink-0 sm:max-w-[230px]"
+            >
+              <option value="ALL">
+                All Subjects ({workspaceSubjectScopeMaterials.length})
+              </option>
+              {workspaceSubjectFilterOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {formatSubjectDropdownLabel(opt.label)} ({opt.count})
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Consolidated 3-Tab Switcher for Student & Embedded Layouts */}
@@ -1573,48 +1596,23 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
                   </div>
                 </div>
 
-                {/* Subject Filter (Important Questions) + Optional Slim Sort / Chapter Row */}
-                {((activeNavTab === 'browse' && selectedCategory === 'QUESTION_BANK') ||
-                  filteredDirectoryMaterials.length > 1) && (
+                {/* Optional Slim Sort / Chapter Row */}
+                {filteredDirectoryMaterials.length > 1 && (
                   <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-0.5">
-                    {activeNavTab === 'browse' && selectedCategory === 'QUESTION_BANK' && (
-                      <select
-                        id="select-important-questions-subject"
-                        value={selectedSubject}
-                        onChange={(e) => {
-                          setSelectedSubject(e.target.value);
-                          setSelectedSubcategory('ALL');
-                        }}
-                        aria-label="Filter Important Questions by subject"
-                        className="h-9 px-2.5 rounded-xl bg-white dark:bg-slate-900 border border-amber-300/90 dark:border-amber-700/70 text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-amber-500 cursor-pointer shrink-0"
-                      >
-                        <option value="ALL">
-                          All Subjects ({categoryScopedMaterials.length})
-                        </option>
-                        {importantQuestionsSubjectOptions.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label} ({opt.count})
-                          </option>
-                        ))}
-                      </select>
-                    )}
+                    <select
+                      id="select-directory-sort"
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as StudyResourceSortMode)}
+                      aria-label="Sort resources"
+                      className="h-9 px-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-amber-500 cursor-pointer shrink-0"
+                    >
+                      <option value="modified">Sort: Modified</option>
+                      <option value="chapter">Order: Chapter</option>
+                      <option value="newest">Order: Newest</option>
+                      <option value="alphabetical">Order: A–Z</option>
+                    </select>
 
-                    {filteredDirectoryMaterials.length > 1 && (
-                      <select
-                        id="select-directory-sort"
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as StudyResourceSortMode)}
-                        aria-label="Sort resources"
-                        className="h-9 px-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-amber-500 cursor-pointer shrink-0"
-                      >
-                        <option value="modified">Sort: Modified</option>
-                        <option value="chapter">Order: Chapter</option>
-                        <option value="newest">Order: Newest</option>
-                        <option value="alphabetical">Order: A–Z</option>
-                      </select>
-                    )}
-
-                    {filteredDirectoryMaterials.length > 1 && availableChapters.length > 1 && (
+                    {availableChapters.length > 1 && (
                       <select
                         id="select-directory-chapter"
                         value={chapterFilter}
@@ -1715,9 +1713,9 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
                       >
                         Show All {selectedSubject}
                       </button>
-                    ) : selectedCategory === 'QUESTION_BANK' && selectedSubject !== 'ALL' ? (
+                    ) : selectedSubject !== 'ALL' ? (
                       <button
-                        id="btn-important-questions-reset-subject"
+                        id="btn-subject-filter-reset"
                         type="button"
                         onClick={() => setSelectedSubject('ALL')}
                         className="min-h-[40px] px-4 rounded-xl bg-amber-500 text-white text-xs font-semibold cursor-pointer"

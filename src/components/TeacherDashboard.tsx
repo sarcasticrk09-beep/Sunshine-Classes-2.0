@@ -35,6 +35,11 @@ import { CloudinaryUpload } from './CloudinaryUpload';
 import { StudyMaterialCMS } from './StudyMaterialCMS';
 import { SyncStatusBadge } from './SyncStatusBadge';
 import SunshineLogo from './SunshineLogo';
+import {
+  formatSubjectDropdownLabel,
+  matchesSubjectLabel,
+  SUBJECT_FILTER_DROPDOWN_OPTIONS,
+} from './studyResources/resourceMeta';
 
 interface TeacherDashboardProps {
   teacher: Teacher;
@@ -103,6 +108,9 @@ export default function TeacherDashboard({
   const [filterHwClass, setFilterHwClass] = useState('All');
   const [filterHwSubject, setFilterHwSubject] = useState('All');
   const [filterHwDate, setFilterHwDate] = useState('');
+  const [filterReviewSubject, setFilterReviewSubject] = useState('ALL');
+  const [filterTestSubject, setFilterTestSubject] = useState('ALL');
+  const [filterScheduleSubject, setFilterScheduleSubject] = useState('ALL');
   const [editingHomework, setEditingHomework] = useState<Homework | null>(null);
   const [editHwTitle, setEditHwTitle] = useState('');
   const [editHwDesc, setEditHwDesc] = useState('');
@@ -879,9 +887,11 @@ export default function TeacherDashboard({
                       onChange={(e) => setHwSubject(e.target.value)}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-emerald-700 focus:bg-white"
                     >
-                      <option value="Mathematics">Mathematics</option>
-                      <option value="Science">Science (Phy/Chem/Bio)</option>
-                      <option value="English">English</option>
+                      {SUBJECT_FILTER_DROPDOWN_OPTIONS.map((subj) => (
+                        <option key={subj} value={subj}>
+                          {formatSubjectDropdownLabel(subj)}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -1005,9 +1015,11 @@ export default function TeacherDashboard({
                       className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-700 outline-none focus:border-emerald-700"
                     >
                       <option value="All">All Subjects</option>
-                      <option value="Mathematics">Mathematics</option>
-                      <option value="Science">Science</option>
-                      <option value="English">English</option>
+                      {SUBJECT_FILTER_DROPDOWN_OPTIONS.map((subj) => (
+                        <option key={subj} value={subj}>
+                          {formatSubjectDropdownLabel(subj)}
+                        </option>
+                      ))}
                     </select>
 
                     {/* Filter Date */}
@@ -1029,7 +1041,11 @@ export default function TeacherDashboard({
                     if (!isMyHw) return false;
                     
                     const matchesClass = filterHwClass === 'All' || hw.class === filterHwClass;
-                    const matchesSubject = filterHwSubject === 'All' || hw.subject === filterHwSubject;
+                    const matchesSubject = matchesSubjectLabel(
+                      hw.subject,
+                      filterHwSubject,
+                      `${hw.title} ${hw.description}`
+                    );
                     const matchesDate = !filterHwDate || hw.date === filterHwDate || hw.dueDate === filterHwDate;
                     return matchesClass && matchesSubject && matchesDate;
                   });
@@ -1177,9 +1193,11 @@ export default function TeacherDashboard({
                           onChange={(e) => setEditHwSubject(e.target.value)}
                           className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-emerald-700 focus:bg-white"
                         >
-                          <option value="Mathematics">Mathematics</option>
-                          <option value="Science">Science (Phy/Chem/Bio)</option>
-                          <option value="English">English</option>
+                          {SUBJECT_FILTER_DROPDOWN_OPTIONS.map((subj) => (
+                            <option key={subj} value={subj}>
+                              {formatSubjectDropdownLabel(subj)}
+                            </option>
+                          ))}
                         </select>
                       </div>
 
@@ -1287,11 +1305,51 @@ export default function TeacherDashboard({
           {/* TAB 4: HOMEWORK REVIEW SUBMISSIONS */}
           {activeTab === 'homework-review' && (
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h3 className="font-display font-bold text-base text-slate-800 mb-1">Homework Submissions Waiting Evaluation</h3>
-              <p className="text-xs text-slate-500 mb-6">Review student homework answers, give numerical/grading feedback, and add supportive guidelines remarks.</p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+                <div>
+                  <h3 className="font-display font-bold text-base text-slate-800 mb-1">Homework Submissions Waiting Evaluation</h3>
+                  <p className="text-xs text-slate-500">Review student homework answers, give numerical/grading feedback, and add supportive guidelines remarks.</p>
+                </div>
+                <select
+                  id="select-teacher-review-subject"
+                  value={filterReviewSubject}
+                  onChange={(e) => setFilterReviewSubject(e.target.value)}
+                  aria-label="Filter homework submissions by subject"
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-emerald-700 focus:bg-white cursor-pointer shrink-0"
+                >
+                  <option value="ALL">All Subjects</option>
+                  {SUBJECT_FILTER_DROPDOWN_OPTIONS.map((subj) => (
+                    <option key={subj} value={subj}>
+                      {formatSubjectDropdownLabel(subj)}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <div className="space-y-4">
-                {relevantSubmissions.map((sub, idx) => {
+                {(() => {
+                  const filteredSubmissions = relevantSubmissions.filter((sub) => {
+                    if (filterReviewSubject === 'ALL') return true;
+                    const origHw = homeworkList.find((h) => h.id === sub.homeworkId);
+                    if (!origHw) return false;
+                    return matchesSubjectLabel(
+                      origHw.subject,
+                      filterReviewSubject,
+                      `${origHw.title} ${origHw.description}`
+                    );
+                  });
+
+                  if (filteredSubmissions.length === 0) {
+                    return (
+                      <p className="text-xs text-slate-500 text-center py-6">
+                        {filterReviewSubject === 'ALL'
+                          ? 'No assignments have been submitted yet.'
+                          : `No homework submissions found for ${filterReviewSubject}.`}
+                      </p>
+                    );
+                  }
+
+                  return filteredSubmissions.map((sub, idx) => {
                   const origHw = homeworkList.find((h) => h.id === sub.homeworkId);
                   return (
                     <motion.div
@@ -1480,10 +1538,8 @@ export default function TeacherDashboard({
                       </div>
                     </motion.div>
                   );
-                })}
-                {relevantSubmissions.length === 0 && (
-                  <p className="text-xs text-slate-500 text-center py-6">No assignments have been submitted yet.</p>
-                )}
+                });
+                })()}
               </div>
 
               {/* Review Input Section Modal */}
@@ -1591,9 +1647,11 @@ export default function TeacherDashboard({
                         onChange={(e) => setTestSubject(e.target.value)}
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-emerald-700 focus:bg-white"
                       >
-                        <option value="Mathematics">Mathematics</option>
-                        <option value="Science">Science</option>
-                        <option value="English">English</option>
+                        {SUBJECT_FILTER_DROPDOWN_OPTIONS.map((subj) => (
+                          <option key={subj} value={subj}>
+                            {formatSubjectDropdownLabel(subj)}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
@@ -1665,51 +1723,83 @@ export default function TeacherDashboard({
 
               {/* Test Grading List */}
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 className="font-display font-bold text-base text-slate-800 mb-4">Enter Student Grades & Marks</h3>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {tests.map((test, idx) => (
-                    <motion.div
-                      key={test.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.25, delay: Math.min(idx * 0.04, 0.4) }}
-                      className="rounded-xl border border-slate-100 p-4 hover:border-slate-300 transition-all flex flex-col justify-between"
-                    >
-                      <div>
-                        <div className="flex justify-between items-start gap-2 mb-1">
-                          <span className="text-[9px] font-black text-brand-blue uppercase">
-                            {test.class} • {test.subject}
-                          </span>
-                          {test.questionPaperUrl && (
-                            <button
-                              id={`btn-view-paper-${test.id}`}
-                              type="button"
-                              onClick={() => {
-                                setViewerFileUrl(test.questionPaperUrl!);
-                                setViewerFileTitle(`Question Paper: ${test.title}`);
-                              }}
-                              className="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md transition cursor-pointer flex items-center gap-1"
-                            >
-                              <FileText size={11} /> Question Paper
-                            </button>
-                          )}
-                        </div>
-                        <h4 className="text-xs font-bold text-slate-800">{test.title}</h4>
-                        <p className="text-[10px] text-slate-500 mt-1">Syllabus: {test.chapter}</p>
-                        <p className="text-[10px] text-slate-400">Total Points: {test.totalMarks} • Date: {test.date}</p>
-                      </div>
-
-                      <button
-                        id={`btn-open-grading-${test.id}`}
-                        onClick={() => handleOpenMarksEntry(test.id)}
-                        className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-slate-50 hover:bg-emerald-700 hover:text-white border border-slate-100 px-3 py-2 text-xs font-bold text-slate-700 transition-colors"
-                      >
-                        <Plus size={14} /> Grade Student Scores
-                      </button>
-                    </motion.div>
-                  ))}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                  <h3 className="font-display font-bold text-base text-slate-800">Enter Student Grades & Marks</h3>
+                  <select
+                    id="select-teacher-tests-subject"
+                    value={filterTestSubject}
+                    onChange={(e) => setFilterTestSubject(e.target.value)}
+                    aria-label="Filter tests by subject"
+                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-emerald-700 focus:bg-white cursor-pointer"
+                  >
+                    <option value="ALL">All Subjects</option>
+                    {SUBJECT_FILTER_DROPDOWN_OPTIONS.map((subj) => (
+                      <option key={subj} value={subj}>
+                        {formatSubjectDropdownLabel(subj)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
+
+                {(() => {
+                  const filteredTests = tests.filter((test) =>
+                    matchesSubjectLabel(test.subject, filterTestSubject, `${test.title} ${test.chapter}`)
+                  );
+
+                  if (filteredTests.length === 0) {
+                    return (
+                      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/40 py-8 text-center text-xs font-semibold text-slate-400">
+                        No tests found for {filterTestSubject === 'ALL' ? 'your account' : filterTestSubject}.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {filteredTests.map((test, idx) => (
+                        <motion.div
+                          key={test.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.25, delay: Math.min(idx * 0.04, 0.4) }}
+                          className="rounded-xl border border-slate-100 p-4 hover:border-slate-300 transition-all flex flex-col justify-between"
+                        >
+                          <div>
+                            <div className="flex justify-between items-start gap-2 mb-1">
+                              <span className="text-[9px] font-black text-brand-blue uppercase">
+                                {test.class} • {test.subject}
+                              </span>
+                              {test.questionPaperUrl && (
+                                <button
+                                  id={`btn-view-paper-${test.id}`}
+                                  type="button"
+                                  onClick={() => {
+                                    setViewerFileUrl(test.questionPaperUrl!);
+                                    setViewerFileTitle(`Question Paper: ${test.title}`);
+                                  }}
+                                  className="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md transition cursor-pointer flex items-center gap-1"
+                                >
+                                  <FileText size={11} /> Question Paper
+                                </button>
+                              )}
+                            </div>
+                            <h4 className="text-xs font-bold text-slate-800">{test.title}</h4>
+                            <p className="text-[10px] text-slate-500 mt-1">Syllabus: {test.chapter}</p>
+                            <p className="text-[10px] text-slate-400">Total Points: {test.totalMarks} • Date: {test.date}</p>
+                          </div>
+
+                          <button
+                            id={`btn-open-grading-${test.id}`}
+                            onClick={() => handleOpenMarksEntry(test.id)}
+                            className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-slate-50 hover:bg-emerald-700 hover:text-white border border-slate-100 px-3 py-2 text-xs font-bold text-slate-700 transition-colors"
+                          >
+                            <Plus size={14} /> Grade Student Scores
+                          </button>
+                        </motion.div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Enter Marks Form Dialog */}
@@ -1804,13 +1894,29 @@ export default function TeacherDashboard({
                     <h3 className="font-display font-bold text-lg text-slate-800">Smart Lecture Scheduler</h3>
                     <p className="text-xs text-slate-500">Add, edit, or remove classroom allocations, lecture timings, and post holiday updates for students.</p>
                   </div>
-                  <button
-                    id="btn-open-add-slot-modal"
-                    onClick={() => setIsAddSlotOpen(true)}
-                    className="rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 py-2.5 shadow flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Plus size={14} /> Add Lecture / Holiday Notice
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      id="select-teacher-schedule-subject"
+                      value={filterScheduleSubject}
+                      onChange={(e) => setFilterScheduleSubject(e.target.value)}
+                      aria-label="Filter lecture schedule by subject"
+                      className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-emerald-700 focus:bg-white cursor-pointer"
+                    >
+                      <option value="ALL">All Subjects</option>
+                      {SUBJECT_FILTER_DROPDOWN_OPTIONS.map((subj) => (
+                        <option key={subj} value={subj}>
+                          {formatSubjectDropdownLabel(subj)}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      id="btn-open-add-slot-modal"
+                      onClick={() => setIsAddSlotOpen(true)}
+                      className="rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 py-2.5 shadow flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Plus size={14} /> Add Lecture / Holiday Notice
+                    </button>
+                  </div>
                 </div>
 
                 {/* Filters */}
@@ -1828,12 +1934,22 @@ export default function TeacherDashboard({
                       </tr>
                     </thead>
                     <tbody className="block md:table-row-group divide-y divide-slate-100 md:divide-y md:divide-slate-50 text-xs">
-                      {timetableList.length === 0 ? (
-                        <tr className="block md:table-row">
-                          <td colSpan={7} className="p-8 text-center text-slate-400 font-medium block md:table-cell">No schedule slots registered in Sunshine Classes database yet.</td>
-                        </tr>
-                      ) : (
-                        timetableList.map((entry, idx) => (
+                      {(() => {
+                        const filteredTimetable = timetableList.filter((entry) =>
+                          matchesSubjectLabel(entry.subject, filterScheduleSubject)
+                        );
+                        if (filteredTimetable.length === 0) {
+                          return (
+                            <tr className="block md:table-row">
+                              <td colSpan={7} className="p-8 text-center text-slate-400 font-medium block md:table-cell">
+                                {filterScheduleSubject === 'ALL'
+                                  ? 'No schedule slots registered in Sunshine Classes database yet.'
+                                  : `No schedule slots found for ${filterScheduleSubject}.`}
+                              </td>
+                            </tr>
+                          );
+                        }
+                        return filteredTimetable.map((entry, idx) => (
                           <motion.tr
                             key={entry.id}
                             initial={{ opacity: 0, y: 6 }}
@@ -1875,8 +1991,8 @@ export default function TeacherDashboard({
                               </button>
                             </td>
                           </motion.tr>
-                        ))
-                      )}
+                        ));
+                      })()}
                     </tbody>
                   </table>
                 </div>
@@ -1929,8 +2045,10 @@ export default function TeacherDashboard({
                             onChange={(e) => setSlotSubject(e.target.value)}
                             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 outline-none focus:border-emerald-700 focus:bg-white"
                           >
-                            {['Mathematics', 'Science (Phy/Chem/Bio)', 'English Literature & Grammar', 'Social Studies', 'Physics', 'Chemistry', 'Biology'].map(s => (
-                              <option key={s} value={s}>{s}</option>
+                            {SUBJECT_FILTER_DROPDOWN_OPTIONS.map((subj) => (
+                              <option key={subj} value={subj}>
+                                {formatSubjectDropdownLabel(subj)}
+                              </option>
                             ))}
                           </select>
                         </div>

@@ -21,6 +21,8 @@ import {
   UPLOAD_MATERIAL_TYPES
 } from './studyResources/StudyMaterialUploadModal';
 import {
+  formatSubjectDropdownLabel,
+  matchesSubjectFilter,
   UPLOAD_CLASSES_LIST,
   UPLOAD_SUBJECTS_LIST
 } from './studyResources/resourceMeta';
@@ -246,7 +248,7 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
       const matchClass = selectedClass === 'ALL' || m.class === selectedClass;
 
       // Subject Filter
-      const matchSubject = selectedSubject === 'ALL' || m.subject === selectedSubject;
+      const matchSubject = matchesSubjectFilter(m, selectedSubject);
 
       // Type Filter
       const matchType = selectedType === 'ALL' || m.materialType === selectedType;
@@ -535,7 +537,7 @@ export const StudyMaterialCMS: React.FC<StudyMaterialCMSProps> = ({ currentUser,
               id="select-filter-subject"
             >
               <option value="ALL">All Subjects</option>
-              {SUBJECTS_LIST.map(s => <option key={s} value={s}>{s}</option>)}
+              {SUBJECTS_LIST.map(s => <option key={s} value={s}>{formatSubjectDropdownLabel(s)}</option>)}
             </select>
 
             <select

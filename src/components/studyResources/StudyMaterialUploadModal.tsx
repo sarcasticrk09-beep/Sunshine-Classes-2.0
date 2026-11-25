@@ -26,6 +26,7 @@ import {
   User
 } from '../../types';
 import {
+  formatSubjectDropdownLabel,
   parseStudyMaterialFilename,
   UPLOAD_CLASSES_LIST,
   UPLOAD_SUBJECTS_LIST
@@ -1190,7 +1191,7 @@ export const StudyMaterialUploadModal: React.FC<StudyMaterialUploadModalProps> =
                   >
                     {subjectOptions.map((s) => (
                       <option key={s} value={s}>
-                        {s}
+                        {formatSubjectDropdownLabel(s)}
                       </option>
                     ))}
                   </select>
@@ -1339,7 +1340,7 @@ export const StudyMaterialUploadModal: React.FC<StudyMaterialUploadModalProps> =
                       >
                         {UPLOAD_SUBJECTS_LIST.map((s) => (
                           <option key={s} value={s}>
-                            {s}
+                            {formatSubjectDropdownLabel(s)}
                           </option>
                         ))}
                       </select>
@@ -1449,7 +1450,7 @@ export const StudyMaterialUploadModal: React.FC<StudyMaterialUploadModalProps> =
                   >
                     {subjectOptions.map((s) => (
                       <option key={s} value={s}>
-                        {s}
+                        {formatSubjectDropdownLabel(s)}
                       </option>
                     ))}
                   </select>

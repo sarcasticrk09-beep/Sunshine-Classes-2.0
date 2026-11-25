@@ -15,6 +15,11 @@ import { AdminMeritManager } from './merit/AdminMeritManager';
 import { AdminCourseManager } from './cms/AdminCourseManager';
 import { FeeReceiptQrScannerModal } from './common/FeeReceiptQrScannerModal';
 import { SyncStatusBadge } from './SyncStatusBadge';
+import {
+  formatSubjectDropdownLabel,
+  matchesSubjectFilter,
+  SUBJECT_FILTER_DROPDOWN_OPTIONS,
+} from './studyResources/resourceMeta';
 import DOMPurify from 'dompurify';
 
 import { motion, AnimatePresence } from 'motion/react';
@@ -2383,6 +2388,7 @@ export default function AdminDashboard({
   const [editingTopper, setEditingTopper] = useState<Topper | null>(null);
   const [showMaterialForm, setShowMaterialForm] = useState(false);
   const [newMaterial, setNewMaterial] = useState<Omit<StudyMaterial, 'id'> | null>(null);
+  const [adminArchiveSubjectFilter, setAdminArchiveSubjectFilter] = useState<string>('ALL');
 
   // Founder and Member CMS State Variables
   const [showFounderForm, setShowFounderForm] = useState(false);
@@ -12043,35 +12049,51 @@ ${data.log}`
                     <h3 className="font-display font-black text-base text-slate-800">Universal Notes & Previous Question Papers Archive</h3>
                     <p className="text-xs text-slate-500 mt-0.5">Publish reference study notes, formulas sheets, and board mock question papers.</p>
                   </div>
-                  <button
-                    id="admin-btn-add-mat-trigger"
-                    onClick={() => {
-                      setNewMaterial({
-                        title: '',
-                        slug: '',
-                        description: '',
-                        desc: '',
-                        subject: 'Mathematics',
-                        class: 'Class 10',
-                        category: 'NOTES',
-                        materialType: 'NOTES',
-                        isPublic: true,
-                        status: 'PUBLISHED',
-                        downloadCount: 0,
-                        viewCount: 0,
-                        tags: [],
-                        createdBy: currentUser?.name || 'Admin',
-                        createdAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString(),
-                        file: '',
-                        size: '1.8 MB'
-                      });
-                      setShowMaterialForm(true);
-                    }}
-                    className="rounded-xl bg-indigo-900 text-white text-xs font-bold px-4 py-2 flex items-center gap-1.5 hover:bg-indigo-950 transition-colors cursor-pointer shadow-sm"
-                  >
-                    <Plus size={14} /> Upload Study Material
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <select
+                      id="select-admin-archive-subject"
+                      value={adminArchiveSubjectFilter}
+                      onChange={(e) => setAdminArchiveSubjectFilter(e.target.value)}
+                      aria-label="Filter study material archive by subject"
+                      className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-900 focus:bg-white cursor-pointer"
+                    >
+                      <option value="ALL">All Subjects</option>
+                      {SUBJECT_FILTER_DROPDOWN_OPTIONS.map((subj) => (
+                        <option key={subj} value={subj}>
+                          {formatSubjectDropdownLabel(subj)}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      id="admin-btn-add-mat-trigger"
+                      onClick={() => {
+                        setNewMaterial({
+                          title: '',
+                          slug: '',
+                          description: '',
+                          desc: '',
+                          subject: 'Mathematics',
+                          class: 'Class 10',
+                          category: 'NOTES',
+                          materialType: 'NOTES',
+                          isPublic: true,
+                          status: 'PUBLISHED',
+                          downloadCount: 0,
+                          viewCount: 0,
+                          tags: [],
+                          createdBy: currentUser?.name || 'Admin',
+                          createdAt: new Date().toISOString(),
+                          updatedAt: new Date().toISOString(),
+                          file: '',
+                          size: '1.8 MB'
+                        });
+                        setShowMaterialForm(true);
+                      }}
+                      className="rounded-xl bg-indigo-900 text-white text-xs font-bold px-4 py-2 flex items-center gap-1.5 hover:bg-indigo-950 transition-colors cursor-pointer shadow-sm"
+                    >
+                      <Plus size={14} /> Upload Study Material
+                    </button>
+                  </div>
                 </div>
 
                 {/* Material Upload Form */}
@@ -12118,13 +12140,16 @@ ${data.log}`
                       <div>
                         <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Subject Area</label>
                         <select
+                          id="select-admin-material-subject"
                           value={newMaterial.subject}
                           onChange={e => setNewMaterial({ ...newMaterial, subject: e.target.value })}
                           className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs focus:ring-1 focus:ring-indigo-900 outline-none"
                         >
-                          <option value="Mathematics">Mathematics</option>
-                          <option value="Science">Science</option>
-                          <option value="English">English</option>
+                          {SUBJECT_FILTER_DROPDOWN_OPTIONS.map((subj) => (
+                            <option key={subj} value={subj}>
+                              {formatSubjectDropdownLabel(subj)}
+                            </option>
+                          ))}
                         </select>
                       </div>
                       <div>
@@ -12252,14 +12277,22 @@ ${data.log}`
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {studyMaterials.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="p-6 text-center text-slate-400 text-xs italic">
-                            No study materials or documents currently uploaded. Click &ldquo;+ Upload Study Material&rdquo; above to add new resources.
-                          </td>
-                        </tr>
-                      ) : (
-                        studyMaterials.map((item, idx) => (
+                      {(() => {
+                        const filteredArchiveMaterials = studyMaterials.filter((item) =>
+                          matchesSubjectFilter(item, adminArchiveSubjectFilter)
+                        );
+                        if (filteredArchiveMaterials.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={5} className="p-6 text-center text-slate-400 text-xs italic">
+                                {adminArchiveSubjectFilter === 'ALL'
+                                  ? 'No study materials or documents currently uploaded. Click "+ Upload Study Material" above to add new resources.'
+                                  : `No study materials found for ${adminArchiveSubjectFilter}.`}
+                              </td>
+                            </tr>
+                          );
+                        }
+                        return filteredArchiveMaterials.map((item, idx) => (
                         <motion.tr
                           key={item.id}
                           initial={{ opacity: 0, y: 6 }}
@@ -12302,8 +12335,8 @@ ${data.log}`
                             </button>
                           </td>
                         </motion.tr>
-                        ))
-                      )}
+                        ));
+                      })()}
                     </tbody>
                   </table>
                 </div>

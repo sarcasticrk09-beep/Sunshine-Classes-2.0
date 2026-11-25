@@ -51,6 +51,11 @@ import { generateReceiptPdf, generatePaymentHistoryPdf } from '../lib/pdfGenerat
 import { EnrollmentWizard } from './admissions/EnrollmentWizard';
 import { SyncStatusBadge } from './SyncStatusBadge';
 import { StudyResourcesWorkspace } from './StudyResourcesWorkspace';
+import {
+  formatSubjectDropdownLabel,
+  matchesSubjectLabel,
+  SUBJECT_FILTER_DROPDOWN_OPTIONS,
+} from './studyResources/resourceMeta';
 
 interface StudentDashboardProps {
   student: Student;
@@ -129,6 +134,9 @@ export default function StudentDashboard({
   const [hwFileUrl, setHwFileUrl] = useState('');
   const [bulletinInputText, setBulletinInputText] = useState('');
   const [expandedBulletinReads, setExpandedBulletinReads] = useState<Record<string, boolean>>({});
+  const [hwSubjectFilter, setHwSubjectFilter] = useState<string>('ALL');
+  const [performanceSubjectFilter, setPerformanceSubjectFilter] = useState<string>('ALL');
+  const [timetableSubjectFilter, setTimetableSubjectFilter] = useState<string>('ALL');
 
   const mySubscription = subscriptions.find(s => s.studentId === student.id);
   const defaultBatchId = mySubscription?.batchId || 'b2';
@@ -2244,47 +2252,83 @@ export default function StudentDashboard({
 
               {/* Subject wise marks breakout */}
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 className="font-display font-bold text-base text-slate-800 mb-4">Class 10 Board Assessment Log</h3>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                  <h3 className="font-display font-bold text-base text-slate-800">Class 10 Board Assessment Log</h3>
+                  <select
+                    id="select-student-performance-subject"
+                    value={performanceSubjectFilter}
+                    onChange={(e) => setPerformanceSubjectFilter(e.target.value)}
+                    aria-label="Filter assessments by subject"
+                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-600 focus:bg-white cursor-pointer"
+                  >
+                    <option value="ALL">All Subjects</option>
+                    {SUBJECT_FILTER_DROPDOWN_OPTIONS.map((subj) => (
+                      <option key={subj} value={subj}>
+                        {formatSubjectDropdownLabel(subj)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
                 <div className="space-y-4">
-                  {myMarks.map((m) => {
-                    const testObj = tests.find((t) => t.id === m.testId);
-                    if (!testObj) return null;
-                    const pct = Math.round((m.marksObtained / testObj.totalMarks) * 100);
+                  {(() => {
+                    const filteredMarks = myMarks.filter((m) => {
+                      const testObj = tests.find((t) => t.id === m.testId);
+                      if (!testObj) return false;
+                      return matchesSubjectLabel(
+                        testObj.subject,
+                        performanceSubjectFilter,
+                        `${testObj.title} ${testObj.chapter}`
+                      );
+                    });
 
-                    return (
-                      <div key={m.id} className="rounded-xl border border-slate-100 p-4">
-                        <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-                          <div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{testObj.subject}</span>
-                            <h4 className="text-sm font-bold text-slate-800">{testObj.title}</h4>
-                            <p className="text-[10px] text-slate-500">Topic: {testObj.chapter} • Date: {testObj.date}</p>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-base font-black text-slate-800">{m.marksObtained} / {testObj.totalMarks}</span>
-                            <span className={`block text-[10px] font-bold ${pct >= 90 ? 'text-green-600' : pct >= 75 ? 'text-indigo-600' : 'text-brand-orange'}`}>
-                              {pct}% Marks ({pct >= 90 ? 'Class Leaderboard' : pct >= 75 ? 'First Division' : 'Needs Review'})
-                            </span>
-                          </div>
+                    if (filteredMarks.length === 0) {
+                      return (
+                        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 py-8 text-center text-xs font-semibold text-slate-500">
+                          No assessments found for {performanceSubjectFilter === 'ALL' ? 'your account' : performanceSubjectFilter}.
                         </div>
+                      );
+                    }
 
-                        {/* Progress Bar */}
-                        <div className="mt-3 h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${pct >= 90 ? 'bg-green-500' : pct >= 75 ? 'bg-brand-blue' : 'bg-brand-orange'}`}
-                            style={{ width: `${pct}%` }}
-                          ></div>
-                        </div>
+                    return filteredMarks.map((m) => {
+                      const testObj = tests.find((t) => t.id === m.testId);
+                      if (!testObj) return null;
+                      const pct = Math.round((m.marksObtained / testObj.totalMarks) * 100);
 
-                        {/* Teacher remarks */}
-                        {m.remarks && (
-                          <div className="mt-3 rounded-lg bg-blue-50/50 border border-blue-100 p-2.5 text-[11px] text-slate-600 leading-snug">
-                            <strong>Teacher Remarks:</strong> {m.remarks}
+                      return (
+                        <div key={m.id} className="rounded-xl border border-slate-100 p-4">
+                          <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                            <div>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{testObj.subject}</span>
+                              <h4 className="text-sm font-bold text-slate-800">{testObj.title}</h4>
+                              <p className="text-[10px] text-slate-500">Topic: {testObj.chapter} • Date: {testObj.date}</p>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-base font-black text-slate-800">{m.marksObtained} / {testObj.totalMarks}</span>
+                              <span className={`block text-[10px] font-bold ${pct >= 90 ? 'text-green-600' : pct >= 75 ? 'text-indigo-600' : 'text-brand-orange'}`}>
+                                {pct}% Marks ({pct >= 90 ? 'Class Leaderboard' : pct >= 75 ? 'First Division' : 'Needs Review'})
+                              </span>
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    );
-                  })}
+
+                          {/* Progress Bar */}
+                          <div className="mt-3 h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${pct >= 90 ? 'bg-green-500' : pct >= 75 ? 'bg-brand-blue' : 'bg-brand-orange'}`}
+                              style={{ width: `${pct}%` }}
+                            ></div>
+                          </div>
+
+                          {/* Teacher remarks */}
+                          {m.remarks && (
+                            <div className="mt-3 rounded-lg bg-blue-50/50 border border-blue-100 p-2.5 text-[11px] text-slate-600 leading-snug">
+                              <strong>Teacher Remarks:</strong> {m.remarks}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               </div>
             </div>
@@ -2293,15 +2337,44 @@ export default function StudentDashboard({
           {/* TAB 5: HOMEWORK MODULE */}
           {activeTab === 'homework' && (
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="border-b border-slate-100 pb-4 mb-5">
-                <h3 className="font-display font-black text-lg text-slate-800">Homework & Homework Portfolios</h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  Complete assignments before their due dates to earn high academic credit scores. Cache assignments to view and answer offline.
-                </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4 mb-5">
+                <div>
+                  <h3 className="font-display font-black text-lg text-slate-800">Homework & Homework Portfolios</h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Complete assignments before their due dates to earn high academic credit scores. Cache assignments to view and answer offline.
+                  </p>
+                </div>
+                <select
+                  id="select-student-homework-subject"
+                  value={hwSubjectFilter}
+                  onChange={(e) => setHwSubjectFilter(e.target.value)}
+                  aria-label="Filter homework by subject"
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-600 focus:bg-white cursor-pointer shrink-0"
+                >
+                  <option value="ALL">All Subjects</option>
+                  {SUBJECT_FILTER_DROPDOWN_OPTIONS.map((subj) => (
+                    <option key={subj} value={subj}>
+                      {formatSubjectDropdownLabel(subj)}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-4">
-                {homeworkWithStatus.map((hw) => {
+                {(() => {
+                  const filteredHomework = homeworkWithStatus.filter((hw) =>
+                    matchesSubjectLabel(hw.subject, hwSubjectFilter, `${hw.title} ${hw.description}`)
+                  );
+
+                  if (filteredHomework.length === 0) {
+                    return (
+                      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 py-8 text-center text-xs font-semibold text-slate-500">
+                        No homework assignments found for {hwSubjectFilter === 'ALL' ? 'your class' : hwSubjectFilter}.
+                      </div>
+                    );
+                  }
+
+                  return filteredHomework.map((hw) => {
                   const isCached = downloadedHw.includes(hw.id);
                   return (
                     <div key={hw.id} className="rounded-2xl border border-slate-200 p-5 bg-gradient-to-br from-slate-50/50 to-white hover:border-blue-200 transition-all duration-200 shadow-3xs">
@@ -2490,9 +2563,10 @@ export default function StudentDashboard({
                           <p className="text-xs text-slate-600 italic">"{hw.submission.remarks}"</p>
                         </div>
                       )}
-                    </div>
+                      </div>
                   );
-                })}
+                });
+                })()}
               </div>
             </div>
           )}
@@ -3580,20 +3654,43 @@ export default function StudentDashboard({
 
             {/* Weekly Timetable Entries */}
             <div>
-              <h4 className="font-display font-black text-xs text-slate-400 uppercase tracking-wider mb-3">Weekly Lecture Schedule</h4>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                <h4 className="font-display font-black text-xs text-slate-400 uppercase tracking-wider">Weekly Lecture Schedule</h4>
+                <select
+                  id="select-student-timetable-subject"
+                  value={timetableSubjectFilter}
+                  onChange={(e) => setTimetableSubjectFilter(e.target.value)}
+                  aria-label="Filter weekly schedule by subject"
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-600 focus:bg-white cursor-pointer"
+                >
+                  <option value="ALL">All Subjects</option>
+                  {SUBJECT_FILTER_DROPDOWN_OPTIONS.map((subj) => (
+                    <option key={subj} value={subj}>
+                      {formatSubjectDropdownLabel(subj)}
+                    </option>
+                  ))}
+                </select>
+              </div>
               
               {(() => {
                 const myTimetable = timetableList.filter(entry => 
-                  entry.className.toLowerCase() === student.class.toLowerCase()
+                  entry.className.toLowerCase() === student.class.toLowerCase() &&
+                  matchesSubjectLabel(entry.subject, timetableSubjectFilter)
                 );
 
                 if (myTimetable.length === 0) {
                   return (
                     <div className="text-center py-8 rounded-2xl bg-slate-50/60 border border-dashed border-slate-200">
                       <Calendar size={28} className="text-slate-300 mx-auto mb-2" />
-                      <p className="text-xs font-black text-slate-600">No Custom Lectures Logged</p>
+                      <p className="text-xs font-black text-slate-600">
+                        {timetableSubjectFilter === 'ALL'
+                          ? 'No Custom Lectures Logged'
+                          : `No Lectures Found for ${timetableSubjectFilter}`}
+                      </p>
                       <p className="text-[10px] text-slate-400 mt-0.5 max-w-sm mx-auto">
-                        Refer to standard session timetables distributed by the Sunshine Academic Office.
+                        {timetableSubjectFilter === 'ALL'
+                          ? 'Refer to standard session timetables distributed by the Sunshine Academic Office.'
+                          : 'Switch back to All Subjects to view your complete weekly lecture schedule.'}
                       </p>
                     </div>
                   );

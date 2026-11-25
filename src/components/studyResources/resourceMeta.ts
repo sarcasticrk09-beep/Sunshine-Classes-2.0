@@ -23,6 +23,10 @@ import {
 } from 'lucide-react';
 import { StudyMaterial, StudyMaterialType } from '../../types';
 import {
+  classifyScienceSubcategory,
+  classifySocialScienceSubcategory,
+  detectScienceChapterMeta,
+  detectSocialScienceChapterMeta,
   isExternalQuestionBankResource,
   isNcertTextbookChapter
 } from '../../services/studyMaterialService';
@@ -154,17 +158,28 @@ export const LIBRARY_CATEGORIES: LibraryCategoryMeta[] = [
   }
 ];
 
-export const SUBJECT_PRIORITY = [
+export const SUBJECT_FILTER_DROPDOWN_OPTIONS = [
   'Mathematics',
   'Science',
   'Physics',
   'Chemistry',
   'Biology',
-  'English',
   'Social Science',
-  'Hindi',
-  'Computer Science',
+  'History',
+  'Geography',
+  'Civics',
   'Economics',
+  'English',
+  'English Language',
+  'English Literature',
+  'Hindi',
+  'Hindi Language',
+  'Hindi Literature'
+] as const;
+
+export const SUBJECT_PRIORITY = [
+  ...SUBJECT_FILTER_DROPDOWN_OPTIONS,
+  'Computer Science',
   'Accountancy',
   'Business Studies'
 ];
@@ -198,20 +213,40 @@ export const UPLOAD_CLASSES_LIST = [
 ];
 
 export const UPLOAD_SUBJECTS_LIST = [
-  'Mathematics',
-  'Science',
-  'Physics',
-  'Chemistry',
-  'Biology',
-  'English',
-  'Social Science',
-  'Hindi',
+  ...SUBJECT_FILTER_DROPDOWN_OPTIONS,
   'Computer Science',
-  'Economics',
   'Accountancy',
   'Business Studies',
   'General Knowledge'
 ];
+
+export const LANGUAGE_SUBJECT_SUBCATEGORIES = new Set([
+  'english language',
+  'english literature',
+  'hindi language',
+  'hindi literature'
+]);
+
+export const SUBJECT_DROPDOWN_SUBCATEGORIES = new Set([
+  'physics',
+  'chemistry',
+  'biology',
+  'history',
+  'geography',
+  'civics',
+  'economics',
+  'english language',
+  'english literature',
+  'hindi language',
+  'hindi literature'
+]);
+
+export const formatSubjectDropdownLabel = (subject: string): string => {
+  if (SUBJECT_DROPDOWN_SUBCATEGORIES.has(subject.trim().toLowerCase())) {
+    return `↳ ${subject}`;
+  }
+  return subject;
+};
 
 export const mapCategoryIdToMaterialType = (categoryId?: string): StudyMaterial['materialType'] => {
   const norm = (categoryId || '').toUpperCase();
@@ -347,16 +382,10 @@ export const matchesClassFilter = (itemClass: string | undefined, selectedClass:
   );
 };
 
-export const IMPORTANT_QUESTIONS_SUBJECT_FILTERS = [
-  'Mathematics',
-  'Science',
-  'Social Science',
-  'English',
-  'Hindi'
-] as const;
+export const IMPORTANT_QUESTIONS_SUBJECT_FILTERS = SUBJECT_FILTER_DROPDOWN_OPTIONS;
 
 export const SUBJECT_SUBCATEGORIES: Record<string, readonly string[]> = {
-  'social science': ['History', 'Civics', 'Economics', 'Geography'],
+  'social science': ['History', 'Geography', 'Civics', 'Economics'],
   science: ['Physics', 'Biology', 'Chemistry'],
   english: ['English Language', 'English Literature'],
   hindi: ['Hindi Language', 'Hindi Literature']
@@ -371,21 +400,36 @@ export const getSubjectSubcategories = (subject?: string): readonly string[] => 
   return SUBJECT_SUBCATEGORIES[key] || [];
 };
 
+const SOCIAL_SCIENCE_SUBCATEGORY_ORDER: Record<string, number> = {
+  history: 1,
+  geography: 2,
+  civics: 3,
+  economics: 4
+};
+
+const SCIENCE_SUBCATEGORY_ORDER: Record<string, number> = {
+  physics: 1,
+  biology: 2,
+  chemistry: 3
+};
+
+export const getSocialScienceSubcategoryOrder = (item: StudyMaterial): number => {
+  const sub = classifySocialScienceSubcategory(item);
+  if (!sub) return 0;
+  return SOCIAL_SCIENCE_SUBCATEGORY_ORDER[sub.toLowerCase()] || 99;
+};
+
+export const getSubjectSubcategoryOrder = (item: StudyMaterial): number => {
+  const subjectLower = (item.subject || '').trim().toLowerCase();
+  if (subjectLower === 'science') {
+    const sciSub = classifyScienceSubcategory(item);
+    if (!sciSub) return 0;
+    return SCIENCE_SUBCATEGORY_ORDER[sciSub.toLowerCase()] || 99;
+  }
+  return getSocialScienceSubcategoryOrder(item);
+};
+
 const SUBCATEGORY_KEYWORD_PATTERNS: Record<string, RegExp> = {
-  history:
-    /\b(?:history|nationalism|print\s*culture|global\s*world|industrialisation|french\s*revolution|nazism|russian\s*revolution|pastoralists|forest\s*society|colonialism)\b/i,
-  civics:
-    /\b(?:civics|political\s*science|democratic\s*politics|power[\s-]*sharing|federalism|political\s*parties|outcomes\s*of\s*democracy|gender.*religion.*caste|constitutional\s*design|electoral\s*politics|working\s*of\s*institutions|democratic\s*rights)\b/i,
-  economics:
-    /\b(?:economics?|sectors\s*of.*economy|money\s*(?:&|and)\s*credit|globalisation|consumer\s*rights|palampur|people\s*as\s*resource|poverty|food\s*security|development)\b/i,
-  geography:
-    /\b(?:geography|resources\s*(?:&|and)\s*development|forest\s*(?:&|and)\s*wildlife|water\s*resources|agriculture|minerals|manufacturing\s*industries|lifelines\s*of\s*national\s*economy|climate|drainage|physical\s*features|natural\s*vegetation|map\s*work|map\s*pointing)\b/i,
-  physics:
-    /\b(?:physics|light|reflection|refraction|human\s*eye|electricity|magnetic|motion|force|laws?\s*of\s*motion|gravitation|work\s*(?:&|and)\s*energy|sound|optics|numericals?|electric|ray\s*diagrams?|friction|pressure|heat|stars|solar\s*system|waves|current)\b/i,
-  biology:
-    /\b(?:biology|life\s*processes|control\s*(?:&|and)\s*coordination|reproduc(?:e|tion)|heredity|evolution|our\s*environment|fundamental\s*unit\s*of\s*life|cell|tissues|diversity\s*in\s*living|why\s*do\s*we\s*fall\s*ill|improvement\s*in\s*food|crop\s*production|microorganisms|conservation\s*of\s*plants|nutrition|respiration|transportation\s*in\s*animals|organisms)\b/i,
-  chemistry:
-    /\b(?:chemistry|chemical\s*reactions?|equations|acids|bases|salts|metals|non[\s-]*metals|carbon|compounds|periodic|matter\s*in\s*our\s*surroundings|matter\s*around\s*us\s*pure|atoms|molecules|structure\s*of\s*the\s*atom|synthetic\s*fibres|coal|petroleum|combustion|flame|redox)\b/i,
   'english language':
     /\b(?:english\s*language|grammar|writing\s*skills?|comprehension|unseen\s*passage|formal\s*letter|analytical\s*paragraph|tenses|modals|determiners|reported\s*speech|editing|omission|gap\s*filling|notice\s*writing|article\s*writing|essay|vocabulary)\b/i,
   'english literature':
@@ -396,12 +440,43 @@ const SUBCATEGORY_KEYWORD_PATTERNS: Record<string, RegExp> = {
     /(?:\bhindi\s*literature\b|\bsahitya\b|\bkshitij\b|\bkritika\b|\bsparsh\b|\bsanchayan\b|\bvasant\b|\bdurva\b|\baroh\b|\bvitan\b|\bantara\b|\bantaral\b|\bgadya\b|\bpadya\b|\bkavita\b|\bkahani\b|\bsurdas\b|\btulsidas\b|\bkabir\b|\bpremchand\b|साहित्य)/i
 };
 
+const SOCIAL_SCIENCE_SUBCATEGORY_SET = new Set(['history', 'geography', 'civics', 'economics']);
+const SCIENCE_SUBCATEGORY_SET = new Set(['physics', 'biology', 'chemistry']);
+
 export const matchesSubjectSubcategory = (
   item: StudyMaterial,
   subcategory: string
 ): boolean => {
   if (!subcategory || subcategory === 'ALL') return true;
   const key = subcategory.trim().toLowerCase();
+
+  if (SOCIAL_SCIENCE_SUBCATEGORY_SET.has(key)) {
+    const resolved = classifySocialScienceSubcategory(item);
+    return resolved ? resolved.toLowerCase() === key : false;
+  }
+
+  if (SCIENCE_SUBCATEGORY_SET.has(key)) {
+    const resolved = classifyScienceSubcategory(item);
+    return resolved ? resolved.toLowerCase() === key : false;
+  }
+
+  const itemSubjectLower = (item.subject || '').trim().toLowerCase();
+  if (LANGUAGE_SUBJECT_SUBCATEGORIES.has(key)) {
+    if (LANGUAGE_SUBJECT_SUBCATEGORIES.has(itemSubjectLower)) {
+      return itemSubjectLower === key;
+    }
+    const isEnglishKey = key.startsWith('english');
+    const expectedParent = isEnglishKey ? 'english' : 'hindi';
+    if (itemSubjectLower && itemSubjectLower !== expectedParent) {
+      return false;
+    }
+    const titleAndChapter = [item.title, item.chapter].filter(Boolean).join(' ');
+    // Combined board papers like "English Language & Literature" stay under "All"
+    if (/\blanguage\s*(?:&|and)\s*literature\b/i.test(titleAndChapter)) {
+      return false;
+    }
+  }
+
   const pattern = SUBCATEGORY_KEYWORD_PATTERNS[key];
   const primaryText = [
     item.title,
@@ -418,24 +493,154 @@ export const matchesSubjectSubcategory = (
   return primaryText.toLowerCase().includes(key);
 };
 
-export const matchesImportantQuestionsSubject = (
+export const matchesSubjectFilter = (
   item: StudyMaterial,
   subjectFilter: string
 ): boolean => {
-  if (!subjectFilter || subjectFilter === 'ALL') return true;
+  if (!subjectFilter || subjectFilter === 'ALL' || subjectFilter === 'All') return true;
   const target = subjectFilter.trim().toLowerCase();
   const itemSubject = (item.subject || '').trim().toLowerCase();
 
   if (itemSubject === target) return true;
 
-  if (target === 'social science' || target === 'social studies') {
+  if (target === 'science') {
     return (
-      itemSubject === 'social science' ||
-      itemSubject === 'social studies' ||
-      itemSubject === 'sst'
+      itemSubject === 'science' ||
+      itemSubject === 'physics' ||
+      itemSubject === 'chemistry' ||
+      itemSubject === 'biology'
     );
   }
 
+  if (SCIENCE_SUBCATEGORY_SET.has(target)) {
+    return matchesSubjectSubcategory(item, subjectFilter);
+  }
+
+  if (target === 'social science' || target === 'social studies' || target === 'sst') {
+    return (
+      itemSubject === 'social science' ||
+      itemSubject === 'social studies' ||
+      itemSubject === 'sst' ||
+      itemSubject === 'history' ||
+      itemSubject === 'geography' ||
+      itemSubject === 'civics' ||
+      itemSubject === 'political science' ||
+      (itemSubject === 'economics' && /^class\s*(?:[1-9]|10)\b/i.test(item.class || ''))
+    );
+  }
+
+  if (SOCIAL_SCIENCE_SUBCATEGORY_SET.has(target)) {
+    return matchesSubjectSubcategory(item, subjectFilter);
+  }
+
+  if (target === 'english') {
+    return (
+      itemSubject === 'english' ||
+      itemSubject === 'english language' ||
+      itemSubject === 'english literature'
+    );
+  }
+
+  if (target === 'hindi') {
+    return (
+      itemSubject === 'hindi' ||
+      itemSubject === 'hindi language' ||
+      itemSubject === 'hindi literature'
+    );
+  }
+
+  if (LANGUAGE_SUBJECT_SUBCATEGORIES.has(target)) {
+    return matchesSubjectSubcategory(item, subjectFilter);
+  }
+
+  return false;
+};
+
+/**
+ * Lightweight subject + subcategory matcher for Homework, Tests, and Timetable records.
+ */
+export const matchesSubjectLabel = (
+  itemSubject: string | undefined,
+  subjectFilter: string,
+  extraText?: string
+): boolean => {
+  if (!subjectFilter || subjectFilter === 'ALL' || subjectFilter === 'All') return true;
+  const target = subjectFilter.trim().toLowerCase();
+  const subj = (itemSubject || '').trim().toLowerCase();
+  const combined = [itemSubject, extraText].filter(Boolean).join(' ');
+
+  if (subj === target) return true;
+
+  if (target === 'science') {
+    return (
+      subj.startsWith('science') ||
+      subj === 'physics' ||
+      subj === 'chemistry' ||
+      subj === 'biology'
+    );
+  }
+  if (SCIENCE_SUBCATEGORY_SET.has(target)) {
+    if (subj === target) return true;
+    if (subj.startsWith('science')) {
+      const resolved = classifyScienceSubcategory({ subject: 'Science', title: combined });
+      return resolved ? resolved.toLowerCase() === target : false;
+    }
+    return false;
+  }
+
+  if (target === 'social science' || target === 'social studies' || target === 'sst') {
+    return (
+      subj === 'social science' ||
+      subj === 'social studies' ||
+      subj === 'sst' ||
+      subj === 'history' ||
+      subj === 'geography' ||
+      subj === 'civics' ||
+      subj === 'political science' ||
+      subj === 'economics'
+    );
+  }
+  if (SOCIAL_SCIENCE_SUBCATEGORY_SET.has(target)) {
+    if (subj === target) return true;
+    if (subj === 'social science' || subj === 'social studies' || subj === 'sst') {
+      const resolved = classifySocialScienceSubcategory({ subject: 'Social Science', title: combined });
+      return resolved ? resolved.toLowerCase() === target : false;
+    }
+    return false;
+  }
+
+  if (target === 'english') {
+    return subj.startsWith('english');
+  }
+  if (target === 'english language' || target === 'english literature') {
+    if (subj === target) return true;
+    if (subj.startsWith('english')) {
+      const pattern = SUBCATEGORY_KEYWORD_PATTERNS[target];
+      return pattern ? pattern.test(combined) : false;
+    }
+    return false;
+  }
+
+  if (target === 'hindi') {
+    return subj.startsWith('hindi');
+  }
+  if (target === 'hindi language' || target === 'hindi literature') {
+    if (subj === target) return true;
+    if (subj.startsWith('hindi')) {
+      const pattern = SUBCATEGORY_KEYWORD_PATTERNS[target];
+      return pattern ? pattern.test(combined) : false;
+    }
+    return false;
+  }
+
+  return false;
+};
+
+export const matchesImportantQuestionsSubject = (
+  item: StudyMaterial,
+  subjectFilter: string
+): boolean => {
+  if (matchesSubjectFilter(item, subjectFilter)) return true;
   return matchesSubjectSubcategory(item, subjectFilter);
 };
 
@@ -746,8 +951,51 @@ export const parseStudyMaterialFilename = (
     }
   }
 
+  const defaultSubjectLower = (defaults?.defaultSubject || '').trim().toLowerCase();
+  const isDefaultSst =
+    defaultSubjectLower === 'social science' ||
+    defaultSubjectLower === 'social studies' ||
+    defaultSubjectLower === 'sst' ||
+    defaultSubjectLower === 'history' ||
+    defaultSubjectLower === 'geography' ||
+    defaultSubjectLower === 'civics' ||
+    defaultSubjectLower === 'economics';
+  const isDefaultScience =
+    defaultSubjectLower === 'science' ||
+    defaultSubjectLower === 'physics' ||
+    defaultSubjectLower === 'chemistry' ||
+    defaultSubjectLower === 'biology';
+
+  const detectedSstMeta = detectSocialScienceChapterMeta({
+    title: spacedRaw,
+    file: fileName,
+    subject: isDefaultSst ? defaults?.defaultSubject : undefined
+  });
+
+  const detectedScienceMeta = detectedSstMeta
+    ? null
+    : detectScienceChapterMeta({
+        title: spacedRaw,
+        file: fileName,
+        class: detectedClass,
+        subject: isDefaultScience ? defaults?.defaultSubject : undefined
+      });
+
+  if (!detectedClass && detectedScienceMeta) {
+    detectedClass = detectedScienceMeta.className;
+  }
+
+  const effectiveClassForBranch = detectedClass || defaults?.defaultClass || '';
+  const isSeniorSecondaryClass = /^class\s*1[12]\b/i.test(effectiveClassForBranch);
+
   let detectedSubject: string | undefined;
-  if (/\b(?:computer\s*science|comp\s*sci|informatics|python|sql)\b/i.test(lower)) {
+  let detectedScienceBranch: 'Physics' | 'Biology' | 'Chemistry' | undefined;
+  if (detectedSstMeta) {
+    detectedSubject = 'Social Science';
+  } else if (detectedScienceMeta) {
+    detectedSubject = 'Science';
+    detectedScienceBranch = detectedScienceMeta.subcategory;
+  } else if (/\b(?:computer\s*science|comp\s*sci|informatics|python|sql)\b/i.test(lower)) {
     detectedSubject = 'Computer Science';
   } else if (/\b(?:social\s*science|social\s*studies|sst|history|geography|civics|political\s*science)\b/i.test(lower)) {
     detectedSubject = 'Social Science';
@@ -758,19 +1006,59 @@ export const parseStudyMaterialFilename = (
   } else if (/\b(?:mathematics|maths|math|algebra|geometry|trigonometry|calculus|mensuration)\b/i.test(lower)) {
     detectedSubject = 'Mathematics';
   } else if (/\b(?:physics|phy|optics|mechanics|electromagnetism)\b/i.test(lower)) {
-    detectedSubject = 'Physics';
+    if (isSeniorSecondaryClass) {
+      detectedSubject = 'Physics';
+    } else {
+      detectedSubject = 'Science';
+      detectedScienceBranch = 'Physics';
+    }
   } else if (/\b(?:chemistry|chem|organic|inorganic)\b/i.test(lower)) {
-    detectedSubject = 'Chemistry';
+    if (isSeniorSecondaryClass) {
+      detectedSubject = 'Chemistry';
+    } else {
+      detectedSubject = 'Science';
+      detectedScienceBranch = 'Chemistry';
+    }
   } else if (/\b(?:biology|bio|botany|zoology|genetics)\b/i.test(lower)) {
-    detectedSubject = 'Biology';
+    if (isSeniorSecondaryClass) {
+      detectedSubject = 'Biology';
+    } else {
+      detectedSubject = 'Science';
+      detectedScienceBranch = 'Biology';
+    }
   } else if (/\b(?:science|sci)\b/i.test(lower)) {
     detectedSubject = 'Science';
-  } else if (/\b(?:english|eng|grammar|literature)\b/i.test(lower)) {
-    detectedSubject = 'English';
-  } else if (/\b(?:hindi|vyakaran)\b/i.test(lower)) {
-    detectedSubject = 'Hindi';
+  } else if (
+    /\b(?:hindi|vyakaran|sahitya|kshitij|kritika|sparsh|sanchayan|vasant|durva|aroh|vitan|patra\s*lekhan|anuchh?ed|vigyapan|nibandh|samas|alankar|muhavare|padbandh|surdas|tulsidas|kabir|premchand)\b|व्याकरण|साहित्य|भाषा/i.test(
+      spacedRaw
+    )
+  ) {
+    if (/\blanguage\s*(?:&|and)\s*literature\b/i.test(lower)) {
+      detectedSubject = 'Hindi';
+    } else if (SUBCATEGORY_KEYWORD_PATTERNS['hindi literature'].test(spacedRaw)) {
+      detectedSubject = 'Hindi Literature';
+    } else if (SUBCATEGORY_KEYWORD_PATTERNS['hindi language'].test(spacedRaw)) {
+      detectedSubject = 'Hindi Language';
+    } else {
+      detectedSubject = 'Hindi';
+    }
+  } else if (
+    /\b(?:english|eng|grammar|literature|first\s*flight|footprints\s*without\s*feet|beehive|moments|flamingo|vistas|writing\s*skills?|unseen\s*passage|formal\s*letter|analytical\s*paragraph|tenses|reported\s*speech|letter\s*to\s*god|nelson\s*mandela|anne\s*frank)\b/i.test(
+      lower
+    )
+  ) {
+    if (/\blanguage\s*(?:&|and)\s*literature\b/i.test(lower)) {
+      detectedSubject = 'English';
+    } else if (SUBCATEGORY_KEYWORD_PATTERNS['english literature'].test(spacedRaw)) {
+      detectedSubject = 'English Literature';
+    } else if (SUBCATEGORY_KEYWORD_PATTERNS['english language'].test(spacedRaw)) {
+      detectedSubject = 'English Language';
+    } else {
+      detectedSubject = 'English';
+    }
   } else if (/\b(?:economics|econ|macroeconomics|microeconomics)\b/i.test(lower)) {
-    detectedSubject = 'Economics';
+    detectedSubject =
+      detectedClass === 'Class 10' || detectedClass === 'Class 9' ? 'Social Science' : 'Economics';
   } else if (/\b(?:accountancy|accounts|accounting)\b/i.test(lower)) {
     detectedSubject = 'Accountancy';
   }
@@ -786,10 +1074,10 @@ export const parseStudyMaterialFilename = (
   } else if (/\b(?:question\s*banks?|q\s*banks?|qbank)\b/i.test(lower)) {
     detectedMaterialType = 'OTHER';
     detectedTypeTag = 'Question Bank';
-  } else if (/\b(?:important\s*questions?|imp\s*questions?|imp\s*ques|most\s*expected|vvi|mcq|mcqs|case\s*stud(?:y|ies)|assertion|hots)\b/i.test(lower)) {
+  } else if (/\b(?:important\s*questions?|important\s*q\s*&?\s*a|imp\s*questions?|imp\s*ques|imp\s*q\s*&?\s*a|q\s*&\s*a|qa|question\s*answers?|most\s*expected|vvi|mcq|mcqs|case\s*stud(?:y|ies)|assertion|hots)\b/i.test(lower)) {
     detectedMaterialType = 'QUESTION_BANK';
     detectedTypeTag = 'Important Questions';
-  } else if (/\b(?:formulas?|cheat\s*sheets?|theorems?|equations?|mind\s*maps?|mindmap)\b/i.test(lower)) {
+  } else if (/\b(?:formulas?|cheat\s*sheets?|theorems?|equations?\s*(?:sheet|chart|list)|mind\s*maps?|mindmap)\b/i.test(lower)) {
     detectedMaterialType = 'FORMULA_SHEET';
     detectedTypeTag = 'Formula Sheet';
   } else if (/\b(?:worksheets?|dpp|daily\s*practice|practice\s*sheets?)\b/i.test(lower)) {
@@ -816,9 +1104,19 @@ export const parseStudyMaterialFilename = (
   }
 
   let detectedChapter: string | undefined;
-  const chapterMatch = lower.match(/\b(?:chapter|chap|ch|unit)\s*(\d{1,2})\b/i);
-  if (chapterMatch) {
-    detectedChapter = `Chapter ${parseInt(chapterMatch[1], 10)}`;
+  if (detectedSstMeta) {
+    detectedChapter = detectedSstMeta.boardNote
+      ? `${detectedSstMeta.canonicalChapter} (${detectedSstMeta.boardNote})`
+      : detectedSstMeta.canonicalChapter;
+  } else if (detectedScienceMeta) {
+    detectedChapter = detectedScienceMeta.boardNote
+      ? `${detectedScienceMeta.canonicalChapter} (${detectedScienceMeta.boardNote})`
+      : detectedScienceMeta.canonicalChapter;
+  } else {
+    const chapterMatch = lower.match(/\b(?:chapter|chap|ch|unit)\s*(\d{1,2})\b/i);
+    if (chapterMatch) {
+      detectedChapter = `Chapter ${parseInt(chapterMatch[1], 10)}`;
+    }
   }
 
   const tags: string[] = [];
@@ -835,7 +1133,18 @@ export const parseStudyMaterialFilename = (
   };
 
   pushTag(detectedClass || (defaults?.defaultClass && defaults.defaultClass !== 'ALL' ? defaults.defaultClass : undefined));
+  if (detectedSubject === 'English Language' || detectedSubject === 'English Literature') {
+    pushTag('English');
+  } else if (detectedSubject === 'Hindi Language' || detectedSubject === 'Hindi Literature') {
+    pushTag('Hindi');
+  }
   pushTag(detectedSubject || (defaults?.defaultSubject && defaults.defaultSubject !== 'ALL' ? defaults.defaultSubject : undefined));
+  if (detectedSstMeta) {
+    pushTag(detectedSstMeta.subcategory);
+  }
+  if (detectedScienceBranch) {
+    pushTag(detectedScienceBranch);
+  }
   pushTag(detectedTypeTag);
   pushTag(detectedChapter);
 
