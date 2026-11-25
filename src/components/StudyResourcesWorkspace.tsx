@@ -435,6 +435,34 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
   }, [classScopedMaterials, selectedCategory]);
 
   const categorySubjects = useMemo(() => {
+    const coreParents = ['Mathematics', 'Science', 'Social Science', 'English', 'Hindi'];
+    const subcategorySet = new Set(
+      coreParents.flatMap((parent) =>
+        getSubjectSubcategories(parent).map((sub) => sub.toLowerCase())
+      )
+    );
+
+    if (selectedCategory === 'QUESTION_BANK') {
+      const names = [...coreParents];
+      categoryScopedMaterials.forEach((item) => {
+        const sub = item.subject?.trim();
+        if (!sub) return;
+        const lower = sub.toLowerCase();
+        if (
+          !names.some((n) => n.toLowerCase() === lower) &&
+          !subcategorySet.has(lower)
+        ) {
+          names.push(sub);
+        }
+      });
+      return orderSubjectsByPriority(names).map((sub) => ({
+        subject: sub,
+        count: categoryScopedMaterials.filter((item) =>
+          matchesImportantQuestionsSubject(item, sub)
+        ).length
+      }));
+    }
+
     const map = new Map<string, number>();
     categoryScopedMaterials.forEach((item) => {
       const sub = item.subject?.trim();
@@ -445,7 +473,7 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
       subject: sub,
       count: map.get(sub) || 0
     }));
-  }, [categoryScopedMaterials]);
+  }, [categoryScopedMaterials, selectedCategory]);
 
   const workspaceSubjectScopeMaterials = useMemo(() => {
     if (activeNavTab === 'saved') {
@@ -611,7 +639,6 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
   const activeStage: 'categories' | 'category-subjects' | 'directory' = useMemo(() => {
     if (activeNavTab === 'saved' || activeNavTab === 'downloads') return 'directory';
     if (searchQuery.trim() !== '') return 'directory';
-    if (selectedCategory === 'QUESTION_BANK') return 'directory';
     if (selectedSubject !== 'ALL' || viewCategoryFilesDirectly) return 'directory';
     if (selectedCategory !== 'ALL') return 'category-subjects';
     return 'categories';
@@ -828,10 +855,6 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
   const handleDirectoryBack = () => {
     if (searchQuery.trim() !== '') {
       setSearchQuery('');
-      return;
-    }
-    if (selectedCategory === 'QUESTION_BANK') {
-      handleResetToCategories();
       return;
     }
     if (selectedSubject !== 'ALL') {
@@ -1487,6 +1510,7 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
                   <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
                     {categorySubjects.map((sub) => {
                       const { Icon, badgeClass } = getSubjectVisualMeta(sub.subject);
+                      const subcategories = getSubjectSubcategories(sub.subject);
                       return (
                         <button
                           key={sub.subject}
@@ -1501,9 +1525,16 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
                             >
                               <Icon size={17} />
                             </div>
-                            <span className="text-[13px] sm:text-sm font-semibold text-slate-900 dark:text-white truncate">
-                              {sub.subject}
-                            </span>
+                            <div className="min-w-0 flex-1">
+                              <span className="block text-[13px] sm:text-sm font-semibold text-slate-900 dark:text-white truncate">
+                                {sub.subject}
+                              </span>
+                              {subcategories.length > 0 && (
+                                <span className="block text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                                  {subcategories.join(' · ')}
+                                </span>
+                              )}
+                            </div>
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0 text-xs text-slate-500 dark:text-slate-400 tabular-nums">
@@ -1532,7 +1563,7 @@ export const StudyResourcesWorkspace: React.FC<StudyResourcesWorkspaceProps> = (
                         <ArrowLeft size={14} />
                         <span>
                           {selectedCategory === 'QUESTION_BANK' && !searchQuery.trim()
-                            ? 'Categories'
+                            ? 'Subjects'
                             : 'Back'}
                         </span>
                       </button>

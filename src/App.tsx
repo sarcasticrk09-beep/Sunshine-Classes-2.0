@@ -83,7 +83,12 @@ import {
 } from './data';
 
 import { migrateExistingData, generateFeeRecords, getCurrentAndNextMonths } from './lib/feeUtils';
-import { isNcertTextbookChapter, mergeFeaturedSeedStudyMaterials, normalizeStudyMaterial } from './services/studyMaterialService';
+import {
+  deleteStudyMaterial,
+  isNcertTextbookChapter,
+  mergeFeaturedSeedStudyMaterials,
+  normalizeStudyMaterial
+} from './services/studyMaterialService';
 import { safeSetItem, safeGetItem } from './utils/safeLocalStorage';
 import { generateReceiptPdf } from './lib/pdfGenerator';
 import { lazyWithRetry } from './utils/lazyWithRetry';
@@ -1328,27 +1333,28 @@ export default function App() {
       syncState('toppers', SEED_TOPPERS);
     }
 
-    const hadStaleNcertNotes = Array.isArray(loadedStudyMaterials) && loadedStudyMaterials.some(
+    const cleanedLoadedStudyMaterials = Array.isArray(loadedStudyMaterials)
+      ? loadedStudyMaterials.filter((m) => !m.fileUrl?.includes('dummy.pdf'))
+      : [];
+    const hadStaleNcertNotes = cleanedLoadedStudyMaterials.some(
       (m) => m.materialType === 'NOTES' && isNcertTextbookChapter(m)
     );
     const mergedCloudMaterials =
-      !loadedStudyMaterials ||
-      loadedStudyMaterials.length === 0 ||
-      loadedStudyMaterials.some((m) => m.fileUrl?.includes('dummy.pdf'))
+      cleanedLoadedStudyMaterials.length === 0
         ? SEED_STUDY_MATERIALS.map(normalizeStudyMaterial)
-        : mergeFeaturedSeedStudyMaterials(loadedStudyMaterials);
+        : mergeFeaturedSeedStudyMaterials(cleanedLoadedStudyMaterials);
 
     const studyMaterialsChanged =
-      !loadedStudyMaterials ||
-      loadedStudyMaterials.length === 0 ||
+      cleanedLoadedStudyMaterials.length === 0 ||
       hadStaleNcertNotes ||
-      mergedCloudMaterials.length !== loadedStudyMaterials.length ||
-      mergedCloudMaterials.some((m, idx) => m.isFeatured !== loadedStudyMaterials[idx]?.isFeatured);
+      mergedCloudMaterials.length !== cleanedLoadedStudyMaterials.length ||
+      mergedCloudMaterials.some((m, idx) => m.isFeatured !== cleanedLoadedStudyMaterials[idx]?.isFeatured);
 
     const finalStudyMaterials = mergedCloudMaterials;
 
     if (studyMaterialsChanged) {
-      syncState('study_materials', finalStudyMaterials);
+      safeSetItem('sunshine_study_materials', JSON.stringify(finalStudyMaterials));
+      safeSetItem('sunshine_study_materials_initialized', 'true');
     }
 
     setStudents(migratedStudents);
@@ -3168,16 +3174,19 @@ Sunshine Classes`;
   };
 
   const handleAddStudyMaterial = (material: Omit<StudyMaterial, 'id'>) => {
-    const newMaterial: StudyMaterial = {
+    const newId =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `MAT-${Date.now()}`;
+    const newMaterial: StudyMaterial = normalizeStudyMaterial({
       ...material,
-      id: `MAT-${Date.now()}`
-    };
+      id: newId,
+      materialId: newId
+    });
     const updated = [newMaterial, ...studyMaterials];
     setStudyMaterials(updated);
-    syncState('study_materials', updated);
-    SyncService.replaceCollection('study_materials', updated).catch(err => {
-      console.warn('[SyncService] Study material replaceCollection notice:', err);
-    });
+    safeSetItem('sunshine_study_materials', JSON.stringify(updated));
+    safeSetItem('sunshine_study_materials_initialized', 'true');
     SyncService.set('study_materials', newMaterial.id, newMaterial).catch(err => {
       console.warn('[SyncService] Study material set notice:', err);
     });
@@ -3186,11 +3195,9 @@ Sunshine Classes`;
   const handleDeleteStudyMaterial = (id: string) => {
     const updated = studyMaterials.filter(m => m.id !== id);
     setStudyMaterials(updated);
-    syncState('study_materials', updated);
-    SyncService.replaceCollection('study_materials', updated).catch(err => {
-      console.warn('[SyncService] Study material replaceCollection notice:', err);
-    });
-    SyncService.delete('study_materials', id).catch(err => {
+    safeSetItem('sunshine_study_materials', JSON.stringify(updated));
+    safeSetItem('sunshine_study_materials_initialized', 'true');
+    deleteStudyMaterial(id).catch(err => {
       console.warn('[SyncService] Study material delete notice:', err);
     });
   };

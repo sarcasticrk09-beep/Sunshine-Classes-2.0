@@ -6,7 +6,7 @@ This file serves as the strict, permanent system instruction overlay for all AI 
 
 ## 1. Core Development Rules (Pre-Flight Directives)
 
-Any AI assistant modifying this codebase must adhere strictly to these 12 rules:
+Any AI assistant modifying this codebase must adhere strictly to these 13 rules:
 
 1. **Never Redesign the UI**: The user interface is our stable, proven production baseline. Do not make cosmetic, sizing, layout, or structural design changes without explicit permission.
 2. **Preserve Branding**: Retain all logos (`SunshineLogo`), designated brand palettes, typography settings, and visual hierarchies.
@@ -20,6 +20,7 @@ Any AI assistant modifying this codebase must adhere strictly to these 12 rules:
 10. **Make Small commits**: Make logical, atomic updates corresponding to target features instead of one massive, combined file modification.
 11. **Never Remove Features Without Approval**: Do not disable, deprecate, or delete existing features, helpers, visual indicators, or backend endpoints.
 12. **Keep Project Production-Ready**: Keep code compilable at all times. Verify your changes immediately by running `lint_applet` and `compile_applet`.
+13. **Never Delete Uploaded Website Files**: Never delete, reset, or overwrite user-uploaded files or study materials from the main website (`public/uploads`, `public/assets/aistudio`, Supabase Storage, `study_materials` table, or `sync_study_materials` cloud store) when making changes from AI Studio. Always use non-destructive, additive cloud-first merging and never replace persisted collections with seed-only arrays.
 
 ---
 

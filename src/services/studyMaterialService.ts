@@ -992,11 +992,9 @@ export async function getStudyMaterials(): Promise<StudyMaterial[]> {
   try {
     const list = await SyncService.list<StudyMaterial>(COLLECTION_NAME);
     if (Array.isArray(list) && list.length > 0) {
-      const hasDummy = list.some(m => m.fileUrl?.includes('dummy.pdf'));
-      if (hasDummy) {
-        return SEED_STUDY_MATERIALS.map(normalizeStudyMaterial);
-      }
-      const mapped = list.map((data) => normalizeStudyMaterial({
+      const cleanedList = list.filter((m) => !m.fileUrl?.includes('dummy.pdf'));
+      const sourceList = cleanedList.length > 0 ? cleanedList : SEED_STUDY_MATERIALS;
+      const mapped = sourceList.map((data) => normalizeStudyMaterial({
         ...data,
         id: data.id,
         materialId: data.materialId || data.id,
@@ -1010,9 +1008,6 @@ export async function getStudyMaterials(): Promise<StudyMaterial[]> {
     console.warn('Study materials fetch error:', err);
   }
   
-  if (typeof window !== 'undefined' && localStorage.getItem('sunshine_study_materials_initialized') === 'true') {
-    return SEED_STUDY_MATERIALS.map(normalizeStudyMaterial);
-  }
   return SEED_STUDY_MATERIALS.map(normalizeStudyMaterial);
 }
 
@@ -1023,18 +1018,13 @@ export async function getPublicStudyMaterials(): Promise<StudyMaterial[]> {
   try {
     const list = await SyncService.list<StudyMaterial>(COLLECTION_NAME);
     if (Array.isArray(list) && list.length > 0) {
-      const hasDummy = list.some(m => m.fileUrl?.includes('dummy.pdf'));
-      if (hasDummy) {
-        return SEED_STUDY_MATERIALS.map(normalizeStudyMaterial).filter((m) => m.isPublic && m.status === 'PUBLISHED');
-      }
-      return mergeFeaturedSeedStudyMaterials(list)
+      const cleanedList = list.filter((m) => !m.fileUrl?.includes('dummy.pdf'));
+      const sourceList = cleanedList.length > 0 ? cleanedList : SEED_STUDY_MATERIALS;
+      return mergeFeaturedSeedStudyMaterials(sourceList)
         .filter((m) => (m.isPublic === undefined || m.isPublic) && (m.status === undefined || m.status === 'PUBLISHED'));
     }
   } catch (err) {
     console.warn('Error fetching public study materials:', err);
-  }
-  if (typeof window !== 'undefined' && localStorage.getItem('sunshine_study_materials_initialized') === 'true') {
-    return SEED_STUDY_MATERIALS.map(normalizeStudyMaterial).filter((m) => m.isPublic && m.status === 'PUBLISHED');
   }
   return SEED_STUDY_MATERIALS.map(normalizeStudyMaterial).filter((m) => m.isPublic && m.status === 'PUBLISHED');
 }

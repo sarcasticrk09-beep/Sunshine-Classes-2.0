@@ -253,6 +253,23 @@ export function toPostgresRow(collectionName: string, data: any): any {
     mapped.monthly_fee = Number(data.monthlyFee || data.monthly_fee || 0);
     mapped.display_order = Number(data.displayOrder || data.display_order || 1);
     mapped.is_active = data.isActive !== undefined ? !!data.isActive : true;
+  } else if (collectionName === 'study_materials') {
+    const cleanMaterialRow: Record<string, any> = {
+      title: data.title || 'Untitled Resource',
+      class_name: data.class || data.className || data.class_name || 'Class 10',
+      subject: data.subject || 'General',
+      file_url: data.fileUrl || data.file_url || data.externalUrl || data.file || '',
+      file_type: data.materialType || data.fileType || data.file_type || 'PDF',
+      file_size: data.size || data.fileSize || data.file_size || '1.0 MB',
+      uploaded_by: data.uploadedBy || data.createdBy || data.uploaded_by || 'Admin',
+      is_public: data.isPublic !== undefined ? !!data.isPublic : true,
+      download_count: Number(data.downloadCount ?? data.download_count ?? 0),
+      created_at: data.createdAt || data.created_at || new Date().toISOString()
+    };
+    if (data.id && isPostgresUUID(data.id)) {
+      cleanMaterialRow.id = data.id;
+    }
+    return cleanMaterialRow;
   }
 
   // Ensure UUID keys are clean, remove invalid/empty string IDs that PostgreSQL won't accept
@@ -339,9 +356,71 @@ export function fromPostgresRow(collectionName: string, row: any): any {
     mapped.performedBy = row.performed_by;
     mapped.ipAddress = row.ip_address;
     mapped.deviceInfo = row.device_info;
+  } else if (collectionName === 'study_materials') {
+    mapped.materialId = row.id;
+    mapped.class = row.class_name || mapped.class || 'Class 10';
+    mapped.className = row.class_name || mapped.className || 'Class 10';
+    mapped.fileUrl = row.file_url || mapped.fileUrl || '';
+    mapped.file = mapped.file || row.file_url || '';
+    mapped.materialType = row.file_type || mapped.materialType || 'PDF';
+    mapped.size = row.file_size || mapped.size || '1.0 MB';
+    mapped.uploadedBy = row.uploaded_by || mapped.uploadedBy || 'Admin';
+    mapped.createdBy = row.uploaded_by || mapped.createdBy || 'Admin';
+    mapped.isPublic = row.is_public !== undefined ? !!row.is_public : true;
+    mapped.downloadCount = Number(row.download_count ?? 0);
+    mapped.status = mapped.status || 'PUBLISHED';
   }
   
   return mapped;
+}
+
+const DELETED_MATERIALS_LOCAL_KEY = 'sunshine_deleted_study_material_ids';
+
+function getClientDeletedMaterialIds(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem(DELETED_MATERIALS_LOCAL_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? new Set(parsed.map((v: any) => String(v))) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function getItemTimestampMs(item: any): number {
+  const raw = item?.updatedAt || item?.createdAt || item?.date;
+  if (!raw) return 0;
+  const parsed = Date.parse(String(raw));
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function mergeStudyMaterialsSafely(lists: any[][], deletedIds: Set<string>): any[] {
+  const byId = new Map<string, any>();
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    for (const item of list) {
+      if (!item || typeof item !== 'object') continue;
+      if (typeof item.fileUrl === 'string' && item.fileUrl.includes('dummy.pdf')) continue;
+      const id = String(item.id || item.materialId || '').trim();
+      if (!id || deletedIds.has(id)) continue;
+      const existing = byId.get(id);
+      if (!existing) {
+        byId.set(id, item);
+      } else {
+        const existingTs = getItemTimestampMs(existing);
+        const incomingTs = getItemTimestampMs(item);
+        const existingFieldCount = Object.keys(existing).filter((k) => existing[k] !== undefined && existing[k] !== '').length;
+        const incomingFieldCount = Object.keys(item).filter((k) => item[k] !== undefined && item[k] !== '').length;
+        if (incomingTs > existingTs || (incomingTs === existingTs && incomingFieldCount >= existingFieldCount)) {
+          byId.set(id, { ...existing, ...item });
+        } else {
+          byId.set(id, { ...item, ...existing });
+        }
+      }
+    }
+  }
+  return Array.from(byId.values());
 }
 
 class SyncServiceClass {
@@ -556,6 +635,46 @@ class SyncServiceClass {
                 if (error && !isBenignOfflineOrFallbackError(error)) {
                   console.warn(`[Supabase Tx] Update warning on ${tx.collectionName}/${tx.docId}:`, error.message);
                 }
+              }
+            }
+
+            // Mirror full study_materials catalog to Supabase settings JSONB so uploaded files survive every redeploy
+            if (tx.collectionName === 'study_materials') {
+              try {
+                const localSnapshot = this.getLocalList<any>('study_materials');
+                const deletedIds = Array.from(getClientDeletedMaterialIds());
+                const { data: existingCloud } = await supabase
+                  .from('settings')
+                  .select('data')
+                  .eq('id', 'sync_study_materials')
+                  .maybeSingle();
+                const cloudItems = Array.isArray((existingCloud as any)?.data?.items)
+                  ? (existingCloud as any).data.items
+                  : [];
+                const cloudDeleted = Array.isArray((existingCloud as any)?.data?.deletedIds)
+                  ? (existingCloud as any).data.deletedIds.map((v: any) => String(v))
+                  : [];
+                const combinedDeleted = new Set<string>([...deletedIds, ...cloudDeleted]);
+                if (tx.type === 'delete' && tx.docId) {
+                  combinedDeleted.add(String(tx.docId));
+                } else if ((tx.type === 'set' || tx.type === 'add') && tx.docId) {
+                  combinedDeleted.delete(String(tx.docId));
+                }
+                const mergedItems = mergeStudyMaterialsSafely(
+                  [cloudItems, localSnapshot, tx.type === 'set' || tx.type === 'add' || tx.type === 'update' ? [tx.payload] : []],
+                  combinedDeleted
+                );
+                await supabase.from('settings').upsert({
+                  id: 'sync_study_materials',
+                  data: {
+                    items: mergedItems,
+                    deletedIds: Array.from(combinedDeleted),
+                    updatedAt: new Date().toISOString()
+                  },
+                  updated_at: new Date().toISOString()
+                });
+              } catch (mirrorErr) {
+                console.warn('[Supabase Tx] study_materials cloud JSONB mirror notice:', mirrorErr);
               }
             }
           }
@@ -1062,6 +1181,78 @@ class SyncServiceClass {
    * Lists documents in a collection with optional query filtering.
    */
   public async list<T = any>(collectionName: string, ..._unusedConstraints: any[]): Promise<T[]> {
+    // Special non-destructive cloud-first merge for study_materials so redeploys never drop uploaded files
+    if (collectionName === 'study_materials') {
+      const localItems = this.getLocalList<any>('study_materials');
+      const deletedIds = getClientDeletedMaterialIds();
+      let serverItems: any[] = [];
+      let cloudJsonItems: any[] = [];
+      let cloudTableItems: any[] = [];
+
+      try {
+        if (typeof window !== 'undefined') {
+          const res = await fetch(`/api/sync/${encodeURIComponent(collectionName)}`);
+          if (res.ok) {
+            const payload = await res.json();
+            if (payload.success && Array.isArray(payload.data)) {
+              serverItems = payload.data;
+              if (Array.isArray(payload.deletedIds)) {
+                payload.deletedIds.forEach((id: any) => deletedIds.add(String(id)));
+              }
+            }
+          }
+        }
+      } catch {
+        // Non-blocking fallback
+      }
+
+      if (this.shouldAttemptSupabase()) {
+        try {
+          const [settingsRes, tableRes] = await Promise.all([
+            supabase.from('settings').select('data').eq('id', 'sync_study_materials').maybeSingle(),
+            supabase.from('study_materials').select('*')
+          ]);
+          if (!settingsRes.error && (settingsRes.data as any)?.data) {
+            const cloudPayload = (settingsRes.data as any).data;
+            if (Array.isArray(cloudPayload.items)) {
+              cloudJsonItems = cloudPayload.items;
+            }
+            if (Array.isArray(cloudPayload.deletedIds)) {
+              cloudPayload.deletedIds.forEach((id: any) => deletedIds.add(String(id)));
+            }
+            this.recordNetworkSuccess();
+          }
+          if (!tableRes.error && Array.isArray(tableRes.data)) {
+            cloudTableItems = tableRes.data.map((row) => fromPostgresRow('study_materials', row));
+            this.recordNetworkSuccess();
+          }
+        } catch {
+          // Non-blocking fallback
+        }
+      }
+
+      const merged = mergeStudyMaterialsSafely(
+        [serverItems, cloudTableItems, cloudJsonItems, localItems],
+        deletedIds
+      );
+
+      if (merged.length > 0) {
+        safeSetItem(`sunshine_${collectionName}`, JSON.stringify(merged));
+        safeSetItem(`sunshine_${collectionName}_initialized`, 'true');
+        if (!this.cache.has(collectionName)) {
+          this.cache.set(collectionName, new Map());
+        }
+        const colCache = this.cache.get(collectionName)!;
+        colCache.clear();
+        merged.forEach((item: any) => {
+          const itemId = item.id || item.materialId;
+          if (itemId) colCache.set(String(itemId), item);
+        });
+        return merged as T[];
+      }
+      return this.getSeedFallback<T>(collectionName);
+    }
+
     // 1. First, check persistent server sync API
     try {
       if (typeof window !== 'undefined') {

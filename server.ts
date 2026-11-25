@@ -4001,10 +4001,171 @@ How can I help you towards your academic success today? Feel free to ask!`;
     }
   });
 
-  app.get("/api/sync/:collection", (req, res) => {
+  const mergeMaterialListsServer = (lists: any[][], deletedIds: Set<string>): any[] => {
+    const byId = new Map<string, any>();
+    for (const list of lists) {
+      if (!Array.isArray(list)) continue;
+      for (const item of list) {
+        if (!item || typeof item !== "object") continue;
+        if (typeof item.fileUrl === "string" && item.fileUrl.includes("dummy.pdf")) continue;
+        const id = String(item.id || item.materialId || "").trim();
+        if (!id || deletedIds.has(id)) continue;
+        const existing = byId.get(id);
+        if (!existing) {
+          byId.set(id, item);
+        } else {
+          const prevTs = Date.parse(String(existing.updatedAt || existing.createdAt || existing.date || 0)) || 0;
+          const nextTs = Date.parse(String(item.updatedAt || item.createdAt || item.date || 0)) || 0;
+          const prevFields = Object.keys(existing).filter((k) => existing[k] !== undefined && existing[k] !== "").length;
+          const nextFields = Object.keys(item).filter((k) => item[k] !== undefined && item[k] !== "").length;
+          if (nextTs > prevTs || (nextTs === prevTs && nextFields >= prevFields)) {
+            byId.set(id, { ...existing, ...item });
+          } else {
+            byId.set(id, { ...item, ...existing });
+          }
+        }
+      }
+    }
+    return Array.from(byId.values());
+  };
+
+  const isUuidString = (val: any): boolean =>
+    typeof val === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
+
+  const loadCloudStudyMaterials = async (): Promise<{ items: any[]; deletedIds: string[] }> => {
+    const deletedSet = new Set<string>();
+    let jsonItems: any[] = [];
+    let tableItems: any[] = [];
+
+    try {
+      const { data: settingsRow } = await serverSupabase
+        .from("settings")
+        .select("data")
+        .eq("id", "sync_study_materials")
+        .maybeSingle();
+      if (settingsRow && (settingsRow as any).data) {
+        const payload = (settingsRow as any).data;
+        if (Array.isArray(payload.items)) jsonItems = payload.items;
+        if (Array.isArray(payload.deletedIds)) {
+          payload.deletedIds.forEach((id: any) => deletedSet.add(String(id)));
+        }
+      }
+    } catch {
+      // Cloud optional fallback
+    }
+
+    try {
+      const { data: rows } = await serverSupabase.from("study_materials").select("*");
+      if (Array.isArray(rows)) {
+        tableItems = rows.map((row: any) => ({
+          id: row.id,
+          materialId: row.id,
+          title: row.title || "Untitled Resource",
+          class: row.class_name || "Class 10",
+          className: row.class_name || "Class 10",
+          subject: row.subject || "General",
+          fileUrl: row.file_url || "",
+          file: row.file_url || "",
+          materialType: row.file_type || "PDF",
+          size: row.file_size || "1.0 MB",
+          uploadedBy: row.uploaded_by || "Admin",
+          createdBy: row.uploaded_by || "Admin",
+          isPublic: row.is_public !== undefined ? !!row.is_public : true,
+          downloadCount: Number(row.download_count ?? 0),
+          status: "PUBLISHED",
+          createdAt: row.created_at || new Date().toISOString(),
+          updatedAt: row.created_at || new Date().toISOString()
+        }));
+      }
+    } catch {
+      // Cloud optional fallback
+    }
+
+    return {
+      items: mergeMaterialListsServer([tableItems, jsonItems], deletedSet),
+      deletedIds: Array.from(deletedSet)
+    };
+  };
+
+  const persistCloudStudyMaterials = async (
+    items: any[],
+    deletedIds: string[],
+    changedDoc?: any,
+    deletedDocIds?: string[]
+  ): Promise<void> => {
+    try {
+      await serverSupabase.from("settings").upsert({
+        id: "sync_study_materials",
+        data: {
+          items,
+          deletedIds,
+          updatedAt: new Date().toISOString()
+        },
+        updated_at: new Date().toISOString()
+      });
+    } catch (err) {
+      console.warn("[Sync Server] Cloud JSONB persist notice for study_materials:", (err as any)?.message || err);
+    }
+
+    if (changedDoc && isUuidString(changedDoc.id)) {
+      try {
+        await serverSupabase.from("study_materials").upsert({
+          id: changedDoc.id,
+          title: changedDoc.title || "Untitled Resource",
+          class_name: changedDoc.class || changedDoc.className || "Class 10",
+          subject: changedDoc.subject || "General",
+          file_url: changedDoc.fileUrl || changedDoc.externalUrl || changedDoc.file || "",
+          file_type: changedDoc.materialType || "PDF",
+          file_size: changedDoc.size || "1.0 MB",
+          uploaded_by: changedDoc.uploadedBy || changedDoc.createdBy || "Admin",
+          is_public: changedDoc.isPublic !== undefined ? !!changedDoc.isPublic : true,
+          download_count: Number(changedDoc.downloadCount ?? 0),
+          created_at: changedDoc.createdAt || new Date().toISOString()
+        });
+      } catch {
+        // Non-blocking fallback
+      }
+    }
+
+    if (Array.isArray(deletedDocIds) && deletedDocIds.length > 0) {
+      const uuidDeletes = deletedDocIds.filter(isUuidString);
+      if (uuidDeletes.length > 0) {
+        try {
+          await serverSupabase.from("study_materials").delete().in("id", uuidDeletes);
+        } catch {
+          // Non-blocking fallback
+        }
+      }
+    }
+  };
+
+  app.get("/api/sync/:collection", async (req, res) => {
     try {
       const col = req.params.collection;
       const store = readSyncCollection(col);
+
+      if (col === "study_materials") {
+        const cloud = await loadCloudStudyMaterials();
+        const diskDeleted: string[] = Array.isArray((store as any).deletedIds)
+          ? (store as any).deletedIds.map((v: any) => String(v))
+          : [];
+        const deletedSet = new Set<string>([...diskDeleted, ...cloud.deletedIds]);
+        const merged = mergeMaterialListsServer([SEED_STUDY_MATERIALS, store.items, cloud.items], deletedSet);
+        const nextStore = {
+          initialized: true,
+          items: merged,
+          deletedIds: Array.from(deletedSet)
+        };
+        writeSyncCollection(col, nextStore as any);
+        return res.json({
+          success: true,
+          collection: col,
+          initialized: true,
+          deletedIds: nextStore.deletedIds,
+          data: merged
+        });
+      }
+
       return res.json({
         success: true,
         collection: col,
@@ -4016,7 +4177,7 @@ How can I help you towards your academic success today? Feel free to ask!`;
     }
   });
 
-  app.post("/api/sync/:collection", (req, res) => {
+  app.post("/api/sync/:collection", async (req, res) => {
     try {
       const col = req.params.collection;
       const { docId, data, merge = true, items } = req.body;
@@ -4024,6 +4185,24 @@ How can I help you towards your academic success today? Feel free to ask!`;
 
       // If full array replacement is provided
       if (Array.isArray(items)) {
+        if (col === "study_materials") {
+          // NEVER allow a stale/seed-only array replace to wipe out existing uploaded files
+          const cloud = await loadCloudStudyMaterials();
+          const diskDeleted: string[] = Array.isArray((store as any).deletedIds)
+            ? (store as any).deletedIds.map((v: any) => String(v))
+            : [];
+          const deletedSet = new Set<string>([...diskDeleted, ...cloud.deletedIds]);
+          const merged = mergeMaterialListsServer([store.items, cloud.items, items], deletedSet);
+          const nextStore = {
+            initialized: true,
+            items: merged,
+            deletedIds: Array.from(deletedSet)
+          };
+          writeSyncCollection(col, nextStore as any);
+          persistCloudStudyMaterials(merged, nextStore.deletedIds).catch(() => {});
+          return res.json({ success: true, count: merged.length, data: merged });
+        }
+
         store.initialized = true;
         store.items = items;
         writeSyncCollection(col, store);
@@ -4036,6 +4215,33 @@ How can I help you towards your academic success today? Feel free to ask!`;
 
       const targetId = String(docId || data.id);
       const fullDoc = { ...data, id: targetId, updatedAt: new Date().toISOString() };
+
+      if (col === "study_materials") {
+        const cloud = await loadCloudStudyMaterials();
+        const diskDeleted: string[] = Array.isArray((store as any).deletedIds)
+          ? (store as any).deletedIds.map((v: any) => String(v))
+          : [];
+        const deletedSet = new Set<string>([...diskDeleted, ...cloud.deletedIds]);
+        deletedSet.delete(targetId);
+        const existingMerged = mergeMaterialListsServer([store.items, cloud.items], deletedSet);
+        const idx = existingMerged.findIndex(
+          (item: any) => String(item.id || item.materialId) === targetId
+        );
+        if (idx > -1) {
+          existingMerged[idx] = merge ? { ...existingMerged[idx], ...fullDoc } : fullDoc;
+        } else {
+          existingMerged.unshift(fullDoc);
+        }
+        const nextStore = {
+          initialized: true,
+          items: existingMerged,
+          deletedIds: Array.from(deletedSet)
+        };
+        writeSyncCollection(col, nextStore as any);
+        persistCloudStudyMaterials(existingMerged, nextStore.deletedIds, fullDoc).catch(() => {});
+        return res.json({ success: true, data: fullDoc, count: existingMerged.length });
+      }
+
       const index = store.items.findIndex((item: any) => 
         String(item.id || item.materialId || item.rollNo || item.studentId) === targetId
       );
@@ -4055,11 +4261,33 @@ How can I help you towards your academic success today? Feel free to ask!`;
     }
   });
 
-  app.delete("/api/sync/:collection/:docId", (req, res) => {
+  app.delete("/api/sync/:collection/:docId", async (req, res) => {
     try {
       const col = req.params.collection;
       const docId = String(req.params.docId);
       const store = readSyncCollection(col);
+
+      if (col === "study_materials") {
+        const cloud = await loadCloudStudyMaterials();
+        const diskDeleted: string[] = Array.isArray((store as any).deletedIds)
+          ? (store as any).deletedIds.map((v: any) => String(v))
+          : [];
+        const deletedSet = new Set<string>([...diskDeleted, ...cloud.deletedIds, docId]);
+        const existingMerged = mergeMaterialListsServer([store.items, cloud.items], deletedSet);
+        const nextStore = {
+          initialized: true,
+          items: existingMerged,
+          deletedIds: Array.from(deletedSet)
+        };
+        writeSyncCollection(col, nextStore as any);
+        persistCloudStudyMaterials(existingMerged, nextStore.deletedIds, undefined, [docId]).catch(() => {});
+        return res.json({
+          success: true,
+          deletedId: docId,
+          remainingCount: existingMerged.length,
+          deleted: true
+        });
+      }
 
       const prevCount = store.items.length;
       store.items = store.items.filter((item: any) => 
@@ -4079,7 +4307,7 @@ How can I help you towards your academic success today? Feel free to ask!`;
     }
   });
 
-  app.post("/api/sync/:collection/batch-delete", (req, res) => {
+  app.post("/api/sync/:collection/batch-delete", async (req, res) => {
     try {
       const col = req.params.collection;
       const { docIds } = req.body;
@@ -4089,6 +4317,28 @@ How can I help you towards your academic success today? Feel free to ask!`;
 
       const idSet = new Set(docIds.map((id: any) => String(id)));
       const store = readSyncCollection(col);
+
+      if (col === "study_materials") {
+        const cloud = await loadCloudStudyMaterials();
+        const diskDeleted: string[] = Array.isArray((store as any).deletedIds)
+          ? (store as any).deletedIds.map((v: any) => String(v))
+          : [];
+        const deletedSet = new Set<string>([...diskDeleted, ...cloud.deletedIds, ...Array.from(idSet)]);
+        const existingMerged = mergeMaterialListsServer([store.items, cloud.items], deletedSet);
+        const nextStore = {
+          initialized: true,
+          items: existingMerged,
+          deletedIds: Array.from(deletedSet)
+        };
+        writeSyncCollection(col, nextStore as any);
+        persistCloudStudyMaterials(existingMerged, nextStore.deletedIds, undefined, Array.from(idSet)).catch(() => {});
+        return res.json({
+          success: true,
+          deletedCount: docIds.length,
+          remainingCount: existingMerged.length
+        });
+      }
+
       store.items = store.items.filter((item: any) => 
         !idSet.has(String(item.id || item.materialId || item.rollNo || item.studentId))
       );
