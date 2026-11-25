@@ -490,7 +490,7 @@ export const matchesSubjectSubcategory = (
   if (pattern) {
     return pattern.test(primaryText);
   }
-  return primaryText.toLowerCase().includes(key);
+  return false;
 };
 
 export const matchesSubjectFilter = (
@@ -640,8 +640,7 @@ export const matchesImportantQuestionsSubject = (
   item: StudyMaterial,
   subjectFilter: string
 ): boolean => {
-  if (matchesSubjectFilter(item, subjectFilter)) return true;
-  return matchesSubjectSubcategory(item, subjectFilter);
+  return matchesSubjectFilter(item, subjectFilter);
 };
 
 export const matchesSearchQuery = (item: StudyMaterial, query: string): boolean => {
