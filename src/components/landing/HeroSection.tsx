@@ -33,7 +33,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onNavigateSection }) =
             {/* Main Headline */}
             <h1 className="font-display text-2xl xs:text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 dark:text-white leading-[1.18] tracking-tight">
               Hardoi District & Pihani's Premier Center for{' '}
-              <span className="bg-gradient-to-r from-amber-500 via-orange-500 to-blue-600 bg-clip-text text-transparent">
+              <span className="text-amber-600 dark:text-amber-400">
                 CBSE Coaching & Academic Excellence
               </span>
             </h1>
